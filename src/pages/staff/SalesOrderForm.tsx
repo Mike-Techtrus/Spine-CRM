@@ -1,0 +1,371 @@
+import { useEffect, useState, type SyntheticEvent } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import {
+  createSalesOrder,
+  getQuoteForConversion,
+  getSalesOrder,
+  listAccounts,
+  updateSalesOrder,
+} from '../../lib/api'
+import type { Account } from '../../lib/types'
+import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
+import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
+import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
+
+const emptyForm = {
+  quote_id: '',
+  client_id: '',
+  end_client_id: '',
+  po_number: '',
+  po_received_date: '',
+  advanced_without_po: false,
+  exception_notes: '',
+  start_date: '',
+  end_date: '',
+  quote_value: '',
+  po_value: '',
+  difference: '',
+  quote_match: false,
+  vat: '',
+  total: '',
+  rebate: '',
+  net_value: '',
+  invoiced_to_date: '',
+  outstanding_comments: '',
+}
+
+export default function SalesOrderForm() {
+  const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const quoteIdFromQuery = searchParams.get('quoteId')
+  const isEditing = Boolean(id)
+  const navigate = useNavigate()
+
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [reference, setReference] = useState<string | null>(null)
+  const [sourceQuoteNumber, setSourceQuoteNumber] = useState<string | null>(null)
+  // Sales Orders can only be created from an accepted Quote. Set when the
+  // source quote (new-from-quote flow) isn't accepted, or there's no quote
+  // at all — either way the form below is replaced with an explanation.
+  const [blocked, setBlocked] = useState<string | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
+  const isDirty = !loading && !blocked && JSON.stringify(form) !== initialSnapshot
+  const { allowNextNavigation } = useUnsavedChangesGuard(isDirty)
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        setAccounts(await listAccounts(true))
+
+        if (id) {
+          const so = await getSalesOrder(id)
+          setReference(so.reference)
+          setSourceQuoteNumber(so.quote?.quote_number ?? null)
+          const loaded = {
+            quote_id: so.quote_id ?? '',
+            client_id: so.client_id ?? '',
+            end_client_id: so.end_client_id ?? '',
+            po_number: so.po_number ?? '',
+            po_received_date: so.po_received_date ?? '',
+            advanced_without_po: so.advanced_without_po,
+            exception_notes: so.exception_notes ?? '',
+            start_date: so.start_date ?? '',
+            end_date: so.end_date ?? '',
+            quote_value: so.quote_value?.toString() ?? '',
+            po_value: so.po_value?.toString() ?? '',
+            difference: so.difference?.toString() ?? '',
+            quote_match: so.quote_match,
+            vat: so.vat?.toString() ?? '',
+            total: so.total?.toString() ?? '',
+            rebate: so.rebate?.toString() ?? '',
+            net_value: so.net_value?.toString() ?? '',
+            invoiced_to_date: so.invoiced_to_date?.toString() ?? '',
+            outstanding_comments: so.outstanding_comments ?? '',
+          }
+          setForm(loaded)
+          setInitialSnapshot(JSON.stringify(loaded))
+        } else if (quoteIdFromQuery) {
+          const q = await getQuoteForConversion(quoteIdFromQuery)
+          setSourceQuoteNumber(q.quote_number)
+          if (q.status !== 'accepted') {
+            setBlocked(
+              `Quote ${q.quote_number} hasn't been accepted yet — a Sales Order can only be created once a quote is accepted.`,
+            )
+          } else {
+            const loaded = {
+              ...emptyForm,
+              quote_id: q.id,
+              client_id: q.client_id ?? '',
+              end_client_id: q.end_client_id ?? '',
+              start_date: q.start_date ?? '',
+              end_date: q.end_date ?? '',
+              quote_value: q.value?.toString() ?? '',
+              vat: q.vat?.toString() ?? '',
+              total: q.total?.toString() ?? '',
+              rebate: q.rebate?.toString() ?? '',
+              net_value: q.net_value?.toString() ?? '',
+            }
+            setForm(loaded)
+            setInitialSnapshot(JSON.stringify(loaded))
+          }
+        } else {
+          setBlocked('Sales Orders can only be created from an accepted quote — open the quote and use "Create Sales Order from this Quote".')
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load.')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [id, quoteIdFromQuery])
+
+  function n(v: string): number | null {
+    return v === '' ? null : Number(v)
+  }
+
+  async function handleSave(e: SyntheticEvent) {
+    e.preventDefault()
+    setError(null)
+
+    if (!form.po_number && !form.advanced_without_po) {
+      setError('Provide a PO number, or confirm proceeding without a PO.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const input = {
+        quote_id: form.quote_id || null,
+        client_id: form.client_id || null,
+        end_client_id: form.end_client_id || null,
+        po_number: form.po_number || null,
+        po_received_date: form.po_received_date || null,
+        advanced_without_po: form.advanced_without_po,
+        exception_notes: form.advanced_without_po ? form.exception_notes || null : null,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        quote_value: n(form.quote_value),
+        po_value: n(form.po_value),
+        difference: n(form.difference),
+        quote_match: form.quote_match,
+        vat: n(form.vat),
+        total: n(form.total),
+        rebate: n(form.rebate),
+        net_value: n(form.net_value),
+        invoiced_to_date: n(form.invoiced_to_date),
+        timesheet_sent: null,
+        outstanding_comments: form.outstanding_comments || null,
+      }
+
+      let savedId = id
+      if (isEditing && id) {
+        await updateSalesOrder(id, input)
+      } else {
+        const created = await createSalesOrder(input)
+        savedId = created.id
+      }
+      allowNextNavigation()
+      navigate(`/staff/sales-orders/${savedId}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save sales order.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <p className="text-sm text-text-muted">Loading…</p>
+
+  if (blocked) {
+    return (
+      <div className="max-w-xl">
+        <h1 className="mb-6 text-xl font-semibold text-text">New sales order</h1>
+        <Card>
+          <p className="text-sm text-text-muted">{blocked}</p>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-xl">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-text">
+          {isEditing ? `Edit sales order ${reference ?? ''}` : 'New sales order'}
+          {sourceQuoteNumber && (
+            <span className="ml-2 font-mono-label text-xs font-normal text-text-faint">
+              from quote {sourceQuoteNumber}
+            </span>
+          )}
+        </h1>
+        {isEditing && id && (
+          <Button variant="secondary" onClick={() => navigate(`/staff/invoices/new?salesOrderId=${id}`)}>
+            Create Invoice from this Sales Order
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <form onSubmit={handleSave} onKeyDown={preventEnterSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Client</Label>
+              <Select value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })}>
+                <option value="">—</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>End client</Label>
+              <Select
+                value={form.end_client_id}
+                onChange={(e) => setForm({ ...form, end_client_id: e.target.value })}
+              >
+                <option value="">—</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>PO number</Label>
+              <Input
+                value={form.po_number}
+                onChange={(e) => setForm({ ...form, po_number: e.target.value })}
+                disabled={form.advanced_without_po}
+              />
+            </div>
+            <div>
+              <Label>PO received date</Label>
+              <Input
+                type="date"
+                value={form.po_received_date}
+                onChange={(e) => setForm({ ...form, po_received_date: e.target.value })}
+                disabled={form.advanced_without_po}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-text">
+              <input
+                type="checkbox"
+                checked={form.advanced_without_po}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    advanced_without_po: e.target.checked,
+                    po_number: e.target.checked ? '' : form.po_number,
+                    po_received_date: e.target.checked ? '' : form.po_received_date,
+                  })
+                }
+              />
+              Proceeding without a PO
+            </label>
+            {form.advanced_without_po && (
+              <div className="mt-2">
+                <Label>Exception notes (who approved proceeding without a PO, and why)</Label>
+                <Textarea
+                  rows={2}
+                  value={form.exception_notes}
+                  onChange={(e) => setForm({ ...form, exception_notes: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Start date</Label>
+              <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>End date</Label>
+              <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label>Quote value (£)</Label>
+              <Input type="number" step="0.01" value={form.quote_value} onChange={(e) => setForm({ ...form, quote_value: e.target.value })} />
+            </div>
+            <div>
+              <Label>PO value (£)</Label>
+              <Input type="number" step="0.01" value={form.po_value} onChange={(e) => setForm({ ...form, po_value: e.target.value })} />
+            </div>
+            <div>
+              <Label>Difference (£)</Label>
+              <Input type="number" step="0.01" value={form.difference} onChange={(e) => setForm({ ...form, difference: e.target.value })} />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input
+              type="checkbox"
+              checked={form.quote_match}
+              onChange={(e) => setForm({ ...form, quote_match: e.target.checked })}
+            />
+            Quote matches PO
+          </label>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label>VAT (£)</Label>
+              <Input type="number" step="0.01" value={form.vat} onChange={(e) => setForm({ ...form, vat: e.target.value })} />
+            </div>
+            <div>
+              <Label>Total (£)</Label>
+              <Input type="number" step="0.01" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} />
+            </div>
+            <div>
+              <Label>Rebate (£)</Label>
+              <Input type="number" step="0.01" value={form.rebate} onChange={(e) => setForm({ ...form, rebate: e.target.value })} />
+            </div>
+            <div>
+              <Label>Net value (£)</Label>
+              <Input type="number" step="0.01" value={form.net_value} onChange={(e) => setForm({ ...form, net_value: e.target.value })} />
+            </div>
+            <div>
+              <Label>Invoiced to date (£)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.invoiced_to_date}
+                onChange={(e) => setForm({ ...form, invoiced_to_date: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Outstanding / comments</Label>
+            <Textarea
+              rows={3}
+              value={form.outstanding_comments}
+              onChange={(e) => setForm({ ...form, outstanding_comments: e.target.value })}
+            />
+          </div>
+
+          <ErrorText>{error}</ErrorText>
+
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Saving…' : 'Save sales order'}
+          </Button>
+        </form>
+      </Card>
+    </div>
+  )
+}

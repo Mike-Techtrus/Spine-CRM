@@ -1,0 +1,309 @@
+// Hand-written types mirroring the Supabase schema in supabase/migrations/*.sql.
+// If you prefer, generate these instead with the Supabase CLI:
+//   npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts
+
+export type UserRole = 'staff' | 'field_engineer'
+
+export interface Profile {
+  id: string // = auth.users.id
+  full_name: string
+  role: UserRole
+  created_at: string
+}
+
+// ── Accounts / Contacts ─────────────────────────────────────────────────────
+
+export interface Account {
+  id: string
+  name: string
+  website: string | null
+  phone: string | null
+  email: string | null
+  city: string | null
+  postcode: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface Contact {
+  id: string
+  account_id: string | null
+  name: string
+  email: string | null
+  phone: string | null
+  created_at: string
+}
+
+// ── Field engineers / timesheets ────────────────────────────────────────────
+
+export interface FieldEngineer {
+  id: string
+  user_id: string | null // linked auth user once they've been invited/activated
+  name: string
+  email: string
+  phone: string | null
+  day_rate: number | null
+  is_active: boolean
+  created_at: string
+}
+
+export type DayType = 'full_day' | 'half_day_am' | 'half_day_pm'
+export type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
+
+export interface TimesheetEntry {
+  id: string
+  reference: string // human-friendly e.g. TS-000123
+  field_engineer_id: string
+  client_id: string
+  project_reference: string | null
+  work_date: string // date, 'YYYY-MM-DD'
+  day_type: DayType
+  work_description: string | null
+  status: TimesheetStatus
+  submitted_on: string | null
+  approved_by: string | null // profiles.id of the approving staff member
+  approved_on: string | null
+  rejection_notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Convenience joined shape used in staff/engineer list views
+export interface TimesheetEntryWithRelations extends TimesheetEntry {
+  field_engineer: Pick<FieldEngineer, 'id' | 'name' | 'email'>
+  client: Pick<Account, 'id' | 'name'>
+  approver: Pick<Profile, 'id' | 'full_name'> | null
+}
+
+export const DAY_TYPE_LABELS: Record<DayType, string> = {
+  full_day: 'Full day',
+  half_day_am: 'Half day (AM)',
+  half_day_pm: 'Half day (PM)',
+}
+
+export const STATUS_LABELS: Record<TimesheetStatus, string> = {
+  draft: 'Draft',
+  submitted: 'Submitted',
+  approved: 'Approved',
+  rejected: 'Rejected',
+}
+
+// ── Opportunities ───────────────────────────────────────────────────────────
+
+export type OpportunitySource = 'email' | 'web_form' | 'phone' | 'referral' | 'other'
+export type OpportunityStage = 'qualifying' | 'quoting' | 'quote_accepted' | 'po_received'
+
+export interface Opportunity {
+  id: string
+  opportunity_number: string // auto-generated, e.g. "TECHOPP10000" — ours, not the customer's
+  name: string // UI label: "Customer Opp Name"
+  customer_opportunity_number: string | null // the customer's own number (e.g. CDW's "OPP#"), not ours
+  opportunity_owner: string | null
+  billing_account_id: string | null
+  client_id: string | null
+  contact_id: string | null
+  description: string | null
+  estimated_value: number | null
+  expected_close_date: string | null
+  source: OpportunitySource | null
+  stage: OpportunityStage
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface OpportunityWithRelations extends Opportunity {
+  // billing_account_id carries the "Client" label in the UI; client_id carries "End Client" —
+  // kept as the underlying column names inherited from the Dataverse design, but surfaced here
+  // under the same client/end_client naming the rest of the pipeline (Quote, Sales Order, Invoice) uses.
+  client: Pick<Account, 'id' | 'name'> | null // = billing_account_id
+  end_client: Pick<Account, 'id' | 'name'> | null // = client_id
+}
+
+export const OPPORTUNITY_SOURCE_LABELS: Record<OpportunitySource, string> = {
+  email: 'Email',
+  web_form: 'Web form',
+  phone: 'Phone',
+  referral: 'Referral',
+  other: 'Other',
+}
+
+export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
+  qualifying: 'Qualifying',
+  quoting: 'Quoting',
+  quote_accepted: 'Quote accepted',
+  po_received: 'PO received',
+}
+
+// ── Quotes ───────────────────────────────────────────────────────────────────
+
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired'
+
+export interface Quote {
+  id: string
+  quote_number: string
+  opportunity_id: string | null
+  client_id: string | null
+  end_client_id: string | null
+  contact_id: string | null
+  quote_date: string | null
+  start_date: string | null
+  end_date: string | null
+  value: number | null
+  vat: number | null
+  total: number | null
+  rebate: number | null
+  net_value: number | null
+  status: QuoteStatus
+  comments: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Granular breakdown of what makes up a quote's Value — mirrors the "Quote"
+// sheet layout in the SharePoint quote workbooks (Line Type / Engineering
+// Level / Description / Description 2 / Vendor / Qty / Expected Cost / Total).
+export interface QuoteLine {
+  id: string
+  quote_id: string
+  sort_order: number
+  line_type: string
+  part_code: string | null // "Engineering Level" column — e.g. L2 Engineer, Team Lead, LOGISTICS
+  description: string | null
+  description_2: string | null
+  vendor: string | null // outsourcing/supplier code, e.g. TEC410
+  qty: number
+  unit_cost: number
+  line_total: number // = qty * unit_cost, calculated by the database
+  created_at: string
+  updated_at: string
+}
+
+// Suggestions offered in the line-item form — both lists are maintained ad
+// hoc in the source spreadsheets, so these aren't enforced, just offered.
+export const QUOTE_LINE_TYPE_SUGGESTIONS = ['Outsource Resource', 'EXPENSES', 'LOGISTICS']
+export const QUOTE_LINE_PART_CODE_SUGGESTIONS = [
+  'L1 Engineer',
+  'L2 Engineer',
+  'L3 Engineer',
+  'L4 Engineer',
+  'Team Lead',
+  'Project Manager',
+  'Project Co-Ordinator',
+  'EXPENSES',
+  'LOGISTICS',
+]
+
+export interface QuoteWithRelations extends Quote {
+  client: Pick<Account, 'id' | 'name'> | null
+  end_client: Pick<Account, 'id' | 'name'> | null
+  opportunity: Pick<Opportunity, 'id' | 'name' | 'opportunity_number'> | null
+}
+
+export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
+  draft: 'Draft',
+  sent: 'Sent',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  expired: 'Expired',
+}
+
+// Quotes are valid for 30 days from their quote date (falling back to when
+// they were created, if no quote date is set). Kept in sync with the
+// `expire_old_quotes` function in supabase/migrations/0008_quote_expiry_automation.sql,
+// which actually flips the stored status server-side once a day.
+export const QUOTE_VALIDITY_DAYS = 30
+
+export function quoteExpiresOn(quote: Pick<Quote, 'quote_date' | 'created_at'>): Date {
+  const base = new Date(quote.quote_date ?? quote.created_at)
+  const expires = new Date(base)
+  expires.setDate(expires.getDate() + QUOTE_VALIDITY_DAYS)
+  return expires
+}
+
+// ── Sales orders ─────────────────────────────────────────────────────────────
+
+export interface SalesOrder {
+  id: string
+  reference: string
+  quote_id: string | null
+  client_id: string | null
+  end_client_id: string | null
+  po_number: string | null
+  po_received_date: string | null
+  advanced_without_po: boolean
+  exception_notes: string | null
+  start_date: string | null
+  end_date: string | null
+  quote_value: number | null
+  po_value: number | null
+  difference: number | null
+  quote_match: boolean
+  vat: number | null
+  total: number | null
+  rebate: number | null
+  net_value: number | null
+  invoiced_to_date: number | null
+  timesheet_sent: string | null
+  outstanding_comments: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SalesOrderWithRelations extends SalesOrder {
+  client: Pick<Account, 'id' | 'name'> | null
+  end_client: Pick<Account, 'id' | 'name'> | null
+  quote: Pick<Quote, 'id' | 'quote_number'> | null
+}
+
+// ── Invoices ─────────────────────────────────────────────────────────────────
+
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'cancelled'
+
+export interface Invoice {
+  id: string
+  invoice_number: string
+  quote_id: string | null
+  sales_order_id: string | null
+  client_id: string | null
+  end_client_id: string | null
+  po_number: string | null
+  invoice_date: string | null
+  due_date: string | null
+  invoice_period_from: string | null
+  invoice_period_to: string | null
+  value: number | null
+  vat: number | null
+  total: number | null
+  rebate: number | null
+  net_value: number | null
+  status: InvoiceStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface InvoiceWithRelations extends Invoice {
+  client: Pick<Account, 'id' | 'name'> | null
+  end_client: Pick<Account, 'id' | 'name'> | null
+  sales_order: Pick<SalesOrder, 'id' | 'reference'> | null
+}
+
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  draft: 'Draft',
+  sent: 'Sent',
+  paid: 'Paid',
+  cancelled: 'Cancelled',
+}
+
+// ── Payments ─────────────────────────────────────────────────────────────────
+
+export interface Payment {
+  id: string
+  reference: string
+  invoice_id: string
+  payment_date: string | null
+  original_amount: number | null
+  remaining_amount: number | null
+  payment_amount: number
+  created_at: string
+}
