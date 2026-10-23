@@ -72,7 +72,7 @@ export default function OpportunityForm() {
             description: opp.description ?? '',
             estimated_value: opp.estimated_value?.toString() ?? '',
             expected_close_date: opp.expected_close_date ?? '',
-            source: opp.source ?? '',
+            source: (opp.source ?? '') as OpportunitySource | '',
             stage: opp.stage,
           }
           setForm(loaded)
