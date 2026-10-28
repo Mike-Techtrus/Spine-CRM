@@ -159,7 +159,7 @@ function AddUserForm({ onAdded }: { onAdded: () => Promise<void> }) {
           </div>
         ) : (
           <p className="text-xs text-text-muted">
-            Field engineers only see their own timesheets. If a Field Engineer record with this email already
+            Contractors only see their own timesheets. If a Contractor record with this email already
             exists, the login is linked to it automatically.
           </p>
         )}

@@ -62,7 +62,7 @@ export default function TimesheetDetail() {
       </div>
 
       <Card className="space-y-4">
-        <Field label="Field engineer" value={`${ts.field_engineer.name} (${ts.field_engineer.email})`} />
+        <Field label="Contractor" value={`${ts.field_engineer.name} (${ts.field_engineer.email})`} />
         <Field label="Client" value={ts.client.name} />
         {ts.project_reference && <Field label="Project reference" value={ts.project_reference} />}
         <Field label="Date worked" value={ts.work_date} />
@@ -102,7 +102,7 @@ export default function TimesheetDetail() {
                 rows={3}
                 value={rejectionNotes}
                 onChange={(e) => setRejectionNotes(e.target.value)}
-                placeholder="Let the engineer know what needs fixing…"
+                placeholder="Let the contractor know what needs fixing…"
               />
               <div className="mt-3 flex gap-3">
                 <Button

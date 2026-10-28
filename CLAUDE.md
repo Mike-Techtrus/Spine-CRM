@@ -24,6 +24,8 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 
 ## Recent work (as of late Oct 2026)
 
+- "Field Engineer" is now called **"Contractor"** everywhere on screen. Only the labels changed: the database role (`field_engineer`), table (`field_engineers`), route (`/staff/engineers`), permission key (`engineers`) and code names deliberately still say engineer. Use "Contractor" in any new UI text.
+
 - Added an in-app Admin area (`src/pages/staff/admin/UserAdmin.tsx`, branch `feature/user-admin`): add users, set/email password resets, disable/re-enable accounts (a Supabase auth "ban" — no delete, by Mike's choice), change profile, per-area permissions (`profiles.permissions`, migration 0012). Admin actions go through the `admin-users` Edge Function (`supabase/functions/admin-users`) because they need the service-role key. Area permissions are enforced in the UI/routes only so far — RLS still uses `is_staff()`.
 
 - Added a Print / Export PDF feature to the Quote page (`src/pages/staff/QuoteForm.tsx`): a dedicated print-only view, hidden on screen and shown via the browser's print dialog ("Save as PDF"), styled plain black-on-white regardless of the app's dark theme. Shows client/end client, dates, line items, Value/VAT/Total (Rebate and Net value deliberately excluded per Mike's request), and a 30-day quote-validity disclaimer.

@@ -14,7 +14,7 @@ export interface Profile {
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   staff: 'Staff',
-  field_engineer: 'Field engineer',
+  field_engineer: 'Contractor',
 }
 
 // Areas a staff user can be given access to. Order here is nav order.
@@ -28,7 +28,7 @@ export const APP_AREAS = [
   { key: 'invoices', label: 'Invoices', path: '/staff/invoices' },
   { key: 'timesheets', label: 'Timesheets', path: '/staff/timesheets' },
   { key: 'accounts', label: 'Accounts', path: '/staff/accounts' },
-  { key: 'engineers', label: 'Field Engineers', path: '/staff/engineers' },
+  { key: 'engineers', label: 'Contractors', path: '/staff/engineers' },
   { key: 'admin', label: 'Admin', path: '/staff/admin' },
 ] as const
 

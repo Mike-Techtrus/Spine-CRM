@@ -93,7 +93,7 @@ export default function AllTimesheets() {
             </Select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-mono-label text-text-muted">Field engineer</label>
+            <label className="mb-1 block text-xs font-mono-label text-text-muted">Contractor</label>
             <Select value={engineerFilter} onChange={(e) => setEngineerFilter(e.target.value)}>
               <option value="">All</option>
               {engineers.map((e) => (
@@ -144,7 +144,7 @@ export default function AllTimesheets() {
                   Date
                 </Th>
                 <Th sortKey="engineer" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Engineer
+                  Contractor
                 </Th>
                 <Th sortKey="client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                   Client

@@ -72,7 +72,7 @@ export default function FieldEngineers() {
       setForm(emptyForm)
       await refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add field engineer.')
+      setError(err instanceof Error ? err.message : 'Failed to add contractor.')
     } finally {
       setSaving(false)
     }
@@ -95,7 +95,7 @@ export default function FieldEngineers() {
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold text-text">Field Engineers</h1>
+      <h1 className="mb-6 text-xl font-semibold text-text">Contractors</h1>
 
       <Card className="mb-6">
         <form onSubmit={handleAdd} className="grid grid-cols-4 items-end gap-4">
@@ -127,7 +127,7 @@ export default function FieldEngineers() {
           </div>
           <div className="col-span-4">
             <Button type="submit" disabled={saving}>
-              {saving ? 'Adding…' : 'Add field engineer'}
+              {saving ? 'Adding…' : 'Add contractor'}
             </Button>
           </div>
         </form>
@@ -137,7 +137,7 @@ export default function FieldEngineers() {
       <SearchInput
         value={query}
         onChange={setQuery}
-        placeholder="Search field engineers…"
+        placeholder="Search contractors…"
         className="mb-4 max-w-sm"
       />
 
@@ -196,7 +196,7 @@ export default function FieldEngineers() {
             ) : (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-sm text-text-muted">
-                  No field engineers match your search/filters.
+                  No contractors match your search/filters.
                 </td>
               </tr>
             )}
@@ -205,8 +205,8 @@ export default function FieldEngineers() {
       </div>
 
       <p className="mt-4 text-xs text-text-muted">
-        To give a field engineer a login: go to Admin → Add user with the same email and the Field
-        engineer profile — the login is linked to their record here automatically.
+        To give a contractor a login: go to Admin → Add user with the same email and the Contractor
+        profile — the login is linked to their record here automatically.
       </p>
     </div>
   )
