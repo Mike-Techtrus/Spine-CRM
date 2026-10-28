@@ -7,6 +7,10 @@ interface AuthContextValue {
   session: Session | null
   profile: Profile | null
   loading: boolean
+  // True after someone follows a "reset your password" email link — the app
+  // sends them to /set-password until they've chosen a new one.
+  passwordRecovery: boolean
+  clearPasswordRecovery: () => void
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -17,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   async function loadProfile(userId: string) {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
@@ -38,7 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
       setSession(newSession)
       if (newSession) {
         await loadProfile(newSession.user.id)
@@ -62,7 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{
+        session,
+        profile,
+        loading,
+        passwordRecovery,
+        clearPasswordRecovery: () => setPasswordRecovery(false),
+        signOut,
+        refreshProfile,
+      }}>
       {children}
     </AuthContext.Provider>
   )

@@ -205,10 +205,8 @@ export default function FieldEngineers() {
       </div>
 
       <p className="mt-4 text-xs text-text-muted">
-        To give a field engineer a login: invite their email from the Supabase Dashboard
-        (Authentication → Users → Invite), including <code>role: field_engineer</code> and their{' '}
-        <code>full_name</code> in the invite's user metadata, then click "Link login…" above and paste
-        their new user UUID.
+        To give a field engineer a login: go to Admin → Add user with the same email and the Field
+        engineer profile — the login is linked to their record here automatically.
       </p>
     </div>
   )

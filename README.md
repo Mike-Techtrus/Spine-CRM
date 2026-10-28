@@ -69,6 +69,29 @@ users requires Supabase's admin API, which needs a service-role key that should 
 browser app. The proper fix is a small server-side function (a Supabase Edge Function) that does
 the invite + link in one step; worth doing once this is in real use.
 
+## 4a. Admin area (user accounts and permissions)
+
+Staff with the **Admin** permission get an **Admin** tab where they can add users, set or email
+password resets, disable and re-enable accounts (deliberately no delete, so history stays intact),
+change someone's profile (Staff / Field engineer) and choose which areas of the app
+each staff member can use. This replaces the dashboard steps in §3/§4 for everyone after the first
+admin.
+
+One-off setup:
+
+1. Run `supabase/migrations/0012_user_admin.sql` in the SQL Editor. Every existing staff user is
+   given all areas, including Admin.
+2. Deploy the Edge Function in `supabase/functions/admin-users/index.ts` — Supabase Dashboard →
+   **Edge Functions → Deploy a new function**, name it `admin-users`, paste the file in. It needs
+   the service-role key, which Supabase provides to Edge Functions automatically.
+3. Supabase Dashboard → **Authentication → URL Configuration**: make sure the Site URL is the live
+   app (`https://spine-crm.vercel.app`) and add `http://localhost:5173` to Redirect URLs, so
+   password-reset emails link back to the app.
+
+Area permissions currently control the nav and which pages open; the database still lets any staff
+user read and write sales-pipeline/timesheet data. Tightening the RLS policies per area is the
+natural next step (`public.has_area('quotes')` etc. is ready for it).
+
 ## 5. Deploy to Vercel
 
 1. Push this project to a GitHub repo.

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { Button, Card, ErrorText, Eyebrow, Input, Label } from '../components/ui'
 import SpineMark from '../components/icons/SpineMark'
@@ -33,6 +34,11 @@ export default function Login() {
         setMagicLinkSent(true)
       }
     } catch (err) {
+      // Accounts disabled from the Admin area come back as Supabase "bans".
+      if (err instanceof AuthError && err.code === 'user_banned') {
+        setError('This account has been disabled. Ask your Spine CRM admin if you need access.')
+        return
+      }
       setError(err instanceof Error ? err.message : 'Something went wrong signing you in.')
     } finally {
       setSubmitting(false)

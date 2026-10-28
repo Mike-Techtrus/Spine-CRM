@@ -2,6 +2,8 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { DottedRule } from './ui'
 import SpineMark from './icons/SpineMark'
+import { canAccess } from '../lib/permissions'
+import { APP_AREAS } from '../lib/types'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -39,32 +41,11 @@ export default function Layout() {
         </div>
         <nav className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 pb-3">
           {profile?.role === 'staff' ? (
-            <>
-              <NavLink to="/staff/dashboard" className={navLinkClass}>
-                Dashboard
+            APP_AREAS.filter((a) => canAccess(profile, a.key)).map((a) => (
+              <NavLink key={a.key} to={a.path} className={navLinkClass}>
+                {a.label}
               </NavLink>
-              <NavLink to="/staff/opportunities" className={navLinkClass}>
-                Opportunities
-              </NavLink>
-              <NavLink to="/staff/quotes" className={navLinkClass}>
-                Quotes
-              </NavLink>
-              <NavLink to="/staff/sales-orders" className={navLinkClass}>
-                Sales Orders
-              </NavLink>
-              <NavLink to="/staff/invoices" className={navLinkClass}>
-                Invoices
-              </NavLink>
-              <NavLink to="/staff/timesheets" className={navLinkClass}>
-                Timesheets
-              </NavLink>
-              <NavLink to="/staff/accounts" className={navLinkClass}>
-                Accounts
-              </NavLink>
-              <NavLink to="/staff/engineers" className={navLinkClass}>
-                Field Engineers
-              </NavLink>
-            </>
+            ))
           ) : (
             <NavLink to="/my/timesheets" className={navLinkClass}>
               My Timesheets
