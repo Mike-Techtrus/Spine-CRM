@@ -8,7 +8,43 @@ export interface Profile {
   id: string // = auth.users.id
   full_name: string
   role: UserRole
+  permissions: AppArea[] // staff only — which areas they can open
   created_at: string
+}
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  staff: 'Staff',
+  field_engineer: 'Field engineer',
+}
+
+// Areas a staff user can be given access to. Order here is nav order.
+// Keep the keys in step with supabase/migrations/0012_user_admin.sql and
+// supabase/functions/admin-users/index.ts.
+export const APP_AREAS = [
+  { key: 'dashboard', label: 'Dashboard', path: '/staff/dashboard' },
+  { key: 'opportunities', label: 'Opportunities', path: '/staff/opportunities' },
+  { key: 'quotes', label: 'Quotes', path: '/staff/quotes' },
+  { key: 'sales_orders', label: 'Sales Orders', path: '/staff/sales-orders' },
+  { key: 'invoices', label: 'Invoices', path: '/staff/invoices' },
+  { key: 'timesheets', label: 'Timesheets', path: '/staff/timesheets' },
+  { key: 'accounts', label: 'Accounts', path: '/staff/accounts' },
+  { key: 'engineers', label: 'Field Engineers', path: '/staff/engineers' },
+  { key: 'admin', label: 'Admin', path: '/staff/admin' },
+] as const
+
+export type AppArea = (typeof APP_AREAS)[number]['key']
+
+// A login as seen from the Admin area — profile plus the auth details
+// (email, last sign-in) only the admin-users Edge Function can read.
+export interface AdminUser {
+  id: string
+  email: string
+  full_name: string
+  role: UserRole
+  permissions: AppArea[]
+  created_at: string
+  last_sign_in_at: string | null
+  disabled: boolean // can't sign in until re-enabled from the Admin area
 }
 
 // ── Accounts / Contacts ─────────────────────────────────────────────────────

@@ -18,15 +18,24 @@ import SalesOrderList from './pages/staff/SalesOrderList'
 import SalesOrderForm from './pages/staff/SalesOrderForm'
 import InvoiceList from './pages/staff/InvoiceList'
 import InvoiceForm from './pages/staff/InvoiceForm'
+import UserAdmin from './pages/staff/admin/UserAdmin'
+import SetPassword from './pages/SetPassword'
+import NoAccess from './pages/NoAccess'
+import { homePath } from './lib/permissions'
+import type { AppArea } from './lib/types'
 
 function RoleHome() {
   const { profile, loading } = useAuth()
   if (loading) return null
-  return <Navigate to={profile?.role === 'staff' ? '/staff/dashboard' : '/my/timesheets'} replace />
+  return <Navigate to={homePath(profile)} replace />
 }
 
-function Staff({ children }: { children: React.ReactNode }) {
-  return <ProtectedRoute allowedRoles={['staff']}>{children}</ProtectedRoute>
+function Staff({ area, children }: { area: AppArea; children: React.ReactNode }) {
+  return (
+    <ProtectedRoute allowedRoles={['staff']} area={area}>
+      {children}
+    </ProtectedRoute>
+  )
 }
 
 // A data router (rather than plain <BrowserRouter>) is required for
@@ -45,6 +54,8 @@ const router = createBrowserRouter(
         }
       >
         <Route path="/" element={<RoleHome />} />
+        <Route path="/set-password" element={<SetPassword />} />
+        <Route path="/no-access" element={<NoAccess />} />
 
         {/* Field engineer area */}
         <Route
@@ -73,31 +84,34 @@ const router = createBrowserRouter(
         />
 
         {/* Staff: dashboard */}
-        <Route path="/staff/dashboard" element={<Staff><Dashboard /></Staff>} />
+        <Route path="/staff/dashboard" element={<Staff area="dashboard"><Dashboard /></Staff>} />
 
         {/* Staff: timesheets */}
-        <Route path="/staff/timesheets" element={<Staff><AllTimesheets /></Staff>} />
-        <Route path="/staff/timesheets/:id" element={<Staff><TimesheetDetail /></Staff>} />
-        <Route path="/staff/engineers" element={<Staff><FieldEngineers /></Staff>} />
+        <Route path="/staff/timesheets" element={<Staff area="timesheets"><AllTimesheets /></Staff>} />
+        <Route path="/staff/timesheets/:id" element={<Staff area="timesheets"><TimesheetDetail /></Staff>} />
+        <Route path="/staff/engineers" element={<Staff area="engineers"><FieldEngineers /></Staff>} />
 
         {/* Staff: sales pipeline */}
-        <Route path="/staff/accounts" element={<Staff><Accounts /></Staff>} />
+        <Route path="/staff/accounts" element={<Staff area="accounts"><Accounts /></Staff>} />
 
-        <Route path="/staff/opportunities" element={<Staff><OpportunityList /></Staff>} />
-        <Route path="/staff/opportunities/new" element={<Staff><OpportunityForm /></Staff>} />
-        <Route path="/staff/opportunities/:id" element={<Staff><OpportunityForm /></Staff>} />
+        <Route path="/staff/opportunities" element={<Staff area="opportunities"><OpportunityList /></Staff>} />
+        <Route path="/staff/opportunities/new" element={<Staff area="opportunities"><OpportunityForm /></Staff>} />
+        <Route path="/staff/opportunities/:id" element={<Staff area="opportunities"><OpportunityForm /></Staff>} />
 
-        <Route path="/staff/quotes" element={<Staff><QuoteList /></Staff>} />
-        <Route path="/staff/quotes/new" element={<Staff><QuoteForm /></Staff>} />
-        <Route path="/staff/quotes/:id" element={<Staff><QuoteForm /></Staff>} />
+        <Route path="/staff/quotes" element={<Staff area="quotes"><QuoteList /></Staff>} />
+        <Route path="/staff/quotes/new" element={<Staff area="quotes"><QuoteForm /></Staff>} />
+        <Route path="/staff/quotes/:id" element={<Staff area="quotes"><QuoteForm /></Staff>} />
 
-        <Route path="/staff/sales-orders" element={<Staff><SalesOrderList /></Staff>} />
-        <Route path="/staff/sales-orders/new" element={<Staff><SalesOrderForm /></Staff>} />
-        <Route path="/staff/sales-orders/:id" element={<Staff><SalesOrderForm /></Staff>} />
+        <Route path="/staff/sales-orders" element={<Staff area="sales_orders"><SalesOrderList /></Staff>} />
+        <Route path="/staff/sales-orders/new" element={<Staff area="sales_orders"><SalesOrderForm /></Staff>} />
+        <Route path="/staff/sales-orders/:id" element={<Staff area="sales_orders"><SalesOrderForm /></Staff>} />
 
-        <Route path="/staff/invoices" element={<Staff><InvoiceList /></Staff>} />
-        <Route path="/staff/invoices/new" element={<Staff><InvoiceForm /></Staff>} />
-        <Route path="/staff/invoices/:id" element={<Staff><InvoiceForm /></Staff>} />
+        <Route path="/staff/invoices" element={<Staff area="invoices"><InvoiceList /></Staff>} />
+        <Route path="/staff/invoices/new" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
+        <Route path="/staff/invoices/:id" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
+
+        {/* Staff: administration */}
+        <Route path="/staff/admin" element={<Staff area="admin"><UserAdmin /></Staff>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
