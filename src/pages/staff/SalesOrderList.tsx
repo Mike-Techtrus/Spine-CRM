@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listSalesOrders } from '../../lib/api'
 import type { SalesOrderWithRelations } from '../../lib/types'
-import { Card, FilterSummary, SearchInput } from '../../components/ui'
+import { INVOICING_STATUS_BADGE, INVOICING_STATUS_LABELS, invoicingStatus } from '../../lib/types'
+import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
 import ColumnPicker from '../../components/ColumnPicker'
 import { useSort } from '../../lib/useSort'
@@ -29,6 +30,8 @@ function date(
 ): TableColumn<SalesOrderWithRelations> {
   return { key, label, value: (o) => o[key] ?? '', defaultHidden: true }
 }
+
+const INVOICING_OPTIONS = Object.values(INVOICING_STATUS_LABELS).map((label) => ({ value: label, label }))
 
 // Every column the Columns box offers, in default order.
 const COLUMNS: TableColumn<SalesOrderWithRelations>[] = [
@@ -68,6 +71,26 @@ const COLUMNS: TableColumn<SalesOrderWithRelations>[] = [
   money('rebate', 'Rebate'),
   money('net_value', 'Net value', false),
   money('invoiced_to_date', 'Invoiced to date', false),
+  {
+    key: 'balance',
+    label: 'Balance to invoice',
+    value: (o) => invoicingStatus(o).balance,
+    render: (o) => {
+      const { status, balance } = invoicingStatus(o)
+      if (status === 'fully_invoiced') return '£0'
+      return balance < 0 ? <span className="text-danger">−{formatMoney(-balance)}</span> : formatMoney(balance)
+    },
+  },
+  {
+    key: 'invoicing',
+    label: 'Invoicing',
+    value: (o) => INVOICING_STATUS_LABELS[invoicingStatus(o).status],
+    render: (o) => {
+      const { status } = invoicingStatus(o)
+      return <StatusBadge status={INVOICING_STATUS_BADGE[status]} label={INVOICING_STATUS_LABELS[status]} />
+    },
+    filterOptions: INVOICING_OPTIONS,
+  },
   date('timesheet_sent', 'Timesheet sent'),
   { key: 'created_at', label: 'Created', value: (o) => o.created_at.slice(0, 10), defaultHidden: true },
 ]

@@ -8,7 +8,8 @@ import {
   updateSalesOrder,
 } from '../../lib/api'
 import type { Account } from '../../lib/types'
-import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
+import { INVOICING_STATUS_BADGE, INVOICING_STATUS_LABELS, invoicingStatus } from '../../lib/types'
+import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 
@@ -53,6 +54,10 @@ export default function SalesOrderForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Closing is its own action (not part of the form save) — see 0020.
+  const [closed, setClosed] = useState<{ at: string | null; reason: string | null }>({ at: null, reason: null })
+  const [closing, setClosing] = useState(false)
+
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
   const isDirty = !loading && !blocked && JSON.stringify(form) !== initialSnapshot
   const { allowNextNavigation } = useUnsavedChangesGuard(isDirty)
@@ -89,6 +94,7 @@ export default function SalesOrderForm() {
           }
           setForm(loaded)
           setInitialSnapshot(JSON.stringify(loaded))
+          setClosed({ at: so.closed_at, reason: so.closed_reason })
         } else if (quoteIdFromQuery) {
           const q = await getQuoteForConversion(quoteIdFromQuery)
           setSourceQuoteNumber(q.quote_number)
@@ -176,6 +182,39 @@ export default function SalesOrderForm() {
     }
   }
 
+  async function handleClose() {
+    if (!id) return
+    const reason = window.prompt(
+      `Close sales order ${reference ?? ''}? It will show as Closed instead of part-invoiced. You can reopen it later.\n\nReason (optional):`,
+      '',
+    )
+    if (reason === null) return
+    setClosing(true)
+    setError(null)
+    try {
+      const so = await updateSalesOrder(id, { closed_at: new Date().toISOString(), closed_reason: reason.trim() || null })
+      setClosed({ at: so.closed_at, reason: so.closed_reason })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to close sales order.')
+    } finally {
+      setClosing(false)
+    }
+  }
+
+  async function handleReopen() {
+    if (!id) return
+    setClosing(true)
+    setError(null)
+    try {
+      await updateSalesOrder(id, { closed_at: null, closed_reason: null })
+      setClosed({ at: null, reason: null })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reopen sales order.')
+    } finally {
+      setClosing(false)
+    }
+  }
+
   if (loading) return <p className="text-sm text-text-muted">Loading…</p>
 
   if (blocked) {
@@ -189,6 +228,53 @@ export default function SalesOrderForm() {
     )
   }
 
+  // Invoicing status + balance still to invoice (net value − invoiced to date).
+  const invoicing = invoicingStatus({
+    net_value: n(form.net_value),
+    invoiced_to_date: n(form.invoiced_to_date),
+    closed_at: closed.at,
+  })
+  const money = (v: number) => `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const invoicingPanel = (
+    <Card className="mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <StatusBadge
+            status={INVOICING_STATUS_BADGE[invoicing.status]}
+            label={INVOICING_STATUS_LABELS[invoicing.status]}
+          />
+          <p className="text-sm text-text">
+            {invoicing.status === 'fully_invoiced' && 'Fully invoiced.'}
+            {(invoicing.status === 'not_invoiced' || invoicing.status === 'part_invoiced') &&
+              `${money(invoicing.balance)} still to invoice.`}
+            {invoicing.status === 'over_invoiced' && `Invoiced ${money(-invoicing.balance)} more than the net value.`}
+            {invoicing.status === 'closed' &&
+              (invoicing.balance > 0.05
+                ? `Closed with ${money(invoicing.balance)} not invoiced.`
+                : 'Closed.')}
+          </p>
+        </div>
+        {closed.at ? (
+          <Button type="button" variant="secondary" onClick={handleReopen} disabled={closing}>
+            {closing ? 'Reopening…' : 'Reopen'}
+          </Button>
+        ) : (
+          invoicing.status !== 'fully_invoiced' && (
+            <Button type="button" variant="secondary" onClick={handleClose} disabled={closing}>
+              {closing ? 'Closing…' : 'Close sales order'}
+            </Button>
+          )
+        )}
+      </div>
+      {closed.at && (
+        <p className="mt-2 text-xs text-text-muted">
+          Closed {new Date(closed.at).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
+          {closed.reason ? ` — ${closed.reason}` : ''}
+        </p>
+      )}
+    </Card>
+  )
+
   return (
     <div className="max-w-xl">
       <div className="mb-6 flex items-center justify-between">
@@ -200,12 +286,14 @@ export default function SalesOrderForm() {
             </span>
           )}
         </h1>
-        {isEditing && id && (
+        {isEditing && id && !closed.at && (
           <Button variant="secondary" onClick={() => navigate(`/staff/invoices/new?salesOrderId=${id}`)}>
             Create Invoice from this Sales Order
           </Button>
         )}
       </div>
+
+      {isEditing && id && invoicingPanel}
 
       <Card>
         <form onSubmit={handleSave} onKeyDown={preventEnterSubmit} className="space-y-4">

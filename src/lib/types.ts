@@ -392,8 +392,47 @@ export interface SalesOrder {
   invoiced_to_date: number | null
   timesheet_sent: string | null
   outstanding_comments: string | null
+  closed_at: string | null // closed without (or regardless of) being fully invoiced; null = open
+  closed_reason: string | null
   created_at: string
   updated_at: string
+}
+
+// How far through invoicing a sales order is. Invoiced to date is the sum
+// of its invoices' net values (0017), so it's compared with the order's net
+// value; a few pence either way counts as fully invoiced.
+export type InvoicingStatus = 'not_invoiced' | 'part_invoiced' | 'fully_invoiced' | 'over_invoiced' | 'closed'
+
+export const INVOICING_STATUS_LABELS: Record<InvoicingStatus, string> = {
+  not_invoiced: 'Not invoiced',
+  part_invoiced: 'Part invoiced',
+  fully_invoiced: 'Fully invoiced',
+  over_invoiced: 'Over-invoiced',
+  closed: 'Closed',
+}
+
+// StatusBadge colours (see STATUS_STYLES in components/ui.tsx).
+export const INVOICING_STATUS_BADGE: Record<InvoicingStatus, string> = {
+  not_invoiced: 'draft',
+  part_invoiced: 'submitted',
+  fully_invoiced: 'approved',
+  over_invoiced: 'rejected',
+  closed: 'expired',
+}
+
+const INVOICING_TOLERANCE = 0.05
+
+export function invoicingStatus(so: Pick<SalesOrder, 'net_value' | 'invoiced_to_date' | 'closed_at'>): {
+  status: InvoicingStatus
+  balance: number // still to invoice; negative when over-invoiced
+} {
+  const net = Number(so.net_value ?? 0)
+  const invoiced = Number(so.invoiced_to_date ?? 0)
+  const balance = Math.round((net - invoiced) * 100) / 100
+  if (so.closed_at) return { status: 'closed', balance }
+  if (invoiced === 0) return { status: 'not_invoiced', balance }
+  if (Math.abs(balance) <= INVOICING_TOLERANCE) return { status: 'fully_invoiced', balance: 0 }
+  return { status: balance > 0 ? 'part_invoiced' : 'over_invoiced', balance }
 }
 
 export interface SalesOrderWithRelations extends SalesOrder {

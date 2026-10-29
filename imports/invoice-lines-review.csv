@@ -1,0 +1,11 @@
+invoice_number,sharepoint_file,issue,sheet_net_amount,spine_value,lines_added,notes
+INV12365,2026 Invoices/September/BHFT - PORD03597778 - Invoice INV2365.xlsx,Lines total differs from Spine value,60679.36,0.00,yes,Spine value is 0.00; sheet has no Invoice No. cell (matched on file name)
+INV12366,2026 Invoices/September/ARM - PORD03626328 - Invoice INV2366.xlsx,Lines total differs from Spine value,21869.00,0.00,yes,Spine value is 0.00
+INV12367,2026 Invoices/October/BHFT - PORD03597778 - Invoice INV2367.xlsx,Invoice not in Spine,44902.68,,no,Issued 30/10/26 - not yet entered in Spine
+INV12368,2026 Invoices/October/ARM - PORD03626328 - Invoice INV2368.xlsx,Invoice not in Spine,5525.00,,no,Issued 30/10/26 - not yet entered in Spine
+INV12369,2026 Invoices/October/ARM - PORD TBC - Invoice INV2369.xlsx,Invoice not in Spine,4530.00,,no,Issued 30/10/26 - not yet entered in Spine (PO TBC)
+INV12349,2026 Invoices/May/BHFT - PORD03572014 - Invoice INV12349.xlsx,Spreadsheet holds a different invoice,58410.20,58410.20,yes,The xlsx contains INV12354 (June) - lines taken from the PDF twin instead and they match Spine. Worth re-saving the correct xlsx in SharePoint.
+INV12334,2026 Invoices/January/ARM Lund - PORD03514217 - Invoice INV12334.xlsx,Spreadsheet holds a different invoice,24990.00,24990.00,yes,The xlsx contains INV12335 (Feb) - lines taken from the PDF twin instead and they match Spine. Worth re-saving the correct xlsx in SharePoint.
+INV12304,2025 Invoices/September/QinetiQ - PORD03439910 - Invoice INV12304.xlsx,Lines total differs from Spine value,19437.50,19362.50,yes,Sheet is £75.00 higher than Spine
+INV12285,2025 Invoices/July/Essentra - PORD03404881 - Invoice INV12285.xlsx,Lines total differs from Spine value,2800.00,2400.00,yes,Sheet is £400.00 higher than Spine
+INV12295,2025 Invoices/August/Amended Essentra - PORD03404881 - Invoice INV12295.xlsx,Two files for one invoice,5700.00,5700.00,yes,Original and Amended versions both in SharePoint with identical lines - used the Amended one
