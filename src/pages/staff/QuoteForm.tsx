@@ -6,6 +6,7 @@ import {
   deleteQuote,
   getOpportunity,
   getPricedLineItems,
+  listLineTypes,
   getQuote,
   listAccounts,
   listQuoteLines,
@@ -102,6 +103,13 @@ export default function QuoteForm() {
   // it has a price, else Default) — for the "Add from rate card" picker.
   const [rateCard, setRateCard] = useState<RateCard | null>(null)
   const [pricedItems, setPricedItems] = useState<PricedLineItem[]>([])
+  const [lineTypeNames, setLineTypeNames] = useState<string[]>([])
+
+  useEffect(() => {
+    listLineTypes()
+      .then((types) => setLineTypeNames(types.filter((t) => t.is_active).map((t) => t.name)))
+      .catch(() => setLineTypeNames([]))
+  }, [])
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify({ form: emptyForm, lines: [] }))
   const isDirty = !loading && !blocked && JSON.stringify({ form, lines }) !== initialSnapshot
@@ -679,7 +687,7 @@ export default function QuoteForm() {
               </div>
             )}
             <datalist id="quote-line-type-options">
-              {QUOTE_LINE_TYPE_SUGGESTIONS.map((t) => (
+              {(lineTypeNames.length > 0 ? lineTypeNames : QUOTE_LINE_TYPE_SUGGESTIONS).map((t) => (
                 <option key={t} value={t} />
               ))}
             </datalist>

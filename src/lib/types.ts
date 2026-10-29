@@ -302,6 +302,25 @@ export interface QuoteLine {
 
 // ── Rate cards (migration 0019, Admin → Rate cards) ──────────────────────────
 
+// How a line type gets onto an invoice (migration 0021): "timesheet" = time &
+// materials, added from approved timesheets once the timesheet module drives
+// invoicing; "manual" = added to an invoice by hand.
+export type LineTypeBilling = 'timesheet' | 'manual'
+
+export const LINE_TYPE_BILLING_LABELS: Record<LineTypeBilling, string> = {
+  timesheet: 'From timesheets (T&M)',
+  manual: 'Added manually',
+}
+
+export interface LineType {
+  id: string
+  name: string
+  billing: LineTypeBilling
+  sort_order: number
+  is_active: boolean
+  created_at: string
+}
+
 export interface LineItem {
   id: string
   line_type: string

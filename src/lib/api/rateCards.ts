@@ -1,6 +1,24 @@
 import { supabase } from '../supabaseClient'
-import type { LineItem, RateCard, RateCardPrice } from '../types'
+import type { LineItem, LineType, LineTypeBilling, RateCard, RateCardPrice } from '../types'
 import { unwrap } from './_shared'
+
+// ── Line types (0021) ──────────────────────────────────────────────────────
+
+export async function listLineTypes(): Promise<LineType[]> {
+  return unwrap(await supabase.from('line_types').select('*').order('sort_order').order('name'))
+}
+
+export async function createLineType(name: string, billing: LineTypeBilling, sort_order: number): Promise<LineType> {
+  return unwrap(await supabase.from('line_types').insert({ name, billing, sort_order }).select().single())
+}
+
+// Renaming cascades to the line items using it (foreign key "on update cascade").
+export async function updateLineType(
+  id: string,
+  input: Partial<Pick<LineType, 'name' | 'billing' | 'is_active'>>,
+): Promise<LineType> {
+  return unwrap(await supabase.from('line_types').update(input).eq('id', id).select().single())
+}
 
 // ── Line items ─────────────────────────────────────────────────────────────
 

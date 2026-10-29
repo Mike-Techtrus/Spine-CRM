@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   createLineItem,
+  createLineType,
   createRateCard,
   deleteRateCard,
   listAccounts,
   listLineItems,
+  listLineTypes,
   listRateCardPrices,
   listRateCards,
   setRateCardPrice,
   updateLineItem,
+  updateLineType,
   updateRateCard,
 } from '../../../lib/api'
 import type { Account, LineItem, RateCard, RateCardPrice } from '../../../lib/types'
-import { QUOTE_LINE_TYPE_SUGGESTIONS } from '../../../lib/types'
-import { Button, Card, ErrorText, Input, Label, SearchInput } from '../../../components/ui'
+import { LINE_TYPE_BILLING_LABELS, type LineType, type LineTypeBilling } from '../../../lib/types'
+import { Button, Card, ErrorText, Input, Label, SearchInput, Select } from '../../../components/ui'
 import AdminTabs from './AdminTabs'
 
 function friendlyError(err: unknown, fallback: string) {
@@ -40,10 +43,20 @@ export default function RateCardsAdmin() {
   const [query, setQuery] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [newCardName, setNewCardName] = useState('')
-  const [newItem, setNewItem] = useState({ line_type: 'Outsource Resource', part_code: '', description: '' })
+  const [newItem, setNewItem] = useState({ line_type: 'Resource', part_code: '', description: '' })
+  const [lineTypes, setLineTypes] = useState<LineType[]>([])
+  const [newType, setNewType] = useState<{ name: string; billing: LineTypeBilling }>({ name: '', billing: 'manual' })
+  const activeTypes = lineTypes.filter((t) => t.is_active)
 
   async function refresh() {
-    const [c, i, p, a] = await Promise.all([listRateCards(), listLineItems(), listRateCardPrices(), listAccounts()])
+    const [c, i, p, a, t] = await Promise.all([
+      listRateCards(),
+      listLineItems(),
+      listRateCardPrices(),
+      listAccounts(),
+      listLineTypes(),
+    ])
+    setLineTypes(t)
     setCards(c)
     setItems(i)
     setPrices(p)
@@ -115,7 +128,7 @@ export default function RateCardsAdmin() {
     const ok = await run(
       () =>
         createLineItem({
-          line_type: newItem.line_type.trim() || 'Outsource Resource',
+          line_type: newItem.line_type,
           part_code: newItem.part_code.trim(),
           description: newItem.description.trim() || null,
         }),
@@ -124,17 +137,32 @@ export default function RateCardsAdmin() {
     if (ok) setNewItem({ ...newItem, part_code: '', description: '' })
   }
 
+  // Line type is changed with the dropdown in the table.
   function editItem(item: LineItem) {
     const part_code = window.prompt('Part code', item.part_code)?.trim()
     if (part_code === undefined || part_code === '') return
-    const line_type = window.prompt('Line type', item.line_type)?.trim()
-    if (line_type === undefined || line_type === '') return
     const description = window.prompt('Default description (optional)', item.description ?? '')
     if (description === null) return
     run(
-      () => updateLineItem(item.id, { part_code, line_type, description: description.trim() || null }),
+      () => updateLineItem(item.id, { part_code, description: description.trim() || null }),
       'Failed to update line item.',
     )
+  }
+
+  async function handleAddType(e: FormEvent) {
+    e.preventDefault()
+    const name = newType.name.trim()
+    if (!name) return
+    const nextOrder = Math.max(0, ...lineTypes.map((t) => t.sort_order)) + 1
+    if (await run(() => createLineType(name, newType.billing, nextOrder), 'Failed to add line type.')) {
+      setNewType({ name: '', billing: 'manual' })
+    }
+  }
+
+  function renameType(t: LineType) {
+    const name = window.prompt('Rename line type (its line items follow)', t.name)?.trim()
+    if (!name || name === t.name) return
+    run(() => updateLineType(t.id, { name }), 'Failed to rename line type.')
   }
 
   return (
@@ -241,7 +269,24 @@ export default function RateCardsAdmin() {
                           </p>
                           {item.description && <p className="text-xs text-text-muted">{item.description}</p>}
                         </td>
-                        <td className="px-3 py-2 text-text-muted">{item.line_type}</td>
+                        <td className="px-3 py-2">
+                          <Select
+                            aria-label={`Line type for ${item.part_code}`}
+                            value={item.line_type}
+                            onChange={(e) =>
+                              run(() => updateLineItem(item.id, { line_type: e.target.value }), 'Failed to update line type.')
+                            }
+                            className="py-1 text-xs"
+                          >
+                            {lineTypes
+                              .filter((t) => t.is_active || t.name === item.line_type)
+                              .map((t) => (
+                                <option key={t.id} value={t.name}>
+                                  {t.name}
+                                </option>
+                              ))}
+                          </Select>
+                        </td>
                         {!selected.is_default && (
                           <td className="px-3 py-2 text-right text-text-muted">{money(priceOf(defaultCard?.id, item.id))}</td>
                         )}
@@ -298,16 +343,13 @@ export default function RateCardsAdmin() {
           </div>
           <div>
             <Label>Line type</Label>
-            <Input
-              list="rate-card-line-types"
-              value={newItem.line_type}
-              onChange={(e) => setNewItem({ ...newItem, line_type: e.target.value })}
-            />
-            <datalist id="rate-card-line-types">
-              {QUOTE_LINE_TYPE_SUGGESTIONS.map((t) => (
-                <option key={t} value={t} />
+            <Select value={newItem.line_type} onChange={(e) => setNewItem({ ...newItem, line_type: e.target.value })}>
+              {activeTypes.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
               ))}
-            </datalist>
+            </Select>
           </div>
           <div>
             <Label>Default description (optional)</Label>
@@ -319,9 +361,95 @@ export default function RateCardsAdmin() {
         </form>
         <p className="mt-2 text-xs text-text-faint">Then give it a price on the Default card (and any custom cards) above.</p>
       </Card>
+
+      {/* Line types */}
+      <Card className="mt-6">
+        <h2 className="mb-1 text-sm font-semibold text-text">Line types</h2>
+        <p className="mb-4 text-xs text-text-muted">
+          How each type gets onto an invoice. <strong>From timesheets (T&amp;M)</strong> types will be added to invoices
+          automatically from approved timesheets once the timesheet module does invoicing; <strong>Added manually</strong>{' '}
+          types are put on an invoice by hand.
+        </p>
+        <div className="mb-4 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
+              <tr>
+                <th className="px-3 py-2">Line type</th>
+                <th className="w-64 px-3 py-2">Billed</th>
+                <th className="px-3 py-2">Line items</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {lineTypes.map((t) => (
+                <tr key={t.id} className="border-t border-border">
+                  <td className={`px-3 py-2 ${t.is_active ? 'text-text' : 'text-text-faint'}`}>
+                    {t.name}
+                    {!t.is_active && <span className="ml-2 text-xs">(inactive)</span>}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Select
+                      aria-label={`How ${t.name} is billed`}
+                      value={t.billing}
+                      onChange={(e) =>
+                        run(() => updateLineType(t.id, { billing: e.target.value as LineTypeBilling }), 'Failed to update.')
+                      }
+                      className="py-1 text-xs"
+                    >
+                      {BILLING_OPTIONS.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                  </td>
+                  <td className="px-3 py-2 text-text-muted">{items.filter((i) => i.line_type === t.name).length}</td>
+                  <td className="px-3 py-2 text-right">
+                    <span className="flex justify-end gap-3 text-xs">
+                      <button onClick={() => renameType(t)} className="text-accent hover:underline">
+                        Rename
+                      </button>
+                      <button
+                        onClick={() => run(() => updateLineType(t.id, { is_active: !t.is_active }), 'Failed to update.')}
+                        className="text-text-muted hover:text-text"
+                      >
+                        {t.is_active ? 'Deactivate' : 'Reactivate'}
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <form onSubmit={handleAddType} className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label>New line type</Label>
+            <Input value={newType.name} onChange={(e) => setNewType({ ...newType, name: e.target.value })} />
+          </div>
+          <div>
+            <Label>Billed</Label>
+            <Select
+              value={newType.billing}
+              onChange={(e) => setNewType({ ...newType, billing: e.target.value as LineTypeBilling })}
+            >
+              {BILLING_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Button type="submit" variant="secondary" disabled={!newType.name.trim()}>
+            Add line type
+          </Button>
+        </form>
+      </Card>
     </div>
   )
 }
+
+const BILLING_OPTIONS = Object.entries(LINE_TYPE_BILLING_LABELS) as [LineTypeBilling, string][]
 
 // A price box that saves when you leave it (only if the value changed).
 function PriceInput({

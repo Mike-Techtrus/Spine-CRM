@@ -9,3 +9,11 @@ INV12334,2026 Invoices/January/ARM Lund - PORD03514217 - Invoice INV12334.xlsx,S
 INV12304,2025 Invoices/September/QinetiQ - PORD03439910 - Invoice INV12304.xlsx,Lines total differs from Spine value,19437.50,19362.50,yes,Sheet is £75.00 higher than Spine
 INV12285,2025 Invoices/July/Essentra - PORD03404881 - Invoice INV12285.xlsx,Lines total differs from Spine value,2800.00,2400.00,yes,Sheet is £400.00 higher than Spine
 INV12295,2025 Invoices/August/Amended Essentra - PORD03404881 - Invoice INV12295.xlsx,Two files for one invoice,5700.00,5700.00,yes,Original and Amended versions both in SharePoint with identical lines - used the Amended one
+INV12244,2025 Invoices/March/EDF Energy - PORD03308779 - Invoice INV12244.xlsx,Spreadsheet holds a different invoice,1150.00,1150.00,yes,The xlsx contains INV12248 - lines taken from the PDF twin instead and they match Spine
+INV12125,2024 Invoices/May/BHFT - PORD03143166 - Invoice INV12125.xlsx,Spreadsheet holds a different invoice,12885.38,12885.38,yes,The xlsx contains INV12218 - lines taken from the PDF twin instead and they match Spine
+INV12111,2024 Invoices/April/BHFT - PORD03076831 - Invoice INV12111.xlsx,Lines total differs from Spine value,18397.96,18597.96,yes,Sheet is £200.00 lower than Spine
+INV12077,2024 Invoices/February/BHFT - PORD03076831 - Invoice INV12077.xlsx,Lines total differs from Spine value,18308.18,18108.18,yes,Sheet is £200.00 higher than Spine
+INV11418,2024 Invoices/February/Whitgift Foundation -  PORD03117384 - Invoice INV11418.xlsx,Old invoice filed in a later folder,3250.00,3250.00,yes,Aug 2022 invoice found in the Feb 2024 folder (no PO on sheet); lines match Spine
+INV11425,2024 Invoices/February/Whitgift Foundation -  PORD03117384 - Invoice INV11425.xlsx,Old invoice filed in a later folder,2600.00,2600.00,yes,Aug 2022 invoice found in the Feb 2024 folder; lines match Spine
+INV12061,2024 Invoices/January/ION Group - PORD03129928 - Invoice INV12061.xlsx,Invoice No. cell typo on sheet,1400.00,1400.00,yes,Sheet's Invoice No. cell says INV12062 but file name/PO/amount match INV12061 - lines added to INV12061
+INV12013,2023 Invoices/November/Amended BHFT - PORD03034547 - Invoice INV12013.xlsx,Two files for one invoice,2589.23,2589.23,yes,Original (£4058.57 incl. an extra L2 line) and Amended (£2589.23) both in SharePoint - used the Amended one which matches Spine
