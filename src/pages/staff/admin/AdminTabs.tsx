@@ -4,6 +4,7 @@ import SectionTabs from '../../../components/SectionTabs'
 const SECTIONS = [
   { label: 'Logins', path: '/staff/admin/logins' },
   { label: 'Skills', path: '/staff/admin/skills' },
+  { label: 'Rate cards', path: '/staff/admin/rate-cards' },
   { label: 'Invoice settings', path: '/staff/admin/invoice-settings' },
 ]
 

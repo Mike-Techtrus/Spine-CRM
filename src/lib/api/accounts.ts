@@ -18,6 +18,7 @@ export interface AccountInput {
   phone: string | null
   email: string | null
   billing_name: string | null
+  rate_card_id: string | null
   address_line_1: string | null
   address_line_2: string | null
   city: string | null

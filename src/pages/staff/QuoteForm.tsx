@@ -1,17 +1,18 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { QuoteLineInput } from '../../lib/api'
+import type { PricedLineItem, QuoteLineInput } from '../../lib/api'
 import {
   createQuote,
   deleteQuote,
   getOpportunity,
+  getPricedLineItems,
   getQuote,
   listAccounts,
   listQuoteLines,
   replaceQuoteLines,
   updateQuote,
 } from '../../lib/api'
-import type { Account, QuoteStatus } from '../../lib/types'
+import type { Account, QuoteStatus, RateCard } from '../../lib/types'
 import {
   QUOTE_LINE_PART_CODE_SUGGESTIONS,
   QUOTE_LINE_TYPE_SUGGESTIONS,
@@ -36,6 +37,7 @@ type LocalLine = {
   vendor: string
   qty: string
   unit_cost: string
+  line_item_id: string // rate-card line item it came from ('' = typed in by hand)
 }
 
 function newLineKey(): string {
@@ -52,6 +54,7 @@ function emptyLine(): LocalLine {
     vendor: '',
     qty: '1',
     unit_cost: '0',
+    line_item_id: '',
   }
 }
 
@@ -95,6 +98,11 @@ export default function QuoteForm() {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Line items priced from the client account's rate card (custom card where
+  // it has a price, else Default) — for the "Add from rate card" picker.
+  const [rateCard, setRateCard] = useState<RateCard | null>(null)
+  const [pricedItems, setPricedItems] = useState<PricedLineItem[]>([])
+
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify({ form: emptyForm, lines: [] }))
   const isDirty = !loading && !blocked && JSON.stringify({ form, lines }) !== initialSnapshot
   const { allowNextNavigation } = useUnsavedChangesGuard(isDirty)
@@ -134,6 +142,7 @@ export default function QuoteForm() {
             vendor: l.vendor ?? '',
             qty: l.qty.toString(),
             unit_cost: l.unit_cost.toString(),
+            line_item_id: l.line_item_id ?? '',
           }))
           setForm(loaded)
           setLines(linesForForm)
@@ -160,6 +169,21 @@ export default function QuoteForm() {
       }
     })()
   }, [id, opportunityIdFromQuery])
+
+  // Reload rate-card prices whenever the client changes.
+  const clientRateCardId = accounts.find((a) => a.id === form.client_id)?.rate_card_id ?? null
+  useEffect(() => {
+    if (loading) return
+    getPricedLineItems(clientRateCardId)
+      .then(({ card, items }) => {
+        setRateCard(card)
+        setPricedItems(items)
+      })
+      .catch(() => {
+        setRateCard(null)
+        setPricedItems([])
+      })
+  }, [clientRateCardId, loading])
 
   function toNumberOrNull(v: string): number | null {
     return v === '' ? null : Number(v)
@@ -225,6 +249,24 @@ export default function QuoteForm() {
     applyLines([...lines, emptyLine()])
   }
 
+  // The unit cost is copied onto the quote line here and is the quote's own
+  // from then on — editable, and untouched by later rate card changes.
+  function addFromRateCard(itemId: string) {
+    const item = pricedItems.find((i) => i.id === itemId)
+    if (!item) return
+    applyLines([
+      ...lines,
+      {
+        ...emptyLine(),
+        line_type: item.line_type,
+        part_code: item.part_code,
+        description: item.description ?? '',
+        unit_cost: item.unit_cost?.toString() ?? '0',
+        line_item_id: item.id,
+      },
+    ])
+  }
+
   function removeLine(key: string) {
     applyLines(lines.filter((l) => l.key !== key))
   }
@@ -238,6 +280,7 @@ export default function QuoteForm() {
       vendor: line.vendor || null,
       qty: Number(line.qty) || 0,
       unit_cost: Number(line.unit_cost) || 0,
+      line_item_id: line.line_item_id || null,
     }
   }
 
@@ -496,11 +539,38 @@ export default function QuoteForm() {
           </div>
 
           <div>
-            <div className="mb-2 flex items-center justify-between">
-              <Label>Line items</Label>
-              <Button type="button" variant="secondary" onClick={addLine}>
-                + Add line
-              </Button>
+            <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <Label>Line items</Label>
+                {rateCard && (
+                  <p className="text-xs text-text-faint">
+                    Prices from the <span className="text-text-muted">{rateCard.name}</span> rate card
+                    {form.client_id ? '' : ' (no client selected)'}
+                    {rateCard.is_default ? '' : ' (* = custom price, others from Default)'} — you can change a line's unit
+                    cost after adding it.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Select
+                  aria-label="Add from rate card"
+                  value=""
+                  onChange={(e) => addFromRateCard(e.target.value)}
+                  className="w-64"
+                  disabled={pricedItems.length === 0}
+                >
+                  <option value="">Add from rate card…</option>
+                  {pricedItems.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.part_code} — {i.unit_cost === null ? 'no price' : `£${Number(i.unit_cost).toFixed(2)}`}
+                      {i.from_custom ? ' *' : ''}
+                    </option>
+                  ))}
+                </Select>
+                <Button type="button" variant="secondary" onClick={addLine}>
+                  + Blank line
+                </Button>
+              </div>
             </div>
 
             {lines.length === 0 ? (
@@ -614,7 +684,7 @@ export default function QuoteForm() {
               ))}
             </datalist>
             <datalist id="quote-line-part-code-options">
-              {QUOTE_LINE_PART_CODE_SUGGESTIONS.map((t) => (
+              {(pricedItems.length > 0 ? pricedItems.map((i) => i.part_code) : QUOTE_LINE_PART_CODE_SUGGESTIONS).map((t) => (
                 <option key={t} value={t} />
               ))}
             </datalist>

@@ -56,6 +56,7 @@ export interface Account {
   phone: string | null
   email: string | null
   billing_name: string | null // legal name for invoices, e.g. "CDW Limited" — falls back to name
+  rate_card_id: string | null // custom rate card; null = the Default rate card
   address_line_1: string | null
   address_line_2: string | null
   city: string | null
@@ -292,10 +293,36 @@ export interface QuoteLine {
   description_2: string | null
   vendor: string | null // outsourcing/supplier code, e.g. TEC410
   qty: number
-  unit_cost: number
+  unit_cost: number // copied from the rate card when added, then the quote's own — rate card changes never alter it
   line_total: number // = qty * unit_cost, calculated by the database
+  line_item_id: string | null // the rate-card line item it was added from, if any
   created_at: string
   updated_at: string
+}
+
+// ── Rate cards (migration 0019, Admin → Rate cards) ──────────────────────────
+
+export interface LineItem {
+  id: string
+  line_type: string
+  part_code: string
+  description: string | null // optional default description for new quote lines
+  is_active: boolean
+  created_at: string
+}
+
+export interface RateCard {
+  id: string
+  name: string
+  is_default: boolean
+  notes: string | null
+  created_at: string
+}
+
+export interface RateCardPrice {
+  rate_card_id: string
+  line_item_id: string
+  unit_cost: number
 }
 
 // Suggestions offered in the line-item form — both lists are maintained ad

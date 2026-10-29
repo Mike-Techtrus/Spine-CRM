@@ -51,7 +51,7 @@ export async function deleteQuote(id: string): Promise<void> {
 
 export type QuoteLineInput = Pick<
   QuoteLine,
-  'line_type' | 'part_code' | 'description' | 'description_2' | 'vendor' | 'qty' | 'unit_cost'
+  'line_type' | 'part_code' | 'description' | 'description_2' | 'vendor' | 'qty' | 'unit_cost' | 'line_item_id'
 >
 
 export async function listQuoteLines(quoteId: string): Promise<QuoteLine[]> {

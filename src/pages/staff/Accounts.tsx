@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { createAccount, listAccounts, updateAccount } from '../../lib/api'
-import type { Account } from '../../lib/types'
-import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, SearchInput, Th } from '../../components/ui'
+import { createAccount, listAccounts, listRateCards, updateAccount } from '../../lib/api'
+import type { Account, RateCard } from '../../lib/types'
+import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, SearchInput, Select, Th } from '../../components/ui'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
@@ -16,6 +16,7 @@ const emptyForm = {
   address_line_2: '',
   city: '',
   postcode: '',
+  rate_card_id: '', // '' = Default rate card
 }
 type AccountForm = typeof emptyForm
 
@@ -30,6 +31,7 @@ function toForm(a: Account): AccountForm {
     address_line_2: a.address_line_2 ?? '',
     city: a.city ?? '',
     postcode: a.postcode ?? '',
+    rate_card_id: a.rate_card_id ?? '',
   }
 }
 
@@ -45,12 +47,21 @@ function toInput(form: AccountForm) {
     address_line_2: orNull(form.address_line_2),
     city: orNull(form.city),
     postcode: form.postcode.trim().toUpperCase() || null,
+    rate_card_id: form.rate_card_id || null,
   }
 }
 
 // Shared by Add account and Edit account. The billing name and address are
 // what print under "Invoice To" on invoices.
-function AccountFields({ form, onChange }: { form: AccountForm; onChange: (f: AccountForm) => void }) {
+function AccountFields({
+  form,
+  onChange,
+  rateCards,
+}: {
+  form: AccountForm
+  onChange: (f: AccountForm) => void
+  rateCards: RateCard[]
+}) {
   const field = (key: keyof AccountForm) => ({
     value: form[key],
     onChange: (e: { target: { value: string } }) => onChange({ ...form, [key]: e.target.value }),
@@ -77,6 +88,19 @@ function AccountFields({ form, onChange }: { form: AccountForm; onChange: (f: Ac
       <div className="col-span-2">
         <label className={label}>Name on invoices (if different, e.g. "CDW Limited")</label>
         <Input placeholder={form.name} {...field('billing_name')} />
+      </div>
+      <div>
+        <label className={label}>Rate card (prices on new quote lines)</label>
+        <Select value={form.rate_card_id} onChange={(e) => onChange({ ...form, rate_card_id: e.target.value })}>
+          <option value="">Default</option>
+          {rateCards
+            .filter((c) => !c.is_default)
+            .map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+        </Select>
       </div>
       <div className="col-span-3">
         <label className={label}>Billing address</label>
@@ -126,6 +150,7 @@ export default function Accounts() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Account | null>(null)
   const [editForm, setEditForm] = useState(emptyForm)
+  const [rateCards, setRateCards] = useState<RateCard[]>([])
   const { query, setQuery, filtered } = useSearch(accounts, getSearchText)
   const {
     filters,
@@ -137,7 +162,9 @@ export default function Accounts() {
   const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getSortValue, 'accounts')
 
   async function refresh() {
-    setAccounts(await listAccounts())
+    const [nextAccounts, nextCards] = await Promise.all([listAccounts(), listRateCards()])
+    setAccounts(nextAccounts)
+    setRateCards(nextCards)
   }
 
   useEffect(() => {
@@ -208,7 +235,7 @@ export default function Accounts() {
         <Card className="mb-6">
           <h2 className="mb-4 text-sm font-semibold text-text">Edit {editing.name}</h2>
           <form onSubmit={handleSaveEdit} className="grid grid-cols-3 gap-4">
-            <AccountFields form={editForm} onChange={setEditForm} />
+            <AccountFields form={editForm} onChange={setEditForm} rateCards={rateCards} />
             <div className="col-span-3 flex gap-2">
               <Button type="submit" disabled={saving}>
                 {saving ? 'Saving…' : 'Save changes'}
@@ -225,7 +252,7 @@ export default function Accounts() {
       {showForm && (
         <Card className="mb-6">
           <form onSubmit={handleAdd} className="grid grid-cols-3 gap-4">
-            <AccountFields form={form} onChange={setForm} />
+            <AccountFields form={form} onChange={setForm} rateCards={rateCards} />
             <div className="col-span-3">
               <Button type="submit" disabled={saving}>
                 {saving ? 'Adding…' : 'Save account'}
@@ -256,6 +283,7 @@ export default function Accounts() {
               <Th sortKey="email" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                 Email
               </Th>
+              <th className="px-4 py-2">Rate card</th>
               <Th sortKey="status" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                 Status
               </Th>
@@ -266,6 +294,7 @@ export default function Accounts() {
               <FilterCell value={filters.city ?? ''} onChange={(v) => setFilter('city', v)} />
               <FilterCell value={filters.phone ?? ''} onChange={(v) => setFilter('phone', v)} />
               <FilterCell value={filters.email ?? ''} onChange={(v) => setFilter('email', v)} />
+              <th className="px-4 pb-2 pt-0"></th>
               <FilterCell value={filters.status ?? ''} onChange={(v) => setFilter('status', v)} options={STATUS_OPTIONS} />
               <th className="px-4 pb-2 pt-0"></th>
             </tr>
@@ -274,10 +303,17 @@ export default function Accounts() {
             {sorted && sorted.length > 0 ? (
               sorted.map((a) => (
                 <tr key={a.id} className="border-t border-border">
-                  <td className="px-4 py-2 text-text">{a.name}</td>
+                  <td className="px-4 py-2">
+                    <button onClick={() => startEdit(a)} className="text-left text-text hover:text-accent hover:underline">
+                      {a.name}
+                    </button>
+                  </td>
                   <td className="px-4 py-2 text-text-muted">{a.city || '—'}</td>
                   <td className="px-4 py-2 text-text-muted">{a.phone || '—'}</td>
                   <td className="px-4 py-2 text-text-muted">{a.email || '—'}</td>
+                  <td className="px-4 py-2 text-text-muted">
+                    {(a.rate_card_id && rateCards.find((c) => c.id === a.rate_card_id)?.name) || 'Default'}
+                  </td>
                   <td className="px-4 py-2 text-text-muted">{a.is_active ? 'Active' : 'Inactive'}</td>
                   <td className="px-4 py-2 text-right">
                     <span className="flex justify-end gap-3 text-xs">
@@ -293,7 +329,7 @@ export default function Accounts() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-text-muted">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-text-muted">
                   No accounts match your search/filters.
                 </td>
               </tr>
