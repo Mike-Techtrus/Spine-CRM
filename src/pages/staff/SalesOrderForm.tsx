@@ -1,13 +1,15 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  createProjectFromSalesOrder,
   createSalesOrder,
+  getProjectForSalesOrder,
   getQuoteForConversion,
   getSalesOrder,
   listAccounts,
   updateSalesOrder,
 } from '../../lib/api'
-import type { Account } from '../../lib/types'
+import type { Account, Project } from '../../lib/types'
 import { INVOICING_STATUS_BADGE, INVOICING_STATUS_LABELS, invoicingStatus } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
@@ -57,6 +59,8 @@ export default function SalesOrderForm() {
   // Closing is its own action (not part of the form save) — see 0020.
   const [closed, setClosed] = useState<{ at: string | null; reason: string | null }>({ at: null, reason: null })
   const [closing, setClosing] = useState(false)
+  const [project, setProject] = useState<Project | null>(null)
+  const [creatingProject, setCreatingProject] = useState(false)
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
   const isDirty = !loading && !blocked && JSON.stringify(form) !== initialSnapshot
@@ -95,6 +99,7 @@ export default function SalesOrderForm() {
           setForm(loaded)
           setInitialSnapshot(JSON.stringify(loaded))
           setClosed({ at: so.closed_at, reason: so.closed_reason })
+          setProject(await getProjectForSalesOrder(id))
         } else if (quoteIdFromQuery) {
           const q = await getQuoteForConversion(quoteIdFromQuery)
           setSourceQuoteNumber(q.quote_number)
@@ -201,6 +206,22 @@ export default function SalesOrderForm() {
     }
   }
 
+  // Builds a project from this order's accepted quote (its timesheet-billed lines).
+  async function handleCreateProject() {
+    if (!id) return
+    if (isDirty && !window.confirm('You have unsaved changes on this sales order. Create the project anyway?')) return
+    setCreatingProject(true)
+    setError(null)
+    try {
+      const projectId = await createProjectFromSalesOrder(id)
+      allowNextNavigation()
+      navigate(`/staff/projects/${projectId}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project.')
+      setCreatingProject(false)
+    }
+  }
+
   async function handleReopen() {
     if (!id) return
     setClosing(true)
@@ -286,10 +307,25 @@ export default function SalesOrderForm() {
             </span>
           )}
         </h1>
-        {isEditing && id && !closed.at && (
-          <Button variant="secondary" onClick={() => navigate(`/staff/invoices/new?salesOrderId=${id}`)}>
-            Create Invoice from this Sales Order
-          </Button>
+        {isEditing && id && (
+          <div className="flex flex-wrap justify-end gap-2">
+            {project ? (
+              <Button variant="secondary" onClick={() => navigate(`/staff/projects/${project.id}`)}>
+                Open {project.reference}
+              </Button>
+            ) : (
+              !closed.at && (
+                <Button variant="secondary" onClick={handleCreateProject} disabled={creatingProject}>
+                  {creatingProject ? 'Creating…' : 'Create project'}
+                </Button>
+              )
+            )}
+            {!closed.at && (
+              <Button variant="secondary" onClick={() => navigate(`/staff/invoices/new?salesOrderId=${id}`)}>
+                Create Invoice from this Sales Order
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

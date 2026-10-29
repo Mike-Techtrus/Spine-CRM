@@ -25,6 +25,7 @@ export const APP_AREAS = [
   { key: 'opportunities', label: 'Opportunities', path: '/staff/opportunities' },
   { key: 'quotes', label: 'Quotes', path: '/staff/quotes' },
   { key: 'sales_orders', label: 'Sales Orders', path: '/staff/sales-orders' },
+  { key: 'projects', label: 'Projects', path: '/staff/projects' },
   { key: 'invoices', label: 'Invoices', path: '/staff/invoices' },
   { key: 'timesheets', label: 'Timesheets', path: '/staff/timesheets' },
   { key: 'accounts', label: 'Accounts', path: '/staff/accounts' },
@@ -184,6 +185,7 @@ export interface TimesheetEntry {
   approved_by: string | null // profiles.id of the approving staff member
   approved_on: string | null
   rejection_notes: string | null
+  project_assignment_id: string | null // the project allocation this day draws down (0022)
   created_at: string
   updated_at: string
 }
@@ -298,6 +300,67 @@ export interface QuoteLine {
   line_item_id: string | null // the rate-card line item it was added from, if any
   created_at: string
   updated_at: string
+}
+
+// ── Projects (migration 0022) ─────────────────────────────────────────────────
+
+export type ProjectStatus = 'active' | 'complete'
+
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  active: 'Active',
+  complete: 'Complete',
+}
+
+export interface Project {
+  id: string
+  reference: string // e.g. PRJ-00001
+  sales_order_id: string
+  name: string
+  owner_id: string | null // staff profile
+  status: ProjectStatus
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectWithRelations extends Project {
+  sales_order: Pick<SalesOrder, 'id' | 'reference' | 'po_number'> & {
+    client: Pick<Account, 'id' | 'name'> | null
+    end_client: Pick<Account, 'id' | 'name'> | null
+  }
+  owner: Pick<Profile, 'id' | 'full_name'> | null
+}
+
+// A timesheet-billed line copied from the accepted quote; quoted days and
+// day rate are the agreed basis.
+export interface ProjectLine {
+  id: string
+  project_id: string
+  quote_line_id: string | null
+  line_item_id: string | null
+  line_type: string
+  part_code: string | null
+  description: string | null
+  quoted_days: number
+  day_rate: number
+  sort_order: number
+  created_at: string
+}
+
+// A person on a project line with an allocation of days (half-day steps).
+export interface ProjectAssignment {
+  id: string
+  project_line_id: string
+  field_engineer_id: string
+  allocated_days: number
+  created_at: string
+}
+
+// Days a timesheet entry counts for.
+export const DAY_TYPE_DAYS: Record<DayType, number> = {
+  full_day: 1,
+  half_day_am: 0.5,
+  half_day_pm: 0.5,
 }
 
 // ── Rate cards (migration 0019, Admin → Rate cards) ──────────────────────────

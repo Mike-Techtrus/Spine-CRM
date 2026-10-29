@@ -18,6 +18,7 @@ const AREA_KEYS = [
   'opportunities',
   'quotes',
   'sales_orders',
+  'projects',
   'invoices',
   'timesheets',
   'accounts',

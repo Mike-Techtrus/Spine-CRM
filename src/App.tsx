@@ -18,6 +18,8 @@ import SalesOrderList from './pages/staff/SalesOrderList'
 import SalesOrderForm from './pages/staff/SalesOrderForm'
 import InvoiceList from './pages/staff/InvoiceList'
 import InvoiceForm from './pages/staff/InvoiceForm'
+import ProjectList from './pages/staff/ProjectList'
+import ProjectDetail from './pages/staff/ProjectDetail'
 import UserAdmin from './pages/staff/admin/UserAdmin'
 import SkillsAdmin from './pages/staff/admin/SkillsAdmin'
 import InvoiceSettings from './pages/staff/admin/InvoiceSettings'
@@ -123,6 +125,9 @@ const router = createBrowserRouter(
         <Route path="/staff/sales-orders" element={<Staff area="sales_orders"><SalesOrderList /></Staff>} />
         <Route path="/staff/sales-orders/new" element={<Staff area="sales_orders"><SalesOrderForm /></Staff>} />
         <Route path="/staff/sales-orders/:id" element={<Staff area="sales_orders"><SalesOrderForm /></Staff>} />
+
+        <Route path="/staff/projects" element={<Staff area="projects"><ProjectList /></Staff>} />
+        <Route path="/staff/projects/:id" element={<Staff area="projects"><ProjectDetail /></Staff>} />
 
         <Route path="/staff/invoices" element={<Staff area="invoices"><InvoiceList /></Staff>} />
         <Route path="/staff/invoices/new" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
