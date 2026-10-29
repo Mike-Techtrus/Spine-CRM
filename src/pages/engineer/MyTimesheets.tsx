@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getMyFieldEngineer, listMyTimesheets } from '../../lib/api'
-import { DAY_TYPE_LABELS, STATUS_LABELS, type TimesheetEntryWithRelations } from '../../lib/types'
+import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEntryWithRelations } from '../../lib/types'
 import { Button, Card, StatusBadge } from '../../components/ui'
+import WeeklyTimesheet from '../../components/WeeklyTimesheet'
 
 export default function MyTimesheets() {
   const { session } = useAuth()
@@ -11,6 +12,11 @@ export default function MyTimesheets() {
   const [timesheets, setTimesheets] = useState<TimesheetEntryWithRelations[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [noEngineerRecord, setNoEngineerRecord] = useState(false)
+  const [engineerId, setEngineerId] = useState<string | null>(null)
+
+  async function loadList(id: string) {
+    setTimesheets(await listMyTimesheets(id))
+  }
 
   useEffect(() => {
     if (!session) return
@@ -21,7 +27,8 @@ export default function MyTimesheets() {
           setNoEngineerRecord(true)
           return
         }
-        setTimesheets(await listMyTimesheets(engineer.id))
+        setEngineerId(engineer.id)
+        await loadList(engineer.id)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load timesheets.')
       }
@@ -44,9 +51,13 @@ export default function MyTimesheets() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-text">My Timesheets</h1>
         <Link to="/my/timesheets/new">
-          <Button>New entry</Button>
+          <Button variant="secondary">Log other time</Button>
         </Link>
       </div>
+
+      {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} onChanged={() => loadList(engineerId)} />}
+
+      <h2 className="mb-3 text-sm font-semibold text-text">All my entries</h2>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
@@ -55,7 +66,7 @@ export default function MyTimesheets() {
       {timesheets && timesheets.length === 0 && (
         <Card>
           <p className="text-sm text-text-muted">
-            No timesheet entries yet. Click "New entry" to log your first day.
+            No timesheet entries yet. Use the weekly grid above for project time, or "Log other time".
           </p>
         </Card>
       )}
@@ -66,7 +77,7 @@ export default function MyTimesheets() {
             <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
               <tr>
                 <th className="px-4 py-2">Date</th>
-                <th className="px-4 py-2">Client</th>
+                <th className="px-4 py-2">Project / client</th>
                 <th className="px-4 py-2">Type</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Ref</th>
@@ -80,7 +91,10 @@ export default function MyTimesheets() {
                   onClick={() => navigate(`/my/timesheets/${ts.id}`)}
                 >
                   <td className="px-4 py-2 text-text">{ts.work_date}</td>
-                  <td className="px-4 py-2 text-text">{ts.client.name}</td>
+                  <td className="px-4 py-2 text-text">
+                    {timesheetProjectLabel(ts) ?? ts.client.name}
+                    {timesheetProjectLabel(ts) && <span className="block text-xs text-text-faint">{ts.client.name}</span>}
+                  </td>
                   <td className="px-4 py-2 text-text-muted">{DAY_TYPE_LABELS[ts.day_type]}</td>
                   <td className="px-4 py-2">
                     <StatusBadge status={ts.status} label={STATUS_LABELS[ts.status]} />

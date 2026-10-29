@@ -11,7 +11,7 @@ import {
 } from '../../lib/api'
 import type { Account, DayType, FieldEngineer } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
-import { DAY_TYPE_LABELS, STATUS_LABELS } from '../../lib/types'
+import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel } from '../../lib/types'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 
@@ -37,6 +37,8 @@ export default function TimesheetForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [rejectionNotes, setRejectionNotes] = useState<string | null>(null)
+  // Set when this entry is project time (logged from the weekly grid).
+  const [projectLabel, setProjectLabel] = useState<string | null>(null)
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
   const isDirty = !loading && JSON.stringify(form) !== initialSnapshot
@@ -63,6 +65,7 @@ export default function TimesheetForm() {
           setInitialSnapshot(JSON.stringify(loaded))
           setStatus(ts.status)
           setRejectionNotes(ts.rejection_notes)
+          setProjectLabel(timesheetProjectLabel(ts))
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load form.')
@@ -115,8 +118,8 @@ export default function TimesheetForm() {
     return (
       <Card>
         <p className="text-sm text-text">
-          Your login isn't linked to a contractor or staff profile yet. Ask a Spine CRM admin to link your
-          account before you can submit timesheets.
+          Your login isn't linked to a contractor or staff profile yet. Ask a Spine CRM admin to link your account
+          before you can submit timesheets.
         </p>
       </Card>
     )
@@ -138,24 +141,36 @@ export default function TimesheetForm() {
 
       <Card>
         <form onSubmit={(e) => handleSave(e, false)} onKeyDown={preventEnterSubmit} className="space-y-4">
-          <div>
-            <Label>Client</Label>
-            <Select
-              required
-              disabled={readOnly}
-              value={form.client_id}
-              onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-            >
-              <option value="" disabled>
-                Select a client…
-              </option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+          {projectLabel ? (
+            <div>
+              <Label>Project line</Label>
+              <p className="rounded-md border border-border bg-sunken px-3 py-2 text-sm text-text-muted">
+                {projectLabel}
+              </p>
+              <p className="mt-1 text-xs text-text-faint">
+                Project time — change the day on the weekly grid on My Timesheets.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <Label>Client</Label>
+              <Select
+                required
+                disabled={readOnly}
+                value={form.client_id}
+                onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+              >
+                <option value="" disabled>
+                  Select a client…
                 </option>
-              ))}
-            </Select>
-          </div>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label>Project / job reference (optional)</Label>

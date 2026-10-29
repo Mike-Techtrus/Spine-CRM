@@ -22,3 +22,4 @@ INV12009,2023 Invoices/October/Severn Trent Water - PORD03056772 - Invoice INV12
 INV12003,2023 Invoices/October/ION Group -  PORD03016832 - Invoice INV12003.xlsx,Spreadsheet holds a different invoice,2430.00,2430.00,yes,The xlsx contains INV12010 (Nov) - lines taken from the PDF twin instead and they match Spine
 INV11951,2023 Invoices/September/Amended BHFT - PORD02929470 - Invoice INV11951.xlsx,Two files for one invoice,6652.36,6652.36,yes,Original (7 lines incl. a -5 day credit) and Amended (5 lines) both total £6652.36 - used the Amended one
 INV11912,2023 Invoices/August/BHFT - PORD02929470 - Invoice INV11912.xlsx,Lines total differs from Spine value,19417.85,17717.85,yes,Sheet is £1700.00 higher than Spine
+INV11865,2023 Invoices/July/ARM - PORD02897565 - Amended Invoice INV11865.xlsx,Two files for one invoice,1100.00,1100.00,yes,Original and Amended versions listed in SharePoint (original could not be opened) - used the Amended one which matches Spine

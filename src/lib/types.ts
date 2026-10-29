@@ -195,6 +195,23 @@ export interface TimesheetEntryWithRelations extends TimesheetEntry {
   field_engineer: Pick<FieldEngineer, 'id' | 'name' | 'email' | 'user_id' | 'kind'>
   client: Pick<Account, 'id' | 'name'>
   approver: Pick<Profile, 'id' | 'full_name'> | null
+  // The project allocation it draws down, if any (projects phase 2).
+  assignment: {
+    id: string
+    allocated_days: number
+    project_line: {
+      id: string
+      part_code: string | null
+      line_type: string
+      project: { id: string; reference: string; name: string; owner_id: string | null }
+    }
+  } | null
+}
+
+// "PRJ-00001 · L2 Engineer" for a timesheet on a project, else null.
+export function timesheetProjectLabel(ts: Pick<TimesheetEntryWithRelations, 'assignment'>): string | null {
+  const line = ts.assignment?.project_line
+  return line ? `${line.project.reference} · ${line.part_code || line.line_type}` : null
 }
 
 export const DAY_TYPE_LABELS: Record<DayType, string> = {

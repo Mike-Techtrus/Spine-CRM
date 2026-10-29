@@ -6,7 +6,8 @@ const TIMESHEET_WITH_RELATIONS_SELECT = `
   *,
   field_engineer:field_engineers(id, name, email, user_id, kind),
   client:accounts(id, name),
-  approver:profiles(id, full_name)
+  approver:profiles(id, full_name),
+  assignment:project_assignments(id, allocated_days, project_line:project_lines(id, part_code, line_type, project:projects(id, reference, name, owner_id)))
 `
 
 export async function getMyFieldEngineer(userId: string): Promise<FieldEngineer | null> {
@@ -168,4 +169,81 @@ export async function updateFieldEngineer(
 // auth.users, which the browser can't read directly.
 export async function listPersonLogins(): Promise<PersonLogin[]> {
   return unwrap(await supabase.rpc('list_people_logins'))
+}
+
+// ── Project timesheets (projects phase 2, migration 0023) ──────────────────
+
+// One of my allocations, with the project line and project it belongs to.
+export interface MyAssignment {
+  id: string
+  allocated_days: number
+  project_line: {
+    id: string
+    part_code: string | null
+    line_type: string
+    description: string | null
+    project: { id: string; reference: string; name: string; status: 'active' | 'complete' }
+  }
+}
+
+export async function listMyAssignments(fieldEngineerId: string): Promise<MyAssignment[]> {
+  return unwrap(
+    await supabase
+      .from('project_assignments')
+      .select('id, allocated_days, project_line:project_lines(id, part_code, line_type, description, project:projects(id, reference, name, status))')
+      .eq('field_engineer_id', fieldEngineerId),
+  ) as unknown as MyAssignment[]
+}
+
+export async function listMyTimesheetsBetween(
+  fieldEngineerId: string,
+  from: string,
+  to: string,
+): Promise<TimesheetEntry[]> {
+  return unwrap(
+    await supabase
+      .from('timesheet_entries')
+      .select('*')
+      .eq('field_engineer_id', fieldEngineerId)
+      .gte('work_date', from)
+      .lte('work_date', to),
+  )
+}
+
+// A draft against a project allocation; the client is filled in from the
+// project by the database (timesheet_entries_check, 0023).
+export async function createProjectTimesheet(
+  fieldEngineerId: string,
+  input: { project_assignment_id: string; work_date: string; day_type: DayType; work_description: string | null },
+): Promise<TimesheetEntry> {
+  return unwrap(
+    await supabase
+      .from('timesheet_entries')
+      .insert({ field_engineer_id: fieldEngineerId, ...input, client_id: null, status: 'draft' as TimesheetStatus })
+      .select()
+      .single(),
+  )
+}
+
+export async function updateTimesheetDay(
+  id: string,
+  input: { day_type: DayType; work_description?: string | null; status?: TimesheetStatus },
+): Promise<TimesheetEntry> {
+  return unwrap(await supabase.from('timesheet_entries').update(input).eq('id', id).select().single())
+}
+
+export async function deleteTimesheet(id: string): Promise<void> {
+  const { error } = await supabase.from('timesheet_entries').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// Submits several drafts at once. The database refuses the lot if any would
+// go over an allocation, so nothing is half-submitted.
+export async function submitTimesheets(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await supabase
+    .from('timesheet_entries')
+    .update({ status: 'submitted' as TimesheetStatus, submitted_on: new Date().toISOString() })
+    .in('id', ids)
+  if (error) throw new Error(error.message)
 }

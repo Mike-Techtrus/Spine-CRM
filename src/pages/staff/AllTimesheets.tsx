@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listAllTimesheets, listAccounts, listFieldEngineers } from '../../lib/api'
 import type { Account, FieldEngineer, TimesheetEntryWithRelations, TimesheetStatus } from '../../lib/types'
-import { DAY_TYPE_LABELS, STATUS_LABELS } from '../../lib/types'
+import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel } from '../../lib/types'
 import { Card, SearchInput, Select, StatusBadge, Th } from '../../components/ui'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
@@ -13,6 +13,8 @@ function getSearchText(ts: TimesheetEntryWithRelations) {
     ts.work_date,
     ts.field_engineer.name,
     ts.client.name,
+    timesheetProjectLabel(ts),
+    ts.assignment?.project_line.project.name,
     DAY_TYPE_LABELS[ts.day_type],
     STATUS_LABELS[ts.status],
   ]
@@ -30,6 +32,8 @@ function getSortValue(ts: TimesheetEntryWithRelations, key: string) {
       return ts.field_engineer.name
     case 'client':
       return ts.client.name
+    case 'project':
+      return timesheetProjectLabel(ts) ?? ''
     case 'day_type':
       return DAY_TYPE_LABELS[ts.day_type]
     case 'status':
@@ -149,6 +153,9 @@ export default function AllTimesheets() {
                 <Th sortKey="client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                   Client
                 </Th>
+                <Th sortKey="project" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
+                  Project
+                </Th>
                 <Th sortKey="day_type" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                   Type
                 </Th>
@@ -171,6 +178,7 @@ export default function AllTimesheets() {
                     {ts.field_engineer.kind === 'staff' && <span className="ml-2 text-xs text-text-faint">Staff</span>}
                   </td>
                   <td className="px-4 py-2 text-text">{ts.client.name}</td>
+                  <td className="px-4 py-2 text-text-muted">{timesheetProjectLabel(ts) ?? '—'}</td>
                   <td className="px-4 py-2 text-text-muted">{DAY_TYPE_LABELS[ts.day_type]}</td>
                   <td className="px-4 py-2">
                     <StatusBadge status={ts.status} label={STATUS_LABELS[ts.status]} />

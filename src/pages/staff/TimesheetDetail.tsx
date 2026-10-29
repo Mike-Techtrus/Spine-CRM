@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { approveTimesheet, getTimesheet, rejectTimesheet } from '../../lib/api'
-import { DAY_TYPE_LABELS, STATUS_LABELS, type TimesheetEntryWithRelations } from '../../lib/types'
+import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEntryWithRelations } from '../../lib/types'
+import { canAccess } from '../../lib/permissions'
 import { Button, Card, ErrorText, Label, StatusBadge, Textarea } from '../../components/ui'
 
 export default function TimesheetDetail() {
@@ -54,8 +55,11 @@ export default function TimesheetDetail() {
   if (error && !ts) return <p className="text-sm text-danger">{error}</p>
   if (!ts) return <p className="text-sm text-text-muted">Loading…</p>
 
-  // Staff can log their own time (0015), but not sign it off.
+  // Staff can log their own time (0015), but not sign it off. Project
+  // timesheets are approved by the project owner or an admin (0023 enforces it).
   const isOwn = ts.field_engineer.user_id === profile?.id
+  const project = ts.assignment?.project_line.project ?? null
+  const canApprove = !isOwn && (!project || project.owner_id === profile?.id || canAccess(profile, 'admin'))
 
   return (
     <div className="max-w-xl">
@@ -67,6 +71,18 @@ export default function TimesheetDetail() {
       <Card className="space-y-4">
         <Field label={ts.field_engineer.kind === 'staff' ? 'Staff' : 'Contractor'} value={`${ts.field_engineer.name} (${ts.field_engineer.email})`} />
         <Field label="Client" value={ts.client.name} />
+        {project && ts.assignment && (
+          <div>
+            <p className="text-xs font-mono-label text-text-muted">Project</p>
+            <p className="text-sm text-text">
+              <Link to={`/staff/projects/${project.id}`} className="text-accent hover:underline">
+                {timesheetProjectLabel(ts)}
+              </Link>{' '}
+              <span className="text-text-muted">· {project.name}</span>
+            </p>
+            <p className="text-xs text-text-faint">{Number(ts.assignment.allocated_days)} day(s) allocated to this person on this line</p>
+          </div>
+        )}
         {ts.project_reference && <Field label="Project reference" value={ts.project_reference} />}
         <Field label="Date worked" value={ts.work_date} />
         <Field label="Day type" value={DAY_TYPE_LABELS[ts.day_type]} />
@@ -91,7 +107,11 @@ export default function TimesheetDetail() {
         <p className="mt-6 text-sm text-text-muted">This is your own timesheet — someone else needs to approve it.</p>
       )}
 
-      {ts.status === 'submitted' && !isOwn && (
+      {ts.status === 'submitted' && !isOwn && !canApprove && (
+        <p className="mt-6 text-sm text-text-muted">Only the project owner (or an admin) can approve timesheets on {project?.reference}.</p>
+      )}
+
+      {ts.status === 'submitted' && canApprove && (
         <div className="mt-6">
           {!showRejectForm ? (
             <div className="flex gap-3">
