@@ -93,7 +93,7 @@ export default function AllTimesheets() {
             </Select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-mono-label text-text-muted">Contractor</label>
+            <label className="mb-1 block text-xs font-mono-label text-text-muted">Person</label>
             <Select value={engineerFilter} onChange={(e) => setEngineerFilter(e.target.value)}>
               <option value="">All</option>
               {engineers.map((e) => (
@@ -144,7 +144,7 @@ export default function AllTimesheets() {
                   Date
                 </Th>
                 <Th sortKey="engineer" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Contractor
+                  Person
                 </Th>
                 <Th sortKey="client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                   Client
@@ -166,7 +166,10 @@ export default function AllTimesheets() {
                 >
                   <td className="px-4 py-2 font-mono-label text-text-muted">{ts.reference}</td>
                   <td className="px-4 py-2 text-text">{ts.work_date}</td>
-                  <td className="px-4 py-2 text-text">{ts.field_engineer.name}</td>
+                  <td className="px-4 py-2 text-text">
+                    {ts.field_engineer.name}
+                    {ts.field_engineer.kind === 'staff' && <span className="ml-2 text-xs text-text-faint">Staff</span>}
+                  </td>
                   <td className="px-4 py-2 text-text">{ts.client.name}</td>
                   <td className="px-4 py-2 text-text-muted">{DAY_TYPE_LABELS[ts.day_type]}</td>
                   <td className="px-4 py-2">

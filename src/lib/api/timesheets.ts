@@ -1,10 +1,10 @@
 import { supabase } from '../supabaseClient'
-import type { ContractorLogin, DayType, FieldEngineer, TimesheetEntry, TimesheetEntryWithRelations, TimesheetStatus } from '../types'
+import type { PersonKind, PersonLogin, DayType, FieldEngineer, TimesheetEntry, TimesheetEntryWithRelations, TimesheetStatus } from '../types'
 import { unwrap } from './_shared'
 
 const TIMESHEET_WITH_RELATIONS_SELECT = `
   *,
-  field_engineer:field_engineers(id, name, email),
+  field_engineer:field_engineers(id, name, email, user_id, kind),
   client:accounts(id, name),
   approver:profiles(id, full_name)
 `
@@ -128,8 +128,11 @@ export async function rejectTimesheet(id: string, approverId: string, notes: str
 
 // ── Staff: field engineers ─────────────────────────────────────────────────
 
-export async function listFieldEngineers(): Promise<FieldEngineer[]> {
-  return unwrap(await supabase.from('field_engineers').select('*').order('name'))
+// Pass a kind to get only contractors or only staff; timesheets use contractors.
+export async function listFieldEngineers(kind?: PersonKind): Promise<FieldEngineer[]> {
+  let query = supabase.from('field_engineers').select('*').order('name')
+  if (kind) query = query.eq('kind', kind)
+  return unwrap(await query)
 }
 
 export async function getFieldEngineer(id: string): Promise<FieldEngineer> {
@@ -137,6 +140,7 @@ export async function getFieldEngineer(id: string): Promise<FieldEngineer> {
 }
 
 export interface FieldEngineerInput {
+  kind?: PersonKind
   name: string
   email: string
   phone: string | null
@@ -156,8 +160,8 @@ export async function updateFieldEngineer(
 }
 
 // Contractor logins for the "link a login" dropdowns. Comes from the
-// list_contractor_logins() database function (0013) because emails live in
+// list_people_logins() database function (0013, 0015) because emails live in
 // auth.users, which the browser can't read directly.
-export async function listContractorLogins(): Promise<ContractorLogin[]> {
-  return unwrap(await supabase.rpc('list_contractor_logins'))
+export async function listPersonLogins(): Promise<PersonLogin[]> {
+  return unwrap(await supabase.rpc('list_people_logins'))
 }

@@ -54,6 +54,9 @@ export default function TimesheetDetail() {
   if (error && !ts) return <p className="text-sm text-danger">{error}</p>
   if (!ts) return <p className="text-sm text-text-muted">Loading…</p>
 
+  // Staff can log their own time (0015), but not sign it off.
+  const isOwn = ts.field_engineer.user_id === profile?.id
+
   return (
     <div className="max-w-xl">
       <div className="mb-6 flex items-center justify-between">
@@ -62,7 +65,7 @@ export default function TimesheetDetail() {
       </div>
 
       <Card className="space-y-4">
-        <Field label="Contractor" value={`${ts.field_engineer.name} (${ts.field_engineer.email})`} />
+        <Field label={ts.field_engineer.kind === 'staff' ? 'Staff' : 'Contractor'} value={`${ts.field_engineer.name} (${ts.field_engineer.email})`} />
         <Field label="Client" value={ts.client.name} />
         {ts.project_reference && <Field label="Project reference" value={ts.project_reference} />}
         <Field label="Date worked" value={ts.work_date} />
@@ -84,7 +87,11 @@ export default function TimesheetDetail() {
 
       <ErrorText>{error}</ErrorText>
 
-      {ts.status === 'submitted' && (
+      {ts.status === 'submitted' && isOwn && (
+        <p className="mt-6 text-sm text-text-muted">This is your own timesheet — someone else needs to approve it.</p>
+      )}
+
+      {ts.status === 'submitted' && !isOwn && (
         <div className="mt-6">
           {!showRejectForm ? (
             <div className="flex gap-3">
@@ -102,7 +109,7 @@ export default function TimesheetDetail() {
                 rows={3}
                 value={rejectionNotes}
                 onChange={(e) => setRejectionNotes(e.target.value)}
-                placeholder="Let the contractor know what needs fixing…"
+                placeholder="Let them know what needs fixing…"
               />
               <div className="mt-3 flex gap-3">
                 <Button

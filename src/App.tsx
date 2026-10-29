@@ -1,4 +1,4 @@
-import { Navigate, Route, createBrowserRouter, createRoutesFromElements, RouterProvider } from 'react-router-dom'
+import { Navigate, Route, createBrowserRouter, createRoutesFromElements, RouterProvider, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
@@ -7,7 +7,7 @@ import MyTimesheets from './pages/engineer/MyTimesheets'
 import TimesheetForm from './pages/engineer/TimesheetForm'
 import AllTimesheets from './pages/staff/AllTimesheets'
 import TimesheetDetail from './pages/staff/TimesheetDetail'
-import FieldEngineers from './pages/staff/FieldEngineers'
+import PeopleList from './pages/staff/PeopleList'
 import Dashboard from './pages/staff/Dashboard'
 import Accounts from './pages/staff/Accounts'
 import OpportunityList from './pages/staff/OpportunityList'
@@ -20,7 +20,7 @@ import InvoiceList from './pages/staff/InvoiceList'
 import InvoiceForm from './pages/staff/InvoiceForm'
 import UserAdmin from './pages/staff/admin/UserAdmin'
 import SkillsAdmin from './pages/staff/admin/SkillsAdmin'
-import ContractorProfile from './pages/staff/ContractorProfile'
+import PersonProfile from './pages/staff/PersonProfile'
 import SetPassword from './pages/SetPassword'
 import NoAccess from './pages/NoAccess'
 import { homePath } from './lib/permissions'
@@ -38,6 +38,11 @@ function Staff({ area, children }: { area: AppArea; children: React.ReactNode })
       {children}
     </ProtectedRoute>
   )
+}
+
+function OldContractorLink() {
+  const { id } = useParams()
+  return <Navigate to={`/staff/users/contractors/${id}`} replace />
 }
 
 // A data router (rather than plain <BrowserRouter>) is required for
@@ -59,11 +64,11 @@ const router = createBrowserRouter(
         <Route path="/set-password" element={<SetPassword />} />
         <Route path="/no-access" element={<NoAccess />} />
 
-        {/* Field engineer area */}
+        {/* My timesheets: contractors, and staff linked to a staff profile */}
         <Route
           path="/my/timesheets"
           element={
-            <ProtectedRoute allowedRoles={['field_engineer']}>
+            <ProtectedRoute allowedRoles={['field_engineer', 'staff']}>
               <MyTimesheets />
             </ProtectedRoute>
           }
@@ -71,7 +76,7 @@ const router = createBrowserRouter(
         <Route
           path="/my/timesheets/new"
           element={
-            <ProtectedRoute allowedRoles={['field_engineer']}>
+            <ProtectedRoute allowedRoles={['field_engineer', 'staff']}>
               <TimesheetForm />
             </ProtectedRoute>
           }
@@ -79,7 +84,7 @@ const router = createBrowserRouter(
         <Route
           path="/my/timesheets/:id"
           element={
-            <ProtectedRoute allowedRoles={['field_engineer']}>
+            <ProtectedRoute allowedRoles={['field_engineer', 'staff']}>
               <TimesheetForm />
             </ProtectedRoute>
           }
@@ -91,8 +96,16 @@ const router = createBrowserRouter(
         {/* Staff: timesheets */}
         <Route path="/staff/timesheets" element={<Staff area="timesheets"><AllTimesheets /></Staff>} />
         <Route path="/staff/timesheets/:id" element={<Staff area="timesheets"><TimesheetDetail /></Staff>} />
-        <Route path="/staff/engineers" element={<Staff area="engineers"><FieldEngineers /></Staff>} />
-        <Route path="/staff/engineers/:id" element={<Staff area="engineers"><ContractorProfile /></Staff>} />
+
+        {/* Staff: users (contractor and staff profiles — permission key "engineers") */}
+        <Route path="/staff/users" element={<Navigate to="/staff/users/contractors" replace />} />
+        <Route path="/staff/users/contractors" element={<Staff area="engineers"><PeopleList key="contractor" kind="contractor" /></Staff>} />
+        <Route path="/staff/users/staff" element={<Staff area="engineers"><PeopleList key="staff" kind="staff" /></Staff>} />
+        <Route path="/staff/users/contractors/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
+        <Route path="/staff/users/staff/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
+        {/* Old Contractors addresses, kept so bookmarks still work */}
+        <Route path="/staff/engineers" element={<Navigate to="/staff/users/contractors" replace />} />
+        <Route path="/staff/engineers/:id" element={<OldContractorLink />} />
 
         {/* Staff: sales pipeline */}
         <Route path="/staff/accounts" element={<Staff area="accounts"><Accounts /></Staff>} />

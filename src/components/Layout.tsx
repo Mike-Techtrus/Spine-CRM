@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { getMyFieldEngineer } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { DottedRule } from './ui'
 import SpineMark from './icons/SpineMark'
@@ -12,6 +14,16 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Layout() {
   const { profile, signOut } = useAuth()
+
+  // Staff whose login is linked to a staff profile (Users → Staff) can log
+  // their own timesheets too.
+  const [hasStaffProfile, setHasStaffProfile] = useState(false)
+  useEffect(() => {
+    if (profile?.role !== 'staff') return
+    getMyFieldEngineer(profile.id)
+      .then((record) => setHasStaffProfile(record !== null))
+      .catch(() => setHasStaffProfile(false))
+  }, [profile?.id, profile?.role])
 
   return (
     <div className="min-h-screen bg-bg dot-grid-bg">
@@ -41,11 +53,18 @@ export default function Layout() {
         </div>
         <nav className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 pb-3">
           {profile?.role === 'staff' ? (
-            APP_AREAS.filter((a) => canAccess(profile, a.key)).map((a) => (
-              <NavLink key={a.key} to={a.path} className={navLinkClass}>
-                {a.label}
-              </NavLink>
-            ))
+            <>
+              {APP_AREAS.filter((a) => canAccess(profile, a.key)).map((a) => (
+                <NavLink key={a.key} to={a.path} className={navLinkClass}>
+                  {a.label}
+                </NavLink>
+              ))}
+              {hasStaffProfile && (
+                <NavLink to="/my/timesheets" className={navLinkClass}>
+                  My Timesheets
+                </NavLink>
+              )}
+            </>
           ) : (
             <NavLink to="/my/timesheets" className={navLinkClass}>
               My Timesheets

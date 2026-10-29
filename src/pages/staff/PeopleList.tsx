@@ -1,11 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { createFieldEngineer, listContractorLogins, listFieldEngineers, updateFieldEngineer } from '../../lib/api'
-import type { ContractorLogin, FieldEngineer } from '../../lib/types'
+import { createFieldEngineer, listFieldEngineers, listPersonLogins, updateFieldEngineer } from '../../lib/api'
+import { PERSON_KINDS, type FieldEngineer, type PersonKind, type PersonLogin } from '../../lib/types'
 import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, Label, SearchInput, Select, Th } from '../../components/ui'
+import SectionTabs from '../../components/SectionTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
+
+const USER_TABS = (['contractor', 'staff'] as const).map((k) => ({ label: PERSON_KINDS[k].plural, path: PERSON_KINDS[k].path }))
 
 const emptyForm = { name: '', email: '', phone: '', day_rate: '', user_id: '' }
 const STATUS_OPTIONS = [
@@ -13,24 +16,25 @@ const STATUS_OPTIONS = [
   { value: 'Inactive', label: 'Inactive' },
 ]
 
-// A login can only be linked to one contractor (field_engineers.user_id is
-// unique), so logins already used by another record are listed but greyed out.
+// A login can only be linked to one record (field_engineers.user_id is
+// unique), so logins already used elsewhere are listed but greyed out.
+// `everyone` covers both kinds so "linked to …" can name any record.
 function LoginOptions({
   logins,
-  engineers,
-  currentEngineerId,
+  everyone,
+  currentRecordId,
 }: {
-  logins: ContractorLogin[]
-  engineers: FieldEngineer[]
-  currentEngineerId: string | null
+  logins: PersonLogin[]
+  everyone: FieldEngineer[]
+  currentRecordId: string | null
 }) {
   return (
     <>
       <option value="">Not linked</option>
       {logins.map((l) => {
         const linkedTo =
-          l.linked_engineer_id && l.linked_engineer_id !== currentEngineerId
-            ? engineers.find((e) => e.id === l.linked_engineer_id)
+          l.linked_engineer_id && l.linked_engineer_id !== currentRecordId
+            ? everyone.find((e) => e.id === l.linked_engineer_id)
             : undefined
         const label = [
           l.full_name ? `${l.full_name} (${l.email})` : l.email,
@@ -51,9 +55,9 @@ function LoginOptions({
 
 function friendlyError(err: unknown, fallback: string) {
   const message = err instanceof Error ? err.message : fallback
-  return message.includes('field_engineers_user_id_key')
-    ? 'That login is already linked to another contractor.'
-    : message
+  if (message.includes('field_engineers_user_id_key')) return 'That login is already linked to someone else.'
+  if (message.includes('field_engineers_email_key')) return 'Someone in Contractors or Staff already has that email.'
+  return message
 }
 
 function getSearchText(e: FieldEngineer) {
@@ -79,26 +83,34 @@ function getSortValue(e: FieldEngineer, key: string) {
   }
 }
 
-export default function FieldEngineers() {
-  const [engineers, setEngineers] = useState<FieldEngineer[]>([])
-  const [logins, setLogins] = useState<ContractorLogin[]>([])
+// Users → Contractors and Users → Staff. Both live in field_engineers,
+// told apart by `kind`; staff see "Cost rate" where contractors see "Day rate".
+export default function PeopleList({ kind }: { kind: PersonKind }) {
+  const meta = PERSON_KINDS[kind]
+  const [everyone, setEveryone] = useState<FieldEngineer[]>([])
+  const [allLogins, setAllLogins] = useState<PersonLogin[]>([])
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const { query, setQuery, filtered } = useSearch(engineers, getSearchText)
+
+  const people = useMemo(() => everyone.filter((e) => e.kind === kind), [everyone, kind])
+  // Contractor records link to Contractor logins, staff records to Staff logins.
+  const logins = useMemo(() => allLogins.filter((l) => l.role === meta.loginRole), [allLogins, meta.loginRole])
+
+  const { query, setQuery, filtered } = useSearch(people, getSearchText)
   const {
     filters,
     setFilter,
     clearFilters,
     activeCount,
     filtered: columnFiltered,
-  } = useColumnFilters(filtered, getSortValue, 'field-engineers')
-  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getSortValue, 'field-engineers')
+  } = useColumnFilters(filtered, getSortValue, `people-${kind}`)
+  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getSortValue, `people-${kind}`)
 
   async function refresh() {
-    const [nextEngineers, nextLogins] = await Promise.all([listFieldEngineers(), listContractorLogins()])
-    setEngineers(nextEngineers)
-    setLogins(nextLogins)
+    const [nextPeople, nextLogins] = await Promise.all([listFieldEngineers(), listPersonLogins()])
+    setEveryone(nextPeople)
+    setAllLogins(nextLogins)
   }
 
   // Picking a login fills in name and email if they haven't been typed yet.
@@ -122,6 +134,7 @@ export default function FieldEngineers() {
     setError(null)
     try {
       await createFieldEngineer({
+        kind,
         name: form.name,
         email: form.email,
         phone: form.phone || null,
@@ -131,21 +144,21 @@ export default function FieldEngineers() {
       setForm(emptyForm)
       await refresh()
     } catch (err) {
-      setError(friendlyError(err, 'Failed to add contractor.'))
+      setError(friendlyError(err, `Failed to add ${meta.singular}.`))
     } finally {
       setSaving(false)
     }
   }
 
-  async function toggleActive(engineer: FieldEngineer) {
-    await updateFieldEngineer(engineer.id, { is_active: !engineer.is_active })
+  async function toggleActive(person: FieldEngineer) {
+    await updateFieldEngineer(person.id, { is_active: !person.is_active })
     await refresh()
   }
 
-  async function linkLogin(engineer: FieldEngineer, userId: string) {
+  async function linkLogin(person: FieldEngineer, userId: string) {
     setError(null)
     try {
-      await updateFieldEngineer(engineer.id, { user_id: userId || null })
+      await updateFieldEngineer(person.id, { user_id: userId || null })
       await refresh()
     } catch (err) {
       setError(friendlyError(err, 'Failed to link login.'))
@@ -154,7 +167,8 @@ export default function FieldEngineers() {
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold text-text">Contractors</h1>
+      <h1 className="mb-4 text-xl font-semibold text-text">Users · {meta.plural}</h1>
+      <SectionTabs sections={USER_TABS} />
 
       <Card className="mb-6">
         <form onSubmit={handleAdd} className="grid grid-cols-4 items-end gap-4">
@@ -176,7 +190,7 @@ export default function FieldEngineers() {
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
           <div>
-            <Label>Day rate (£)</Label>
+            <Label>{meta.rateLabel} (£)</Label>
             <Input
               type="number"
               step="0.01"
@@ -187,12 +201,12 @@ export default function FieldEngineers() {
           <div className="col-span-2">
             <Label>Login</Label>
             <Select value={form.user_id} onChange={(e) => pickLogin(e.target.value)}>
-              <LoginOptions logins={logins} engineers={engineers} currentEngineerId={null} />
+              <LoginOptions logins={logins} everyone={everyone} currentRecordId={null} />
             </Select>
           </div>
           <div className="col-span-4">
             <Button type="submit" disabled={saving}>
-              {saving ? 'Adding…' : 'Add contractor'}
+              {saving ? 'Adding…' : `Add ${meta.singular}`}
             </Button>
           </div>
         </form>
@@ -202,7 +216,7 @@ export default function FieldEngineers() {
       <SearchInput
         value={query}
         onChange={setQuery}
-        placeholder="Search contractors…"
+        placeholder={`Search ${meta.plural.toLowerCase()}…`}
         className="mb-4 max-w-sm"
       />
 
@@ -219,7 +233,7 @@ export default function FieldEngineers() {
                 Email
               </Th>
               <Th sortKey="day_rate" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                Day rate
+                {meta.rateLabel}
               </Th>
               <Th sortKey="login" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                 Login
@@ -243,7 +257,7 @@ export default function FieldEngineers() {
               sorted.map((e) => (
                 <tr key={e.id} className="border-t border-border">
                   <td className="px-4 py-2">
-                    <Link to={`/staff/engineers/${e.id}`} className="text-text hover:text-accent hover:underline">
+                    <Link to={`${meta.path}/${e.id}`} className="text-text hover:text-accent hover:underline">
                       {e.name}
                     </Link>
                   </td>
@@ -256,7 +270,7 @@ export default function FieldEngineers() {
                       onChange={(ev) => linkLogin(e, ev.target.value)}
                       className="py-1 text-xs"
                     >
-                      <LoginOptions logins={logins} engineers={engineers} currentEngineerId={e.id} />
+                      <LoginOptions logins={logins} everyone={everyone} currentRecordId={e.id} />
                     </Select>
                   </td>
                   <td className="px-4 py-2 text-text-muted">{e.is_active ? 'Active' : 'Inactive'}</td>
@@ -270,7 +284,7 @@ export default function FieldEngineers() {
             ) : (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-sm text-text-muted">
-                  No contractors match your search/filters.
+                  No {meta.plural.toLowerCase()} match your search/filters.
                 </td>
               </tr>
             )}
@@ -279,9 +293,10 @@ export default function FieldEngineers() {
       </div>
 
       <p className="mt-4 text-xs text-text-muted">
-        Pick a contractor's login from the Login dropdown. Only logins with the Contractor profile are
-        listed, and each one can be linked to one contractor. To create a login: Admin → Add user with
-        the Contractor profile (if the email matches a contractor here, it's linked automatically).
+        {kind === 'contractor'
+          ? 'Pick a contractor’s login from the Login dropdown — only logins with the Contractor profile are listed. To create one: Admin → Users → Add user with the Contractor profile (a matching email links automatically).'
+          : 'Pick a staff member’s login from the Login dropdown — only logins with the Staff profile are listed. Once linked, they get a My Timesheets tab. To create one: Admin → Users → Add user with the Staff profile (a matching email links automatically).'}{' '}
+        Each login can be linked to one person. Click a name to open their profile (skills and CV).
       </p>
     </div>
   )

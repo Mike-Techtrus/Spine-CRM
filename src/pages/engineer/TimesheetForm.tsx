@@ -115,7 +115,7 @@ export default function TimesheetForm() {
     return (
       <Card>
         <p className="text-sm text-text">
-          Your login isn't linked to a contractor record yet. Ask a Spine CRM admin to link your
+          Your login isn't linked to a contractor or staff profile yet. Ask a Spine CRM admin to link your
           account before you can submit timesheets.
         </p>
       </Card>

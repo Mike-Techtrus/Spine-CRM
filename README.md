@@ -54,14 +54,21 @@ Easiest way for the first account:
 
 Any further staff accounts work the same way (role: `staff`).
 
-## 4. Add contractors
+## 4. Add contractors and staff profiles
 
-1. In the app (as staff), go to **Contractors → Add contractor** — name, email, phone, day rate.
-   This creates their record but not a login.
-2. Create their login from **Admin → Users → Add user** with the **Contractor** profile. If the
-   email matches a contractor record, it's linked automatically.
-3. Otherwise pick the login from the **Login** dropdown on the Contractors page (needs
-   `0013_contractor_login_picker.sql`). Each login can only be linked to one contractor.
+The **Users** tab has two sub-tabs, **Contractors** and **Staff** (needs
+`0015_staff_profiles.sql`). Both are stored in `field_engineers`, told apart by `kind`; staff show
+**Cost rate** where contractors show **Day rate** (same column).
+
+1. **Users → Contractors / Staff → Add** — name, email, phone, rate. This creates their profile but
+   not a login.
+2. Create their login from **Admin → Users → Add user** with the matching profile (Contractor or
+   Staff). If the email matches a profile of that kind, it's linked automatically.
+3. Otherwise pick the login from the **Login** dropdown. Contractor profiles list Contractor
+   logins, staff profiles list Staff logins, and each login links to one person.
+
+Staff linked to a staff profile get a **My Timesheets** tab and can log time like contractors.
+Their timesheets appear in the staff Timesheets list (marked "Staff"); nobody can approve their own.
 
 ## 4a. Admin area (user accounts and permissions)
 
@@ -94,7 +101,7 @@ contractor record and a private `contractor-cvs` storage bucket (PDF/Word, 10 MB
 
 - **Admin → Skills** (Admin permission): manage categories and the master skills list. Skills on a
   contractor's profile can't be deleted, only deactivated.
-- **Contractors → click a name** opens their profile: edit details, add skills from the database
+- **Users → Contractors or Staff → click a name** opens their profile: edit details, add skills from the database
   (with optional level, obtained/expiry dates and notes — expired dates show red, ones expiring
   within 60 days amber), and upload, download or replace their CV.
 

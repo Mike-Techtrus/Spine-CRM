@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import {
   addContractorSkill,
   CV_ACCEPT,
@@ -17,7 +17,9 @@ import {
   type ContractorSkillInput,
 } from '../../lib/api'
 import {
+  PERSON_KINDS,
   SKILL_LEVEL_LABELS,
+  type PersonKind,
   type ContractorSkill,
   type FieldEngineer,
   type Skill,
@@ -46,12 +48,14 @@ function expiryClass(expires_on: string | null) {
 function errorMessage(err: unknown, fallback: string) {
   const message = err instanceof Error ? err.message : fallback
   if (message.includes('contractor_skills_field_engineer_id_skill_id_key')) return 'That skill is already on this profile.'
-  if (message.includes('field_engineers_email_key')) return 'Another contractor already has that email.'
+  if (message.includes('field_engineers_email_key')) return 'Someone in Contractors or Staff already has that email.'
   return message
 }
 
-export default function ContractorProfile() {
+// Profile page for a contractor or staff member (Users → click a name).
+export default function PersonProfile() {
   const { id } = useParams<{ id: string }>()
+  const kindFromUrl = useLocationKind()
   const [engineer, setEngineer] = useState<FieldEngineer | null>(null)
   const [categories, setCategories] = useState<SkillCategory[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
@@ -79,7 +83,7 @@ export default function ContractorProfile() {
   if (!engineer) {
     return (
       <div>
-        <BackLink />
+        <BackLink kind={kindFromUrl} />
         {error ? <ErrorText>{error}</ErrorText> : <p className="text-sm text-text-muted">Loading…</p>}
       </div>
     )
@@ -87,7 +91,7 @@ export default function ContractorProfile() {
 
   return (
     <div>
-      <BackLink />
+      <BackLink kind={engineer.kind} />
       <div className="mb-6 flex items-center gap-3">
         <h1 className="text-xl font-semibold text-text">{engineer.name}</h1>
         {!engineer.is_active && <span className="text-xs font-mono-label text-text-muted">Inactive</span>}
@@ -115,10 +119,15 @@ export default function ContractorProfile() {
   )
 }
 
-function BackLink() {
+// Before the record loads, the address says which list we came from.
+function useLocationKind(): PersonKind {
+  return useLocation().pathname.startsWith(PERSON_KINDS.staff.path) ? 'staff' : 'contractor'
+}
+
+function BackLink({ kind }: { kind: PersonKind }) {
   return (
-    <Link to="/staff/engineers" className="mb-4 inline-block text-xs font-mono-label text-text-muted hover:text-accent">
-      ← Contractors
+    <Link to={PERSON_KINDS[kind].path} className="mb-4 inline-block text-xs font-mono-label text-text-muted hover:text-accent">
+      ← {PERSON_KINDS[kind].plural}
     </Link>
   )
 }
@@ -186,7 +195,7 @@ function DetailsCard({
           <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </div>
         <div>
-          <Label>Day rate (£)</Label>
+          <Label>{PERSON_KINDS[engineer.kind].rateLabel} (£)</Label>
           <Input
             type="number"
             step="0.01"

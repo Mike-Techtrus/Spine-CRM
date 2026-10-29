@@ -28,7 +28,7 @@ export const APP_AREAS = [
   { key: 'invoices', label: 'Invoices', path: '/staff/invoices' },
   { key: 'timesheets', label: 'Timesheets', path: '/staff/timesheets' },
   { key: 'accounts', label: 'Accounts', path: '/staff/accounts' },
-  { key: 'engineers', label: 'Contractors', path: '/staff/engineers' },
+  { key: 'engineers', label: 'Users', path: '/staff/users' }, // contractor + staff profiles
   { key: 'admin', label: 'Admin', path: '/staff/admin' },
 ] as const
 
@@ -72,13 +72,38 @@ export interface Contact {
 
 // ── Field engineers / timesheets ────────────────────────────────────────────
 
+// field_engineers holds both contractor and staff profiles (migration 0015).
+// Shown on screen under Users → Contractors / Staff.
+export type PersonKind = 'contractor' | 'staff'
+
+export const PERSON_KINDS: Record<
+  PersonKind,
+  { plural: string; singular: string; rateLabel: string; loginRole: UserRole; path: string }
+> = {
+  contractor: {
+    plural: 'Contractors',
+    singular: 'contractor',
+    rateLabel: 'Day rate',
+    loginRole: 'field_engineer',
+    path: '/staff/users/contractors',
+  },
+  staff: {
+    plural: 'Staff',
+    singular: 'staff member',
+    rateLabel: 'Cost rate', // same day_rate column, shown differently for staff
+    loginRole: 'staff',
+    path: '/staff/users/staff',
+  },
+}
+
 export interface FieldEngineer {
   id: string
+  kind: PersonKind
   user_id: string | null // linked auth user once they've been invited/activated
   name: string
   email: string
   phone: string | null
-  day_rate: number | null
+  day_rate: number | null // "Cost rate" on screen for staff
   is_active: boolean
   created_at: string
   cv_path: string | null // object path in the private "contractor-cvs" storage bucket
@@ -86,13 +111,14 @@ export interface FieldEngineer {
   cv_uploaded_at: string | null
 }
 
-// A Contractor-profile login that a contractor record can be linked to.
-export interface ContractorLogin {
+// A login that a contractor or staff record can be linked to.
+export interface PersonLogin {
   id: string
   email: string
   full_name: string
+  role: UserRole
   disabled: boolean
-  linked_engineer_id: string | null // the contractor record already using this login, if any
+  linked_engineer_id: string | null // the record already using this login, if any
 }
 
 // ── Skills database ─────────────────────────────────────────────────────────
@@ -156,7 +182,7 @@ export interface TimesheetEntry {
 
 // Convenience joined shape used in staff/engineer list views
 export interface TimesheetEntryWithRelations extends TimesheetEntry {
-  field_engineer: Pick<FieldEngineer, 'id' | 'name' | 'email'>
+  field_engineer: Pick<FieldEngineer, 'id' | 'name' | 'email' | 'user_id' | 'kind'>
   client: Pick<Account, 'id' | 'name'>
   approver: Pick<Profile, 'id' | 'full_name'> | null
 }

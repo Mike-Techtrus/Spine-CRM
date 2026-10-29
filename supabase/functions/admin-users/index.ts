@@ -144,15 +144,15 @@ async function createUser(body: any) {
     .eq('id', userId)
   if (profileError) throw profileError
 
-  // Saves the old "Link login…" step: tie the login to an existing field
-  // engineer record with the same email, if there is one.
-  if (role === 'field_engineer') {
-    await admin
-      .from('field_engineers')
-      .update({ user_id: userId })
-      .ilike('email', email)
-      .is('user_id', null)
-  }
+  // Tie the login to an existing contractor or staff profile (Users tab)
+  // with the same email, if there is one. Contractor logins only link to
+  // contractor records and staff logins to staff records (kind, 0015).
+  await admin
+    .from('field_engineers')
+    .update({ user_id: userId })
+    .ilike('email', email)
+    .eq('kind', role === 'staff' ? 'staff' : 'contractor')
+    .is('user_id', null)
 
   if (body.send_reset_email) await sendReset(email, body.redirect_to)
   return { id: userId }
