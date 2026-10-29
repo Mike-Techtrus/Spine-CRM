@@ -6,7 +6,90 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 
-const emptyForm = { name: '', website: '', phone: '', email: '', city: '', postcode: '' }
+const emptyForm = {
+  name: '',
+  website: '',
+  phone: '',
+  email: '',
+  billing_name: '',
+  address_line_1: '',
+  address_line_2: '',
+  city: '',
+  postcode: '',
+}
+type AccountForm = typeof emptyForm
+
+function toForm(a: Account): AccountForm {
+  return {
+    name: a.name,
+    website: a.website ?? '',
+    phone: a.phone ?? '',
+    email: a.email ?? '',
+    billing_name: a.billing_name ?? '',
+    address_line_1: a.address_line_1 ?? '',
+    address_line_2: a.address_line_2 ?? '',
+    city: a.city ?? '',
+    postcode: a.postcode ?? '',
+  }
+}
+
+function toInput(form: AccountForm) {
+  const orNull = (v: string) => v.trim() || null
+  return {
+    name: form.name.trim(),
+    website: orNull(form.website),
+    phone: orNull(form.phone),
+    email: orNull(form.email),
+    billing_name: orNull(form.billing_name),
+    address_line_1: orNull(form.address_line_1),
+    address_line_2: orNull(form.address_line_2),
+    city: orNull(form.city),
+    postcode: form.postcode.trim().toUpperCase() || null,
+  }
+}
+
+// Shared by Add account and Edit account. The billing name and address are
+// what print under "Invoice To" on invoices.
+function AccountFields({ form, onChange }: { form: AccountForm; onChange: (f: AccountForm) => void }) {
+  const field = (key: keyof AccountForm) => ({
+    value: form[key],
+    onChange: (e: { target: { value: string } }) => onChange({ ...form, [key]: e.target.value }),
+  })
+  const label = 'mb-1 block text-xs font-mono-label text-text-muted'
+  return (
+    <>
+      <div>
+        <label className={label}>Name</label>
+        <Input required {...field('name')} />
+      </div>
+      <div>
+        <label className={label}>Website</label>
+        <Input {...field('website')} />
+      </div>
+      <div>
+        <label className={label}>Phone</label>
+        <Input {...field('phone')} />
+      </div>
+      <div>
+        <label className={label}>Email</label>
+        <Input {...field('email')} />
+      </div>
+      <div className="col-span-2">
+        <label className={label}>Name on invoices (if different, e.g. "CDW Limited")</label>
+        <Input placeholder={form.name} {...field('billing_name')} />
+      </div>
+      <div className="col-span-3">
+        <label className={label}>Billing address</label>
+        <div className="grid grid-cols-2 gap-2">
+          <Input aria-label="Address line 1" placeholder="Address line 1" {...field('address_line_1')} />
+          <Input aria-label="Address line 2" placeholder="Address line 2" {...field('address_line_2')} />
+          <Input aria-label="Town or city" placeholder="Town / city" {...field('city')} />
+          <Input aria-label="Postcode" placeholder="Postcode" {...field('postcode')} />
+        </div>
+      </div>
+    </>
+  )
+}
 const STATUS_OPTIONS = [
   { value: 'Active', label: 'Active' },
   { value: 'Inactive', label: 'Inactive' },
@@ -41,6 +124,8 @@ export default function Accounts() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<Account | null>(null)
+  const [editForm, setEditForm] = useState(emptyForm)
   const { query, setQuery, filtered } = useSearch(accounts, getSearchText)
   const {
     filters,
@@ -65,19 +150,36 @@ export default function Accounts() {
     setSaving(true)
     setError(null)
     try {
-      await createAccount({
-        name: form.name.trim(),
-        website: form.website || null,
-        phone: form.phone || null,
-        email: form.email || null,
-        city: form.city || null,
-        postcode: form.postcode || null,
-      })
+      await createAccount(toInput(form))
       setForm(emptyForm)
       setShowForm(false)
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add account.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function startEdit(account: Account) {
+    setShowForm(false)
+    setEditing(account)
+    setEditForm(toForm(account))
+    setError(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!editing || !editForm.name.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      await updateAccount(editing.id, toInput(editForm))
+      setEditing(null)
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save account.')
     } finally {
       setSaving(false)
     }
@@ -92,36 +194,38 @@ export default function Accounts() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-text">Accounts</h1>
-        <Button onClick={() => setShowForm((s) => !s)}>{showForm ? 'Cancel' : 'Add account'}</Button>
+        <Button
+          onClick={() => {
+            setEditing(null)
+            setShowForm((s) => !s)
+          }}
+        >
+          {showForm ? 'Cancel' : 'Add account'}
+        </Button>
       </div>
+
+      {editing && (
+        <Card className="mb-6">
+          <h2 className="mb-4 text-sm font-semibold text-text">Edit {editing.name}</h2>
+          <form onSubmit={handleSaveEdit} className="grid grid-cols-3 gap-4">
+            <AccountFields form={editForm} onChange={setEditForm} />
+            <div className="col-span-3 flex gap-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+          <ErrorText>{error}</ErrorText>
+        </Card>
+      )}
 
       {showForm && (
         <Card className="mb-6">
           <form onSubmit={handleAdd} className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="mb-1 block text-xs font-mono-label text-text-muted">Name</label>
-              <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-mono-label text-text-muted">Website</label>
-              <Input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-mono-label text-text-muted">Phone</label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-mono-label text-text-muted">Email</label>
-              <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-mono-label text-text-muted">City</label>
-              <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-mono-label text-text-muted">Postcode</label>
-              <Input value={form.postcode} onChange={(e) => setForm({ ...form, postcode: e.target.value })} />
-            </div>
+            <AccountFields form={form} onChange={setForm} />
             <div className="col-span-3">
               <Button type="submit" disabled={saving}>
                 {saving ? 'Adding…' : 'Save account'}
@@ -176,9 +280,14 @@ export default function Accounts() {
                   <td className="px-4 py-2 text-text-muted">{a.email || '—'}</td>
                   <td className="px-4 py-2 text-text-muted">{a.is_active ? 'Active' : 'Inactive'}</td>
                   <td className="px-4 py-2 text-right">
-                    <button onClick={() => toggleActive(a)} className="text-xs text-text-muted hover:text-text">
-                      {a.is_active ? 'Deactivate' : 'Reactivate'}
-                    </button>
+                    <span className="flex justify-end gap-3 text-xs">
+                      <button onClick={() => startEdit(a)} className="text-accent hover:underline">
+                        Edit
+                      </button>
+                      <button onClick={() => toggleActive(a)} className="text-text-muted hover:text-text">
+                        {a.is_active ? 'Deactivate' : 'Reactivate'}
+                      </button>
+                    </span>
                   </td>
                 </tr>
               ))

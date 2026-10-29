@@ -20,7 +20,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-md border border-border bg-sunken px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none ${props.className ?? ''}`}
+      className={`w-full rounded-md border border-border bg-sunken px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ''}`}
     />
   )
 }

@@ -2,14 +2,18 @@ import { useEffect, useState, type SyntheticEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   createInvoice,
+  getCompanySettings,
   getInvoice,
   getSalesOrderForConversion,
   listAccounts,
+  listInvoiceLines,
   listPaymentsForInvoice,
   recordPayment,
+  replaceInvoiceLines,
   updateInvoice,
+  type InvoiceLineInput,
 } from '../../lib/api'
-import type { Account, InvoiceStatus, Payment } from '../../lib/types'
+import type { Account, CompanySettings, InvoiceStatus, Payment } from '../../lib/types'
 import { INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select } from '../../components/ui'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
@@ -33,6 +37,67 @@ const emptyForm = {
   status: 'draft' as InvoiceStatus,
 }
 
+// Same rules the imported invoices follow (and QuoteForm uses): VAT 20% of
+// Value, Rebate 7.5% of Value, Net value = Total − Rebate.
+const VAT_RATE = 0.2
+const REBATE_RATE = 0.075
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+function deriveFinancials(value: number) {
+  const vat = round2(value * VAT_RATE)
+  const total = round2(value + vat)
+  const rebate = round2(value * REBATE_RATE)
+  return {
+    value: value.toString(),
+    vat: vat.toString(),
+    total: total.toString(),
+    rebate: rebate.toString(),
+    net_value: round2(total - rebate).toString(),
+  }
+}
+
+// An invoice line being edited (strings, like the rest of the form).
+interface LocalLine {
+  key: string
+  description: string
+  qty: string
+  unit_price: string
+}
+
+function emptyLine(): LocalLine {
+  return { key: crypto.randomUUID(), description: '', qty: '1', unit_price: '' }
+}
+
+function lineTotal(line: LocalLine): number {
+  const qty = Number(line.qty)
+  const price = Number(line.unit_price)
+  return Number.isNaN(qty) || Number.isNaN(price) ? 0 : round2(qty * price)
+}
+
+function toLineInput(line: LocalLine): InvoiceLineInput {
+  return {
+    description: line.description.trim() || null,
+    qty: Number(line.qty) || 0,
+    unit_price: Number(line.unit_price) || 0,
+  }
+}
+
+// Lines compared by content only, for the unsaved-changes check.
+function linesSnapshot(lines: LocalLine[]) {
+  return JSON.stringify(lines.map(({ description, qty, unit_price }) => [description, qty, unit_price]))
+}
+
+function money(v: string | number | null): string {
+  return `£${Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function shortDate(iso: string): string {
+  return iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''
+}
+
 export default function InvoiceForm() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
@@ -53,8 +118,13 @@ export default function InvoiceForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [lines, setLines] = useState<LocalLine[]>([])
+  const [company, setCompany] = useState<CompanySettings | null>(null)
+
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
-  const isDirty = !loading && !blocked && JSON.stringify(form) !== initialSnapshot
+  const [initialLines, setInitialLines] = useState('[]')
+  const isDirty =
+    !loading && !blocked && (JSON.stringify(form) !== initialSnapshot || linesSnapshot(lines) !== initialLines)
   const { allowNextNavigation } = useUnsavedChangesGuard(isDirty)
 
   const [payments, setPayments] = useState<Payment[]>([])
@@ -94,7 +164,19 @@ export default function InvoiceForm() {
           }
           setForm(loaded)
           setInitialSnapshot(JSON.stringify(loaded))
+          const loadedLines: LocalLine[] = (await listInvoiceLines(id)).map((l) => ({
+            key: l.id,
+            description: l.description ?? '',
+            qty: l.qty.toString(),
+            unit_price: l.unit_price.toString(),
+          }))
+          setLines(loadedLines)
+          setInitialLines(linesSnapshot(loadedLines))
           await refreshPayments(id)
+          // Only needed for printing — don't block the form if it fails.
+          getCompanySettings()
+            .then(setCompany)
+            .catch(() => setCompany(null))
         } else if (salesOrderIdFromQuery) {
           const so = await getSalesOrderForConversion(salesOrderIdFromQuery)
           setSourceSalesOrderRef(so.reference)
@@ -160,6 +242,9 @@ export default function InvoiceForm() {
         const created = await createInvoice(input)
         savedId = created.id
       }
+      if (savedId) await replaceInvoiceLines(savedId, lines.map(toLineInput))
+      setInitialSnapshot(JSON.stringify(form))
+      setInitialLines(linesSnapshot(lines))
       allowNextNavigation()
       navigate(`/staff/invoices/${savedId}`)
     } catch (err) {
@@ -207,18 +292,169 @@ export default function InvoiceForm() {
     )
   }
 
-  return (
-    <div className="max-w-xl">
-      <h1 className="mb-6 text-xl font-semibold text-text">
-        {isEditing ? `Edit invoice ${invoiceNumber ?? ''}` : 'New invoice'}
-        {sourceSalesOrderRef && (
-          <span className="ml-2 font-mono-label text-xs font-normal text-text-faint">
-            from sales order {sourceSalesOrderRef}
-          </span>
-        )}
-      </h1>
+  // Lines drive Value (and so VAT/Total/Rebate/Net) once any exist; an
+  // invoice with no lines keeps the manual figures (e.g. imported invoices).
+  function applyLines(newLines: LocalLine[]) {
+    setLines(newLines)
+    if (newLines.length === 0) return
+    const sum = round2(newLines.reduce((acc, l) => acc + lineTotal(l), 0))
+    setForm((prev) => ({ ...prev, ...deriveFinancials(sum) }))
+  }
 
-      <Card>
+  const linesControlTotals = lines.length > 0
+
+  // ── Printable invoice data ──
+  const client = accounts.find((a) => a.id === form.client_id)
+  const invoiceTo = [
+    client ? client.billing_name || client.name : '',
+    client?.address_line_1,
+    client?.address_line_2,
+    client?.city,
+    client?.postcode,
+  ].filter((v): v is string => Boolean(v))
+  // Invoices with no lines (e.g. imported ones) print a single line for their Value.
+  const printLines =
+    lines.length > 0
+      ? lines.map((l) => ({ key: l.key, description: l.description, qty: Number(l.qty) || 0, price: Number(l.unit_price) || 0 }))
+      : [
+          {
+            key: 'value',
+            description:
+              form.invoice_period_from || form.invoice_period_to
+                ? `Services ${shortDate(form.invoice_period_from)} – ${shortDate(form.invoice_period_to)}`
+                : 'Services',
+            qty: 1,
+            price: Number(form.value) || 0,
+          },
+        ]
+  const bankDetails = company
+    ? [
+        company.bank_account_name && `Acc Name: ${company.bank_account_name}`,
+        company.bank_account_number && `Acc No: ${company.bank_account_number}`,
+        company.bank_sort_code && `Sort Code: ${company.bank_sort_code}`,
+      ].filter(Boolean)
+    : []
+
+  return (
+    <div className="max-w-3xl">
+      <div className="mb-6 flex items-start justify-between gap-4 print:hidden">
+        <h1 className="text-xl font-semibold text-text">
+          {isEditing ? `Edit invoice ${invoiceNumber ?? ''}` : 'New invoice'}
+          {sourceSalesOrderRef && (
+            <span className="ml-2 font-mono-label text-xs font-normal text-text-faint">
+              from sales order {sourceSalesOrderRef}
+            </span>
+          )}
+        </h1>
+        {isEditing && id && (
+          <Button type="button" variant="secondary" onClick={() => window.print()} className="shrink-0">
+            Print / Export PDF
+          </Button>
+        )}
+      </div>
+
+      {/* Printable invoice — hidden on screen, shown only when printing (or
+          "Save as PDF" from the print dialog opened by the button above).
+          Laid out like Techtrus's existing invoices (INV2365, Sept 2026):
+          details block top right, lines, terms + bank details beside the
+          totals, company registration line. No status, Rebate or Net value.
+          Company details come from Admin → Invoice settings. It prints what's
+          currently in the form, so save first if you've changed anything. */}
+      {isEditing && (
+        <div className="hidden text-sm text-black print:block">
+          <div className="mb-6 flex items-start justify-between">
+            <img src="/techtrus-logo.png" alt="Techtrus" className="h-14 w-auto" />
+            <h1 className="text-4xl font-semibold tracking-wide">Invoice</h1>
+          </div>
+
+          <div className="mb-8 ml-auto w-1/2 space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="font-semibold">Company VAT Reg</p>
+                <p>{company?.vat_reg}</p>
+              </div>
+              <div>
+                <p className="font-semibold">Invoice No.</p>
+                <p>{invoiceNumber}</p>
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold">Invoice To</p>
+              {invoiceTo.map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </div>
+            <p>Date: {shortDate(form.invoice_date)}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="font-semibold">PO No.</p>
+                <p>{form.po_number}</p>
+              </div>
+              <div>
+                <p className="font-semibold">Terms</p>
+                <p>{company?.payment_terms}</p>
+              </div>
+            </div>
+          </div>
+
+          <table className="mb-6 w-full border-collapse">
+            <thead>
+              <tr className="border-y-2 border-gray-400 text-left">
+                <th className="py-2 pr-2 font-semibold">Product Description</th>
+                <th className="w-24 py-2 pr-2 text-right font-semibold">Quantity</th>
+                <th className="w-28 py-2 pr-2 text-right font-semibold">Price</th>
+                <th className="w-32 py-2 text-right font-semibold">Net Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {printLines.map((l) => (
+                <tr key={l.key} className="border-b border-gray-200">
+                  <td className="py-1.5 pr-2">{l.description}</td>
+                  <td className="py-1.5 pr-2 text-right">{l.qty}</td>
+                  <td className="py-1.5 pr-2 text-right">{money(l.price)}</td>
+                  <td className="py-1.5 text-right">{money(round2(l.qty * l.price))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="mb-8 grid grid-cols-[1fr_16rem] gap-8">
+            <div className="space-y-3 text-xs">
+              {company?.payment_terms_text && <p>{company.payment_terms_text}</p>}
+              {bankDetails.length > 0 && <p className="font-semibold">{bankDetails.join('   ')}</p>}
+            </div>
+            <div>
+              <div className="flex justify-between py-1">
+                <span className="font-semibold">Net Amount</span>
+                <span>{money(form.value)}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="font-semibold">VAT Total</span>
+                <span>{money(form.vat)}</span>
+              </div>
+              <div className="flex justify-between border-t-2 border-gray-400 py-1 font-semibold">
+                <span>Total Amount</span>
+                <span>{money(form.total)}</span>
+              </div>
+            </div>
+          </div>
+
+          {company && (
+            <p className="mb-3 text-center text-xs text-gray-600">
+              A company Registered in England and Wales. Company registration number: {company.company_number}
+              {company.registered_address && <> &nbsp; Registered Address: {company.registered_address}</>}
+              {company.vat_reg && <> &nbsp; Company VAT Reg: {company.vat_reg}</>}
+            </p>
+          )}
+
+          <p className="border-t border-gray-300 pt-3 text-xs text-gray-500">
+            {form.due_date && form.status !== 'paid' ? `Payment due by ${shortDate(form.due_date)}. ` : ''}Please quote
+            invoice number {invoiceNumber} with your payment.
+          </p>
+        </div>
+      )}
+
+      <Card className="print:hidden">
         <form onSubmit={handleSave} onKeyDown={preventEnterSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -280,26 +516,140 @@ export default function InvoiceForm() {
             </div>
           </div>
 
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <Label>Invoice lines</Label>
+              <button
+                type="button"
+                onClick={() => applyLines([...lines, emptyLine()])}
+                className="text-xs font-mono-label text-accent hover:underline"
+              >
+                + Add line
+              </button>
+            </div>
+            {lines.length === 0 ? (
+              <p className="rounded-md border border-dashed border-border px-3 py-3 text-xs text-text-muted">
+                No lines — the printed invoice shows one line for the Value below. Add lines (e.g. "L2 ENGINEER", 18 ×
+                £448.82) to itemise it; Value, VAT and Total are then worked out from them.
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-md border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
+                    <tr>
+                      <th className="px-2 py-2">Product description</th>
+                      <th className="w-24 px-2 py-2">Quantity</th>
+                      <th className="w-32 px-2 py-2">Price (£)</th>
+                      <th className="w-28 px-2 py-2 text-right">Net amount</th>
+                      <th className="w-8 px-2 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line) => (
+                      <tr key={line.key} className="border-t border-border">
+                        <td className="px-2 py-1.5">
+                          <Input
+                            aria-label="Product description"
+                            value={line.description}
+                            onChange={(e) =>
+                              applyLines(lines.map((l) => (l.key === line.key ? { ...l, description: e.target.value } : l)))
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Input
+                            aria-label="Quantity"
+                            type="number"
+                            step="0.01"
+                            value={line.qty}
+                            onChange={(e) =>
+                              applyLines(lines.map((l) => (l.key === line.key ? { ...l, qty: e.target.value } : l)))
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Input
+                            aria-label="Price"
+                            type="number"
+                            step="0.01"
+                            value={line.unit_price}
+                            onChange={(e) =>
+                              applyLines(lines.map((l) => (l.key === line.key ? { ...l, unit_price: e.target.value } : l)))
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 text-right text-text-muted">{money(lineTotal(line))}</td>
+                        <td className="px-2 py-1.5 text-right">
+                          <button
+                            type="button"
+                            aria-label="Remove line"
+                            onClick={() => applyLines(lines.filter((l) => l.key !== line.key))}
+                            className="text-text-muted hover:text-danger"
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {linesControlTotals && (
+            <p className="text-xs text-text-faint">Worked out from the lines above (VAT 20%, rebate 7.5%).</p>
+          )}
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Value (£)</Label>
-              <Input type="number" step="0.01" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />
+              <Input
+                type="number"
+                step="0.01"
+                disabled={linesControlTotals}
+                value={form.value}
+                onChange={(e) => setForm({ ...form, value: e.target.value })}
+              />
             </div>
             <div>
               <Label>VAT (£)</Label>
-              <Input type="number" step="0.01" value={form.vat} onChange={(e) => setForm({ ...form, vat: e.target.value })} />
+              <Input
+                type="number"
+                step="0.01"
+                disabled={linesControlTotals}
+                value={form.vat}
+                onChange={(e) => setForm({ ...form, vat: e.target.value })}
+              />
             </div>
             <div>
               <Label>Total (£)</Label>
-              <Input type="number" step="0.01" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} />
+              <Input
+                type="number"
+                step="0.01"
+                disabled={linesControlTotals}
+                value={form.total}
+                onChange={(e) => setForm({ ...form, total: e.target.value })}
+              />
             </div>
             <div>
               <Label>Rebate (£)</Label>
-              <Input type="number" step="0.01" value={form.rebate} onChange={(e) => setForm({ ...form, rebate: e.target.value })} />
+              <Input
+                type="number"
+                step="0.01"
+                disabled={linesControlTotals}
+                value={form.rebate}
+                onChange={(e) => setForm({ ...form, rebate: e.target.value })}
+              />
             </div>
             <div>
               <Label>Net value (£)</Label>
-              <Input type="number" step="0.01" value={form.net_value} onChange={(e) => setForm({ ...form, net_value: e.target.value })} />
+              <Input
+                type="number"
+                step="0.01"
+                disabled={linesControlTotals}
+                value={form.net_value}
+                onChange={(e) => setForm({ ...form, net_value: e.target.value })}
+              />
             </div>
             <div>
               <Label>Status</Label>
@@ -322,7 +672,7 @@ export default function InvoiceForm() {
       </Card>
 
       {isEditing && (
-        <Card className="mt-6">
+        <Card className="mt-6 print:hidden">
           <h2 className="mb-4 text-sm font-mono-label uppercase tracking-wide text-text-muted">Payments</h2>
 
           {payments.length === 0 && <p className="mb-4 text-sm text-text-muted">No payments recorded yet.</p>}

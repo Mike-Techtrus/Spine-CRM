@@ -4,6 +4,7 @@ import SectionTabs from '../../../components/SectionTabs'
 const SECTIONS = [
   { label: 'Logins', path: '/staff/admin/logins' },
   { label: 'Skills', path: '/staff/admin/skills' },
+  { label: 'Invoice settings', path: '/staff/admin/invoice-settings' },
 ]
 
 export default function AdminTabs() {

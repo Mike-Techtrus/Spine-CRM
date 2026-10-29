@@ -55,6 +55,9 @@ export interface Account {
   website: string | null
   phone: string | null
   email: string | null
+  billing_name: string | null // legal name for invoices, e.g. "CDW Limited" — falls back to name
+  address_line_1: string | null
+  address_line_2: string | null
   city: string | null
   postcode: string | null
   is_active: boolean
@@ -402,6 +405,31 @@ export interface InvoiceWithRelations extends Invoice {
   client: Pick<Account, 'id' | 'name'> | null
   end_client: Pick<Account, 'id' | 'name'> | null
   sales_order: Pick<SalesOrder, 'id' | 'reference'> | null
+}
+
+// Product Description / Quantity / Price lines on an invoice (migration 0018).
+export interface InvoiceLine {
+  id: string
+  invoice_id: string
+  sort_order: number
+  description: string | null
+  qty: number
+  unit_price: number
+  created_at: string
+}
+
+// The single row of company details printed on every invoice — Admin →
+// Invoice settings (migration 0018).
+export interface CompanySettings {
+  company_name: string
+  vat_reg: string
+  company_number: string
+  registered_address: string
+  payment_terms: string // short, e.g. "40 Days"
+  payment_terms_text: string
+  bank_account_name: string
+  bank_account_number: string
+  bank_sort_code: string
 }
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {

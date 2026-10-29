@@ -20,6 +20,7 @@ import InvoiceList from './pages/staff/InvoiceList'
 import InvoiceForm from './pages/staff/InvoiceForm'
 import UserAdmin from './pages/staff/admin/UserAdmin'
 import SkillsAdmin from './pages/staff/admin/SkillsAdmin'
+import InvoiceSettings from './pages/staff/admin/InvoiceSettings'
 import PersonProfile from './pages/staff/PersonProfile'
 import SetPassword from './pages/SetPassword'
 import NoAccess from './pages/NoAccess'
@@ -131,6 +132,7 @@ const router = createBrowserRouter(
         <Route path="/staff/admin/users" element={<Navigate to="/staff/admin/logins" replace />} />
         <Route path="/staff/admin/logins" element={<Staff area="admin"><UserAdmin /></Staff>} />
         <Route path="/staff/admin/skills" element={<Staff area="admin"><SkillsAdmin /></Staff>} />
+        <Route path="/staff/admin/invoice-settings" element={<Staff area="admin"><InvoiceSettings /></Staff>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

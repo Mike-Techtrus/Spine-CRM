@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import type { Invoice, InvoiceWithRelations, Payment } from '../types'
+import type { CompanySettings, Invoice, InvoiceLine, InvoiceWithRelations, Payment } from '../types'
 import { fetchAllRows, unwrap } from './_shared'
 
 const WITH_RELATIONS_SELECT = `
@@ -77,4 +77,37 @@ export async function recordPayment(input: {
   payment_amount: number
 }): Promise<Payment> {
   return unwrap(await supabase.from('payments').insert(input).select().single())
+}
+
+// ── Invoice lines (migration 0018) ─────────────────────────────────────────
+
+export type InvoiceLineInput = Pick<InvoiceLine, 'description' | 'qty' | 'unit_price'>
+
+export async function listInvoiceLines(invoiceId: string): Promise<InvoiceLine[]> {
+  return unwrap(
+    await supabase.from('invoice_lines').select('*').eq('invoice_id', invoiceId).order('sort_order', { ascending: true }),
+  )
+}
+
+// Replaces the full set of lines in one go, same approach as replaceQuoteLines.
+export async function replaceInvoiceLines(invoiceId: string, lines: InvoiceLineInput[]): Promise<InvoiceLine[]> {
+  const { error: deleteError } = await supabase.from('invoice_lines').delete().eq('invoice_id', invoiceId)
+  if (deleteError) throw new Error(deleteError.message)
+  if (lines.length === 0) return []
+  return unwrap(
+    await supabase
+      .from('invoice_lines')
+      .insert(lines.map((line, index) => ({ ...line, invoice_id: invoiceId, sort_order: index })))
+      .select(),
+  )
+}
+
+// ── Company settings (Admin → Invoice settings, migration 0018) ───────────
+
+export async function getCompanySettings(): Promise<CompanySettings> {
+  return unwrap(await supabase.from('company_settings').select('*').eq('id', true).single())
+}
+
+export async function updateCompanySettings(input: CompanySettings): Promise<CompanySettings> {
+  return unwrap(await supabase.from('company_settings').update(input).eq('id', true).select().single())
 }

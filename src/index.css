@@ -100,7 +100,7 @@ body {
   flex-shrink: 0;
 }
 
-/* Printing / "Export PDF" (Quote page): the app is dark-themed on screen,
+/* Printing / "Export PDF" (Quote and Invoice pages): the app is dark-themed on screen,
    but a printed page should be plain black-on-white. The app chrome and
    editable forms hide themselves via Tailwind's print: variants; this just
    resets the page background/text so nothing dark bleeds through. */
