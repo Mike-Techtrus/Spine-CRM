@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import type { DayType, FieldEngineer, TimesheetEntry, TimesheetEntryWithRelations, TimesheetStatus } from '../types'
+import type { ContractorLogin, DayType, FieldEngineer, TimesheetEntry, TimesheetEntryWithRelations, TimesheetStatus } from '../types'
 import { unwrap } from './_shared'
 
 const TIMESHEET_WITH_RELATIONS_SELECT = `
@@ -137,6 +137,7 @@ export interface FieldEngineerInput {
   email: string
   phone: string | null
   day_rate: number | null
+  user_id?: string | null
 }
 
 export async function createFieldEngineer(input: FieldEngineerInput): Promise<FieldEngineer> {
@@ -148,4 +149,11 @@ export async function updateFieldEngineer(
   input: Partial<FieldEngineerInput & { is_active: boolean; user_id: string | null }>,
 ): Promise<FieldEngineer> {
   return unwrap(await supabase.from('field_engineers').update(input).eq('id', id).select().single())
+}
+
+// Contractor logins for the "link a login" dropdowns. Comes from the
+// list_contractor_logins() database function (0013) because emails live in
+// auth.users, which the browser can't read directly.
+export async function listContractorLogins(): Promise<ContractorLogin[]> {
+  return unwrap(await supabase.rpc('list_contractor_logins'))
 }

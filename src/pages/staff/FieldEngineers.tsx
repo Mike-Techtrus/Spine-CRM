@@ -1,16 +1,59 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { createFieldEngineer, listFieldEngineers, updateFieldEngineer } from '../../lib/api'
-import type { FieldEngineer } from '../../lib/types'
-import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, Label, SearchInput, Th } from '../../components/ui'
+import { createFieldEngineer, listContractorLogins, listFieldEngineers, updateFieldEngineer } from '../../lib/api'
+import type { ContractorLogin, FieldEngineer } from '../../lib/types'
+import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, Label, SearchInput, Select, Th } from '../../components/ui'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 
-const emptyForm = { name: '', email: '', phone: '', day_rate: '' }
+const emptyForm = { name: '', email: '', phone: '', day_rate: '', user_id: '' }
 const STATUS_OPTIONS = [
   { value: 'Active', label: 'Active' },
   { value: 'Inactive', label: 'Inactive' },
 ]
+
+// A login can only be linked to one contractor (field_engineers.user_id is
+// unique), so logins already used by another record are listed but greyed out.
+function LoginOptions({
+  logins,
+  engineers,
+  currentEngineerId,
+}: {
+  logins: ContractorLogin[]
+  engineers: FieldEngineer[]
+  currentEngineerId: string | null
+}) {
+  return (
+    <>
+      <option value="">Not linked</option>
+      {logins.map((l) => {
+        const linkedTo =
+          l.linked_engineer_id && l.linked_engineer_id !== currentEngineerId
+            ? engineers.find((e) => e.id === l.linked_engineer_id)
+            : undefined
+        const label = [
+          l.full_name ? `${l.full_name} (${l.email})` : l.email,
+          l.disabled ? '— disabled' : '',
+          linkedTo ? `— linked to ${linkedTo.name}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+        return (
+          <option key={l.id} value={l.id} disabled={Boolean(linkedTo)}>
+            {label}
+          </option>
+        )
+      })}
+    </>
+  )
+}
+
+function friendlyError(err: unknown, fallback: string) {
+  const message = err instanceof Error ? err.message : fallback
+  return message.includes('field_engineers_user_id_key')
+    ? 'That login is already linked to another contractor.'
+    : message
+}
 
 function getSearchText(e: FieldEngineer) {
   return [e.name, e.email, e.phone, e.day_rate, e.is_active ? 'Active' : 'Inactive']
@@ -37,6 +80,7 @@ function getSortValue(e: FieldEngineer, key: string) {
 
 export default function FieldEngineers() {
   const [engineers, setEngineers] = useState<FieldEngineer[]>([])
+  const [logins, setLogins] = useState<ContractorLogin[]>([])
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -51,7 +95,20 @@ export default function FieldEngineers() {
   const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getSortValue, 'field-engineers')
 
   async function refresh() {
-    setEngineers(await listFieldEngineers())
+    const [nextEngineers, nextLogins] = await Promise.all([listFieldEngineers(), listContractorLogins()])
+    setEngineers(nextEngineers)
+    setLogins(nextLogins)
+  }
+
+  // Picking a login fills in name and email if they haven't been typed yet.
+  function pickLogin(userId: string) {
+    const login = logins.find((l) => l.id === userId)
+    setForm({
+      ...form,
+      user_id: userId,
+      name: form.name || login?.full_name || '',
+      email: form.email || login?.email || '',
+    })
   }
 
   useEffect(() => {
@@ -68,11 +125,12 @@ export default function FieldEngineers() {
         email: form.email,
         phone: form.phone || null,
         day_rate: form.day_rate ? Number(form.day_rate) : null,
+        user_id: form.user_id || null,
       })
       setForm(emptyForm)
       await refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add contractor.')
+      setError(friendlyError(err, 'Failed to add contractor.'))
     } finally {
       setSaving(false)
     }
@@ -83,14 +141,14 @@ export default function FieldEngineers() {
     await refresh()
   }
 
-  async function linkLogin(engineer: FieldEngineer) {
-    const userId = window.prompt(
-      `Paste the Supabase auth user UUID for ${engineer.name} (Supabase Dashboard → Authentication → Users, after inviting ${engineer.email}).`,
-      engineer.user_id ?? '',
-    )
-    if (userId === null) return
-    await updateFieldEngineer(engineer.id, { user_id: userId.trim() || null })
-    await refresh()
+  async function linkLogin(engineer: FieldEngineer, userId: string) {
+    setError(null)
+    try {
+      await updateFieldEngineer(engineer.id, { user_id: userId || null })
+      await refresh()
+    } catch (err) {
+      setError(friendlyError(err, 'Failed to link login.'))
+    }
   }
 
   return (
@@ -124,6 +182,12 @@ export default function FieldEngineers() {
               value={form.day_rate}
               onChange={(e) => setForm({ ...form, day_rate: e.target.value })}
             />
+          </div>
+          <div className="col-span-2">
+            <Label>Login</Label>
+            <Select value={form.user_id} onChange={(e) => pickLogin(e.target.value)}>
+              <LoginOptions logins={logins} engineers={engineers} currentEngineerId={null} />
+            </Select>
           </div>
           <div className="col-span-4">
             <Button type="submit" disabled={saving}>
@@ -181,9 +245,14 @@ export default function FieldEngineers() {
                   <td className="px-4 py-2 text-text-muted">{e.email}</td>
                   <td className="px-4 py-2 text-text-muted">{e.day_rate ? `£${Number(e.day_rate).toFixed(2)}` : '—'}</td>
                   <td className="px-4 py-2">
-                    <button onClick={() => linkLogin(e)} className="text-xs text-accent hover:underline">
-                      {e.user_id ? 'Linked' : 'Link login…'}
-                    </button>
+                    <Select
+                      aria-label={`Login for ${e.name}`}
+                      value={e.user_id ?? ''}
+                      onChange={(ev) => linkLogin(e, ev.target.value)}
+                      className="py-1 text-xs"
+                    >
+                      <LoginOptions logins={logins} engineers={engineers} currentEngineerId={e.id} />
+                    </Select>
                   </td>
                   <td className="px-4 py-2 text-text-muted">{e.is_active ? 'Active' : 'Inactive'}</td>
                   <td className="px-4 py-2 text-right">
@@ -205,8 +274,9 @@ export default function FieldEngineers() {
       </div>
 
       <p className="mt-4 text-xs text-text-muted">
-        To give a contractor a login: go to Admin → Add user with the same email and the Contractor
-        profile — the login is linked to their record here automatically.
+        Pick a contractor's login from the Login dropdown. Only logins with the Contractor profile are
+        listed, and each one can be linked to one contractor. To create a login: Admin → Add user with
+        the Contractor profile (if the email matches a contractor here, it's linked automatically).
       </p>
     </div>
   )

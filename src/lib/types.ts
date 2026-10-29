@@ -83,6 +83,15 @@ export interface FieldEngineer {
   created_at: string
 }
 
+// A Contractor-profile login that a contractor record can be linked to.
+export interface ContractorLogin {
+  id: string
+  email: string
+  full_name: string
+  disabled: boolean
+  linked_engineer_id: string | null // the contractor record already using this login, if any
+}
+
 export type DayType = 'full_day' | 'half_day_am' | 'half_day_pm'
 export type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 
