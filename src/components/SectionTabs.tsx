@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 
-// Sub-navigation under a top-level tab, e.g. Admin → Users / Skills.
+// Sub-navigation under a top-level tab, e.g. Admin → Logins / Skills.
 export default function SectionTabs({ sections }: { sections: { label: string; path: string }[] }) {
   return (
     <div className="mb-6 flex gap-1 border-b border-border">

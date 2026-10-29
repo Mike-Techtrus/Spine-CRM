@@ -294,8 +294,8 @@ export default function PeopleList({ kind }: { kind: PersonKind }) {
 
       <p className="mt-4 text-xs text-text-muted">
         {kind === 'contractor'
-          ? 'Pick a contractor’s login from the Login dropdown — only logins with the Contractor profile are listed. To create one: Admin → Users → Add user with the Contractor profile (a matching email links automatically).'
-          : 'Pick a staff member’s login from the Login dropdown — only logins with the Staff profile are listed. Once linked, they get a My Timesheets tab. To create one: Admin → Users → Add user with the Staff profile (a matching email links automatically).'}{' '}
+          ? 'Pick a contractor’s login from the Login dropdown — only logins with the Contractor profile are listed. To create one: Admin → Logins → Add login with the Contractor profile (a matching email links automatically).'
+          : 'Pick a staff member’s login from the Login dropdown — only logins with the Staff profile are listed. Once linked, they get a My Timesheets tab. To create one: Admin → Logins → Add login with the Staff profile (a matching email links automatically).'}{' '}
         Each login can be linked to one person. Click a name to open their profile (skills and CV).
       </p>
     </div>

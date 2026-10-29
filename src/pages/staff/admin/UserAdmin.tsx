@@ -125,7 +125,7 @@ function AddUserForm({ onAdded }: { onAdded: () => Promise<void> }) {
 
   return (
     <Card className="mb-6">
-      <h2 className="mb-4 text-sm font-semibold text-text">Add user</h2>
+      <h2 className="mb-4 text-sm font-semibold text-text">Add login</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
@@ -204,7 +204,7 @@ function AddUserForm({ onAdded }: { onAdded: () => Promise<void> }) {
         <ErrorText>{error}</ErrorText>
         {notice && <p className="text-sm text-accent">{notice}</p>}
         <Button type="submit" disabled={saving}>
-          {saving ? 'Adding…' : 'Add user'}
+          {saving ? 'Adding…' : 'Add login'}
         </Button>
       </form>
     </Card>
@@ -413,9 +413,9 @@ export default function UserAdmin() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text">Admin · Users</h1>
+        <h1 className="text-xl font-semibold text-text">Admin · Logins</h1>
         <Button variant={showAdd ? 'secondary' : 'primary'} onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? 'Cancel' : 'Add user'}
+          {showAdd ? 'Cancel' : 'Add login'}
         </Button>
       </div>
       <AdminTabs />
@@ -438,7 +438,7 @@ export default function UserAdmin() {
 
       <ErrorText>{error}</ErrorText>
 
-      <SearchInput value={query} onChange={setQuery} placeholder="Search users…" className="mb-4 max-w-sm" />
+      <SearchInput value={query} onChange={setQuery} placeholder="Search logins…" className="mb-4 max-w-sm" />
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">

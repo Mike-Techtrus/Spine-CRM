@@ -62,7 +62,7 @@ The **Users** tab has two sub-tabs, **Contractors** and **Staff** (needs
 
 1. **Users → Contractors / Staff → Add** — name, email, phone, rate. This creates their profile but
    not a login.
-2. Create their login from **Admin → Users → Add user** with the matching profile (Contractor or
+2. Create their login from **Admin → Logins → Add login** with the matching profile (Contractor or
    Staff). If the email matches a profile of that kind, it's linked automatically.
 3. Otherwise pick the login from the **Login** dropdown. Contractor profiles list Contractor
    logins, staff profiles list Staff logins, and each login links to one person.
@@ -70,9 +70,9 @@ The **Users** tab has two sub-tabs, **Contractors** and **Staff** (needs
 Staff linked to a staff profile get a **My Timesheets** tab and can log time like contractors.
 Their timesheets appear in the staff Timesheets list (marked "Staff"); nobody can approve their own.
 
-## 4a. Admin area (user accounts and permissions)
+## 4a. Admin area (logins and permissions)
 
-Staff with the **Admin** permission get an **Admin** tab where they can add users, set or email
+Staff with the **Admin** permission get an **Admin** tab. Under **Logins** they can add logins, set or email
 password resets, disable and re-enable accounts (deliberately no delete, so history stays intact),
 change someone's profile (Staff / Field engineer) and choose which areas of the app
 each staff member can use. This replaces the dashboard steps in §3/§4 for everyone after the first

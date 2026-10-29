@@ -127,8 +127,9 @@ const router = createBrowserRouter(
         <Route path="/staff/invoices/:id" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
 
         {/* Staff: administration */}
-        <Route path="/staff/admin" element={<Navigate to="/staff/admin/users" replace />} />
-        <Route path="/staff/admin/users" element={<Staff area="admin"><UserAdmin /></Staff>} />
+        <Route path="/staff/admin" element={<Navigate to="/staff/admin/logins" replace />} />
+        <Route path="/staff/admin/users" element={<Navigate to="/staff/admin/logins" replace />} />
+        <Route path="/staff/admin/logins" element={<Staff area="admin"><UserAdmin /></Staff>} />
         <Route path="/staff/admin/skills" element={<Staff area="admin"><SkillsAdmin /></Staff>} />
       </Route>
 
