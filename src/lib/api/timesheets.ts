@@ -132,6 +132,10 @@ export async function listFieldEngineers(): Promise<FieldEngineer[]> {
   return unwrap(await supabase.from('field_engineers').select('*').order('name'))
 }
 
+export async function getFieldEngineer(id: string): Promise<FieldEngineer> {
+  return unwrap(await supabase.from('field_engineers').select('*').eq('id', id).single())
+}
+
 export interface FieldEngineerInput {
   name: string
   email: string

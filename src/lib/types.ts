@@ -81,6 +81,9 @@ export interface FieldEngineer {
   day_rate: number | null
   is_active: boolean
   created_at: string
+  cv_path: string | null // object path in the private "contractor-cvs" storage bucket
+  cv_file_name: string | null
+  cv_uploaded_at: string | null
 }
 
 // A Contractor-profile login that a contractor record can be linked to.
@@ -90,6 +93,44 @@ export interface ContractorLogin {
   full_name: string
   disabled: boolean
   linked_engineer_id: string | null // the contractor record already using this login, if any
+}
+
+// ── Skills database ─────────────────────────────────────────────────────────
+
+export interface SkillCategory {
+  id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
+export interface Skill {
+  id: string
+  category_id: string
+  name: string
+  description: string | null
+  is_active: boolean // inactive skills stay on existing profiles but can't be newly added
+  created_at: string
+}
+
+export type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert'
+
+export const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+  expert: 'Expert',
+}
+
+export interface ContractorSkill {
+  id: string
+  field_engineer_id: string
+  skill_id: string
+  level: SkillLevel | null
+  obtained_on: string | null
+  expires_on: string | null
+  notes: string | null
+  created_at: string
 }
 
 export type DayType = 'full_day' | 'half_day_am' | 'half_day_pm'

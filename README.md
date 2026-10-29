@@ -54,20 +54,14 @@ Easiest way for the first account:
 
 Any further staff accounts work the same way (role: `staff`).
 
-## 4. Add field engineers
+## 4. Add contractors
 
-1. In the app (as staff), go to **Field Engineers → Add field engineer** — just name, email,
-   phone, day rate. This creates their record but not a login yet.
-2. Invite them: Supabase Dashboard → **Authentication → Users → Invite user**, their email, with
-   metadata `{ "full_name": "...", "role": "field_engineer" }`. Supabase emails them a link to set
-   a password (or they can use "magic link" sign-in on `/login` with no password at all).
-3. Back in the app, click **Link login…** next to their name and paste their new user UUID (shown
-   in the Supabase Users list).
-
-This two-step process (record, then invite, then link) is a deliberate MVP shortcut — inviting
-users requires Supabase's admin API, which needs a service-role key that should never sit in a
-browser app. The proper fix is a small server-side function (a Supabase Edge Function) that does
-the invite + link in one step; worth doing once this is in real use.
+1. In the app (as staff), go to **Contractors → Add contractor** — name, email, phone, day rate.
+   This creates their record but not a login.
+2. Create their login from **Admin → Users → Add user** with the **Contractor** profile. If the
+   email matches a contractor record, it's linked automatically.
+3. Otherwise pick the login from the **Login** dropdown on the Contractors page (needs
+   `0013_contractor_login_picker.sql`). Each login can only be linked to one contractor.
 
 ## 4a. Admin area (user accounts and permissions)
 
@@ -91,6 +85,18 @@ One-off setup:
 Area permissions currently control the nav and which pages open; the database still lets any staff
 user read and write sales-pipeline/timesheet data. Tightening the RLS policies per area is the
 natural next step (`public.has_area('quotes')` etc. is ready for it).
+
+## 4b. Skills database and contractor profiles
+
+Run `supabase/migrations/0014_skills_database.sql` in the SQL Editor. It creates the skills tables
+(seeded with Technical skills / Soft skills / Certifications categories), CV columns on the
+contractor record and a private `contractor-cvs` storage bucket (PDF/Word, 10 MB max).
+
+- **Admin → Skills** (Admin permission): manage categories and the master skills list. Skills on a
+  contractor's profile can't be deleted, only deactivated.
+- **Contractors → click a name** opens their profile: edit details, add skills from the database
+  (with optional level, obtained/expiry dates and notes — expired dates show red, ones expiring
+  within 60 days amber), and upload, download or replace their CV.
 
 ## 5. Deploy to Vercel
 

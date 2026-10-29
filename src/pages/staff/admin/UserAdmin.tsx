@@ -12,6 +12,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { Button, Card, ErrorText, Input, Label, SearchInput, Select, Th } from '../../../components/ui'
 import { useSort } from '../../../lib/useSort'
 import { useSearch } from '../../../lib/useSearch'
+import AdminTabs from './AdminTabs'
 
 // New staff get everything except admin by default — tick it deliberately.
 const DEFAULT_STAFF_AREAS: AppArea[] = APP_AREAS.filter((a) => a.key !== 'admin').map((a) => a.key)
@@ -411,12 +412,13 @@ export default function UserAdmin() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-text">Admin · Users</h1>
         <Button variant={showAdd ? 'secondary' : 'primary'} onClick={() => setShowAdd(!showAdd)}>
           {showAdd ? 'Cancel' : 'Add user'}
         </Button>
       </div>
+      <AdminTabs />
 
       {showAdd && <AddUserForm onAdded={refresh} />}
 

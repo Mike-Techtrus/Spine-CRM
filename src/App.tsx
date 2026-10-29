@@ -19,6 +19,8 @@ import SalesOrderForm from './pages/staff/SalesOrderForm'
 import InvoiceList from './pages/staff/InvoiceList'
 import InvoiceForm from './pages/staff/InvoiceForm'
 import UserAdmin from './pages/staff/admin/UserAdmin'
+import SkillsAdmin from './pages/staff/admin/SkillsAdmin'
+import ContractorProfile from './pages/staff/ContractorProfile'
 import SetPassword from './pages/SetPassword'
 import NoAccess from './pages/NoAccess'
 import { homePath } from './lib/permissions'
@@ -90,6 +92,7 @@ const router = createBrowserRouter(
         <Route path="/staff/timesheets" element={<Staff area="timesheets"><AllTimesheets /></Staff>} />
         <Route path="/staff/timesheets/:id" element={<Staff area="timesheets"><TimesheetDetail /></Staff>} />
         <Route path="/staff/engineers" element={<Staff area="engineers"><FieldEngineers /></Staff>} />
+        <Route path="/staff/engineers/:id" element={<Staff area="engineers"><ContractorProfile /></Staff>} />
 
         {/* Staff: sales pipeline */}
         <Route path="/staff/accounts" element={<Staff area="accounts"><Accounts /></Staff>} />
@@ -111,7 +114,9 @@ const router = createBrowserRouter(
         <Route path="/staff/invoices/:id" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
 
         {/* Staff: administration */}
-        <Route path="/staff/admin" element={<Staff area="admin"><UserAdmin /></Staff>} />
+        <Route path="/staff/admin" element={<Navigate to="/staff/admin/users" replace />} />
+        <Route path="/staff/admin/users" element={<Staff area="admin"><UserAdmin /></Staff>} />
+        <Route path="/staff/admin/skills" element={<Staff area="admin"><SkillsAdmin /></Staff>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

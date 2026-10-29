@@ -24,6 +24,9 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 
 ## Recent work (as of late Oct 2026)
 
+- **Skills database** (migration 0014): `skill_categories`, `skills` and `contractor_skills` tables, plus a CV per contractor in the private `contractor-cvs` storage bucket (`field_engineers.cv_path` etc.). The master list is managed at Admin → Skills (`src/pages/staff/admin/SkillsAdmin.tsx`, writes need `is_admin()`). Contractor profiles are at `/staff/engineers/:id` (`src/pages/staff/ContractorProfile.tsx`). Admin now has tabs (`AdminTabs.tsx`); `/staff/admin` redirects to `/staff/admin/users`.
+- Contractors link to a login through a dropdown (migration 0013, `list_contractor_logins()`). `field_engineers.user_id` is unique, so one login per contractor.
+
 - "Field Engineer" is now called **"Contractor"** everywhere on screen. Only the labels changed: the database role (`field_engineer`), table (`field_engineers`), route (`/staff/engineers`), permission key (`engineers`) and code names deliberately still say engineer. Use "Contractor" in any new UI text.
 
 - Added an in-app Admin area (`src/pages/staff/admin/UserAdmin.tsx`, branch `feature/user-admin`): add users, set/email password resets, disable/re-enable accounts (a Supabase auth "ban" — no delete, by Mike's choice), change profile, per-area permissions (`profiles.permissions`, migration 0012). Admin actions go through the `admin-users` Edge Function (`supabase/functions/admin-users`) because they need the service-role key. Area permissions are enforced in the UI/routes only so far — RLS still uses `is_staff()`.

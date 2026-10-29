@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { createFieldEngineer, listContractorLogins, listFieldEngineers, updateFieldEngineer } from '../../lib/api'
 import type { ContractorLogin, FieldEngineer } from '../../lib/types'
 import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, Label, SearchInput, Select, Th } from '../../components/ui'
@@ -241,7 +242,11 @@ export default function FieldEngineers() {
             {sorted && sorted.length > 0 ? (
               sorted.map((e) => (
                 <tr key={e.id} className="border-t border-border">
-                  <td className="px-4 py-2 text-text">{e.name}</td>
+                  <td className="px-4 py-2">
+                    <Link to={`/staff/engineers/${e.id}`} className="text-text hover:text-accent hover:underline">
+                      {e.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2 text-text-muted">{e.email}</td>
                   <td className="px-4 py-2 text-text-muted">{e.day_rate ? `£${Number(e.day_rate).toFixed(2)}` : '—'}</td>
                   <td className="px-4 py-2">
