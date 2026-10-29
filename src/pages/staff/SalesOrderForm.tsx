@@ -157,8 +157,6 @@ export default function SalesOrderForm() {
         total: n(form.total),
         rebate: n(form.rebate),
         net_value: n(form.net_value),
-        invoiced_to_date: n(form.invoiced_to_date),
-        timesheet_sent: null,
         outstanding_comments: form.outstanding_comments || null,
       }
 
@@ -341,12 +339,9 @@ export default function SalesOrderForm() {
             </div>
             <div>
               <Label>Invoiced to date (£)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.invoiced_to_date}
-                onChange={(e) => setForm({ ...form, invoiced_to_date: e.target.value })}
-              />
+              {/* Worked out by the database from this order's invoices (migration 0017), so not editable. */}
+              <Input type="number" value={form.invoiced_to_date} readOnly disabled placeholder="No invoices yet" />
+              <p className="mt-1 text-xs text-text-faint">Net value of linked invoices, excluding cancelled.</p>
             </div>
           </div>
 

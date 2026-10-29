@@ -24,6 +24,7 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 
 ## Recent work (as of late Oct 2026)
 
+- **Invoiced to date is automatic** (migration 0017): `sales_orders.invoiced_to_date` = sum of linked invoices' `net_value`, excluding cancelled/draft, kept current by a trigger on `invoices`. Read-only on the Sales Order form — don't add it back to the save payload. The form also no longer sends `timesheet_sent: null` (it was wiping that field on every save).
 - **Paging on list tables**: `DataTable` shows 10 / 25 / 100 rows per page (`src/lib/usePagination.ts`, remembered per browser). The lists still load every record so search/filters/sort cover everything — `fetchAllRows` in `src/lib/api/_shared.ts` fetches past Supabase's 1000-row cap in chunks (Invoices has 1,800+). Move search/filter/sort into the database only if volumes reach tens of thousands.
 - **Choosable table columns** on Opportunities, Quotes, Sales Orders and Invoices: each page defines a `COLUMNS` list (`TableColumn` in `src/lib/useColumnPrefs.ts`) rendered by `components/DataTable.tsx`; the **Columns** button (`components/ColumnPicker.tsx`) shows/hides and reorders them, saved per browser in localStorage. To offer a new field, add an entry to that page's `COLUMNS` (use `defaultHidden: true` to keep the default view unchanged).
 - **Address on profiles** (migration 0016): `address_line_1`, `address_line_2`, `city`, `postcode` on `field_engineers`, edited in the profile's Details card.
