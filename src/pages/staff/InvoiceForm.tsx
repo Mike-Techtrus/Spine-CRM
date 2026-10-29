@@ -16,6 +16,7 @@ import {
 import type { Account, CompanySettings, InvoiceStatus, Payment } from '../../lib/types'
 import { INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select } from '../../components/ui'
+import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 
@@ -336,7 +337,7 @@ export default function InvoiceForm() {
     : []
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl print:max-w-none">
       <div className="mb-6 flex items-start justify-between gap-4 print:hidden">
         <h1 className="text-xl font-semibold text-text">
           {isEditing ? `Edit invoice ${invoiceNumber ?? ''}` : 'New invoice'}
@@ -347,7 +348,12 @@ export default function InvoiceForm() {
           )}
         </h1>
         {isEditing && id && (
-          <Button type="button" variant="secondary" onClick={() => window.print()} className="shrink-0">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => printWithTitle(`Invoice ${invoiceNumber ?? ''}`)}
+            className="shrink-0"
+          >
             Print / Export PDF
           </Button>
         )}
@@ -361,38 +367,59 @@ export default function InvoiceForm() {
           Company details come from Admin → Invoice settings. It prints what's
           currently in the form, so save first if you've changed anything. */}
       {isEditing && (
-        <div className="hidden text-sm text-black print:block">
-          <div className="mb-6 flex items-start justify-between">
-            <img src="/techtrus-logo.png" alt="Techtrus" className="h-14 w-auto" />
-            <h1 className="text-4xl font-semibold tracking-wide">Invoice</h1>
-          </div>
-
-          <div className="mb-8 ml-auto w-1/2 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+        <PrintDocument
+          footer={
+            <div className="space-y-1 border-t border-gray-300 pt-2 text-center text-xs text-gray-600">
+              {company && (
+                <p>
+                  A company Registered in England and Wales. Company registration number: {company.company_number}
+                  {company.registered_address && <> &nbsp; Registered Address: {company.registered_address}</>}
+                  {company.vat_reg && <> &nbsp; Company VAT Reg: {company.vat_reg}</>}
+                </p>
+              )}
+              <p>
+                {form.due_date && form.status !== 'paid' ? `Payment due by ${shortDate(form.due_date)}. ` : ''}
+                Please quote invoice number {invoiceNumber} with your payment.
+              </p>
+            </div>
+          }
+        >
+          {/* Logo with "Invoice To" under it on the left; title and the
+              reference details on the right. Kept compact so a typical
+              invoice fits on one page in landscape as well as portrait. */}
+          <div className="mb-6 flex items-start justify-between gap-8">
+            <div className="space-y-5">
+              <img src="/techtrus-logo.png" alt="Techtrus" className="h-14 w-auto" />
               <div>
-                <p className="font-semibold">Company VAT Reg</p>
-                <p>{company?.vat_reg}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Invoice No.</p>
-                <p>{invoiceNumber}</p>
+                <p className="font-semibold">Invoice To</p>
+                {invoiceTo.map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
               </div>
             </div>
-            <div>
-              <p className="font-semibold">Invoice To</p>
-              {invoiceTo.map((line, i) => (
-                <p key={i}>{line}</p>
-              ))}
-            </div>
-            <p>Date: {shortDate(form.invoice_date)}</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="font-semibold">PO No.</p>
-                <p>{form.po_number}</p>
-              </div>
-              <div>
-                <p className="font-semibold">Terms</p>
-                <p>{company?.payment_terms}</p>
+            <div className="w-1/2">
+              <h1 className="mb-4 text-right text-4xl font-semibold tracking-wide">Invoice</h1>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                  <p className="font-semibold">Company VAT Reg</p>
+                  <p>{company?.vat_reg}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Invoice No.</p>
+                  <p>{invoiceNumber}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">PO No.</p>
+                  <p>{form.po_number}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Terms</p>
+                  <p>{company?.payment_terms}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Date</p>
+                  <p>{shortDate(form.invoice_date)}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -418,10 +445,16 @@ export default function InvoiceForm() {
             </tbody>
           </table>
 
-          <div className="mb-8 grid grid-cols-[1fr_16rem] gap-8">
+          <div className="grid grid-cols-[1fr_16rem] gap-8">
             <div className="space-y-3 text-xs">
               {company?.payment_terms_text && <p>{company.payment_terms_text}</p>}
-              {bankDetails.length > 0 && <p className="font-semibold">{bankDetails.join('   ')}</p>}
+              {bankDetails.length > 0 && (
+                <p className="flex flex-wrap gap-x-8 font-semibold">
+                  {bankDetails.map((d) => (
+                    <span key={d}>{d}</span>
+                  ))}
+                </p>
+              )}
             </div>
             <div>
               <div className="flex justify-between py-1">
@@ -438,20 +471,7 @@ export default function InvoiceForm() {
               </div>
             </div>
           </div>
-
-          {company && (
-            <p className="mb-3 text-center text-xs text-gray-600">
-              A company Registered in England and Wales. Company registration number: {company.company_number}
-              {company.registered_address && <> &nbsp; Registered Address: {company.registered_address}</>}
-              {company.vat_reg && <> &nbsp; Company VAT Reg: {company.vat_reg}</>}
-            </p>
-          )}
-
-          <p className="border-t border-gray-300 pt-3 text-xs text-gray-500">
-            {form.due_date && form.status !== 'paid' ? `Payment due by ${shortDate(form.due_date)}. ` : ''}Please quote
-            invoice number {invoiceNumber} with your payment.
-          </p>
-        </div>
+        </PrintDocument>
       )}
 
       <Card className="print:hidden">
@@ -470,10 +490,7 @@ export default function InvoiceForm() {
             </div>
             <div>
               <Label>End client</Label>
-              <Select
-                value={form.end_client_id}
-                onChange={(e) => setForm({ ...form, end_client_id: e.target.value })}
-              >
+              <Select value={form.end_client_id} onChange={(e) => setForm({ ...form, end_client_id: e.target.value })}>
                 <option value="">—</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -492,11 +509,19 @@ export default function InvoiceForm() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Invoice date</Label>
-              <Input type="date" value={form.invoice_date} onChange={(e) => setForm({ ...form, invoice_date: e.target.value })} />
+              <Input
+                type="date"
+                value={form.invoice_date}
+                onChange={(e) => setForm({ ...form, invoice_date: e.target.value })}
+              />
             </div>
             <div>
               <Label>Due date</Label>
-              <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+              <Input
+                type="date"
+                value={form.due_date}
+                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              />
             </div>
             <div>
               <Label>Invoice period from</Label>
@@ -552,7 +577,9 @@ export default function InvoiceForm() {
                             aria-label="Product description"
                             value={line.description}
                             onChange={(e) =>
-                              applyLines(lines.map((l) => (l.key === line.key ? { ...l, description: e.target.value } : l)))
+                              applyLines(
+                                lines.map((l) => (l.key === line.key ? { ...l, description: e.target.value } : l)),
+                              )
                             }
                           />
                         </td>
@@ -574,7 +601,9 @@ export default function InvoiceForm() {
                             step="0.01"
                             value={line.unit_price}
                             onChange={(e) =>
-                              applyLines(lines.map((l) => (l.key === line.key ? { ...l, unit_price: e.target.value } : l)))
+                              applyLines(
+                                lines.map((l) => (l.key === line.key ? { ...l, unit_price: e.target.value } : l)),
+                              )
                             }
                           />
                         </td>
@@ -653,7 +682,10 @@ export default function InvoiceForm() {
             </div>
             <div>
               <Label>Status</Label>
-              <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as InvoiceStatus })}>
+              <Select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value as InvoiceStatus })}
+              >
                 {Object.entries(INVOICE_STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}

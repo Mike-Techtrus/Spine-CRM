@@ -26,7 +26,7 @@ export default function Layout() {
   }, [profile?.id, profile?.role])
 
   return (
-    <div className="min-h-screen bg-bg dot-grid-bg">
+    <div className="min-h-screen bg-bg dot-grid-bg print:min-h-0 print:bg-white">
       <header className="border-b border-border bg-bg/95 backdrop-blur print:hidden">
         <div className="mx-auto grid max-w-6xl grid-cols-3 items-center px-4 py-3">
           <div className="flex items-center">
@@ -73,7 +73,7 @@ export default function Layout() {
         </nav>
         <DottedRule />
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8 print:max-w-none print:p-0">
         <Outlet />
       </main>
     </div>

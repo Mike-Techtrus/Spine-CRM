@@ -103,10 +103,12 @@ body {
 /* Printing / "Export PDF" (Quote and Invoice pages): the app is dark-themed on screen,
    but a printed page should be plain black-on-white. The app chrome and
    editable forms hide themselves via Tailwind's print: variants; this just
-   resets the page background/text so nothing dark bleeds through. */
+   resets the page background/text so nothing dark bleeds through.
+   Page margin is 0 so the browser can't print its own header/footer (the
+   Spine URL, date and title) — PrintDocument.tsx supplies the margins. */
 @media print {
   @page {
-    margin: 15mm;
+    margin: 0;
   }
 
   html,

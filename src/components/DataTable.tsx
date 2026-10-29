@@ -1,8 +1,8 @@
-import type { ColumnFilters } from "../lib/useColumnFilters";
-import type { TableColumn } from "../lib/useColumnPrefs";
-import type { SortDirection } from "../lib/useSort";
-import { PAGE_SIZE_OPTIONS, usePagination } from "../lib/usePagination";
-import { FilterCell, Th } from "./ui";
+import type { ColumnFilters } from '../lib/useColumnFilters'
+import type { TableColumn } from '../lib/useColumnPrefs'
+import type { SortDirection } from '../lib/useSort'
+import { PAGE_SIZE_OPTIONS, usePagination } from '../lib/usePagination'
+import { FilterCell, Th } from './ui'
 
 /**
  * A sortable, filterable list table drawn from column definitions, so the
@@ -24,22 +24,21 @@ export default function DataTable<T>({
   setFilter,
   emptyMessage,
 }: {
-  storageKey: string;
-  columns: TableColumn<T>[];
-  rows: T[];
-  rowKey: (row: T) => string;
-  onRowClick?: (row: T) => void;
-  sortKey: string | null;
-  direction: SortDirection;
-  onSort: (key: string) => void;
-  filters: ColumnFilters;
-  setFilter: (key: string, value: string) => void;
-  emptyMessage: string;
+  storageKey: string
+  columns: TableColumn<T>[]
+  rows: T[]
+  rowKey: (row: T) => string
+  onRowClick?: (row: T) => void
+  sortKey: string | null
+  direction: SortDirection
+  onSort: (key: string) => void
+  filters: ColumnFilters
+  setFilter: (key: string, value: string) => void
+  emptyMessage: string
 }) {
-  const { pageRows, page, pageCount, pageSize, setPage, setPageSize, total } =
-    usePagination(rows, storageKey);
-  const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const last = Math.min(page * pageSize, total);
+  const { pageRows, page, pageCount, pageSize, setPage, setPageSize, total } = usePagination(rows, storageKey)
+  const first = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const last = Math.min(page * pageSize, total)
 
   return (
     <div>
@@ -48,13 +47,7 @@ export default function DataTable<T>({
           <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
             <tr>
               {columns.map((c) => (
-                <Th
-                  key={c.key}
-                  sortKey={c.key}
-                  activeSortKey={sortKey}
-                  direction={direction}
-                  onSort={onSort}
-                >
+                <Th key={c.key} sortKey={c.key} activeSortKey={sortKey} direction={direction} onSort={onSort}>
                   {c.label}
                 </Th>
               ))}
@@ -63,7 +56,7 @@ export default function DataTable<T>({
               {columns.map((c) => (
                 <FilterCell
                   key={c.key}
-                  value={filters[c.key] ?? ""}
+                  value={filters[c.key] ?? ''}
                   onChange={(v) => setFilter(c.key, v)}
                   options={c.filterOptions}
                 />
@@ -75,29 +68,19 @@ export default function DataTable<T>({
               pageRows.map((row) => (
                 <tr
                   key={rowKey(row)}
-                  className={`border-t border-border ${onRowClick ? "cursor-pointer hover:bg-surface-raised" : ""}`}
+                  className={`border-t border-border ${onRowClick ? 'cursor-pointer hover:bg-surface-raised' : ''}`}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                 >
                   {columns.map((c) => (
-                    <td
-                      key={c.key}
-                      className={`px-4 py-2 ${c.cellClassName ?? "text-text-muted"}`}
-                    >
-                      {c.render
-                        ? c.render(row)
-                        : (c.value(row) ?? "") === ""
-                          ? "—"
-                          : c.value(row)}
+                    <td key={c.key} className={`px-4 py-2 ${c.cellClassName ?? 'text-text-muted'}`}>
+                      {c.render ? c.render(row) : (c.value(row) ?? '') === '' ? '—' : c.value(row)}
                     </td>
                   ))}
                 </tr>
               ))
             ) : (
               <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-6 text-center text-sm text-text-muted"
-                >
+                <td colSpan={columns.length} className="px-4 py-6 text-center text-sm text-text-muted">
                   {emptyMessage}
                 </td>
               </tr>
@@ -123,8 +106,7 @@ export default function DataTable<T>({
         </label>
         <div className="flex items-center gap-3">
           <span>
-            {first.toLocaleString("en-GB")}–{last.toLocaleString("en-GB")} of{" "}
-            {total.toLocaleString("en-GB")}
+            {first.toLocaleString('en-GB')}–{last.toLocaleString('en-GB')} of {total.toLocaleString('en-GB')}
           </span>
           <button
             type="button"
@@ -166,5 +148,5 @@ export default function DataTable<T>({
         </div>
       </div>
     </div>
-  );
+  )
 }

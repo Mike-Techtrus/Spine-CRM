@@ -19,6 +19,7 @@ import {
   QUOTE_VALIDITY_DAYS,
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
+import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 
@@ -313,14 +314,14 @@ export default function QuoteForm() {
   const linesControlTotals = lines.length > 0
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl print:max-w-none">
       <div className="mb-6 flex items-center justify-between print:hidden">
         <h1 className="text-xl font-semibold text-text">
           {isEditing ? `Edit quote ${quoteNumber ?? ''}` : 'New quote'}
         </h1>
         {isEditing && id && (
           <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" onClick={() => window.print()}>
+            <Button type="button" variant="secondary" onClick={() => printWithTitle(`Quote ${quoteNumber ?? ''}`)}>
               Print / Export PDF
             </Button>
             {form.status === 'accepted' ? (
@@ -340,7 +341,14 @@ export default function QuoteForm() {
           (or "Save as PDF" from the print dialog triggered by the button above).
           The editable form below is marked print:hidden so only this renders. */}
       {isEditing && (
-        <div className="hidden print:block">
+        <PrintDocument
+          footer={
+            <p className="border-t border-gray-300 pt-2 text-center text-xs text-gray-500">
+              This quote is valid for {QUOTE_VALIDITY_DAYS} days from the quote date above and is subject to change
+              thereafter.
+            </p>
+          }
+        >
           <div className="mb-8 flex items-start justify-between border-b border-gray-300 pb-4">
             <div>
               <img src="/techtrus-logo.png" alt="Techtrus" className="h-8 w-auto" />
@@ -432,11 +440,7 @@ export default function QuoteForm() {
             </div>
           )}
 
-          <p className="border-t border-gray-300 pt-4 text-xs text-gray-500">
-            This quote is valid for {QUOTE_VALIDITY_DAYS} days from the quote date above and is subject to change
-            thereafter.
-          </p>
-        </div>
+        </PrintDocument>
       )}
 
       <Card className="print:hidden">
