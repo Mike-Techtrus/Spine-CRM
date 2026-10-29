@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import type { Opportunity, OpportunityWithRelations } from '../types'
-import { unwrap } from './_shared'
+import { fetchAllRows, unwrap } from './_shared'
 
 // billing_account_id is labelled "Client" in the UI, client_id is labelled "End Client" —
 // see the comment on OpportunityWithRelations in lib/types.ts.
@@ -11,8 +11,13 @@ const WITH_RELATIONS_SELECT = `
 `
 
 export async function listOpportunities(): Promise<OpportunityWithRelations[]> {
-  return unwrap(
-    await supabase.from('opportunities').select(WITH_RELATIONS_SELECT).order('created_at', { ascending: false }),
+  return fetchAllRows<OpportunityWithRelations>((from, to) =>
+    supabase
+      .from('opportunities')
+      .select(WITH_RELATIONS_SELECT)
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to),
   )
 }
 

@@ -2,34 +2,82 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listSalesOrders } from '../../lib/api'
 import type { SalesOrderWithRelations } from '../../lib/types'
-import { Card, FilterCell, FilterSummary, SearchInput, Th } from '../../components/ui'
+import { Card, FilterSummary, SearchInput } from '../../components/ui'
+import DataTable from '../../components/DataTable'
+import ColumnPicker from '../../components/ColumnPicker'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
+import {
+  columnValueGetter,
+  formatMoney,
+  useColumnPrefs,
+  YES_NO_OPTIONS,
+  yesNo,
+  type TableColumn,
+} from '../../lib/useColumnPrefs'
 
-function getSearchText(o: SalesOrderWithRelations) {
-  return [o.reference, o.client?.name, o.end_client?.name, o.po_number, o.net_value, o.invoiced_to_date]
-    .filter((v) => v !== null && v !== undefined)
-    .join(' ')
+type MoneyKey = 'quote_value' | 'po_value' | 'difference' | 'vat' | 'total' | 'rebate' | 'net_value' | 'invoiced_to_date'
+
+function money(key: MoneyKey, label: string, defaultHidden = true): TableColumn<SalesOrderWithRelations> {
+  return { key, label, value: (o) => o[key] ?? null, render: (o) => formatMoney(o[key]), defaultHidden }
 }
 
-function getSortValue(o: SalesOrderWithRelations, key: string) {
-  switch (key) {
-    case 'reference':
-      return o.reference
-    case 'client':
-      return o.client?.name ?? ''
-    case 'end_client':
-      return o.end_client?.name ?? ''
-    case 'po_number':
-      return o.po_number ?? ''
-    case 'net_value':
-      return o.net_value ?? null
-    case 'invoiced_to_date':
-      return o.invoiced_to_date ?? null
-    default:
-      return ''
-  }
+function date(
+  key: 'po_received_date' | 'start_date' | 'end_date' | 'timesheet_sent',
+  label: string,
+): TableColumn<SalesOrderWithRelations> {
+  return { key, label, value: (o) => o[key] ?? '', defaultHidden: true }
+}
+
+// Every column the Columns box offers, in default order.
+const COLUMNS: TableColumn<SalesOrderWithRelations>[] = [
+  { key: 'reference', label: 'Ref', value: (o) => o.reference, cellClassName: 'font-mono-label text-text-muted' },
+  {
+    key: 'quote',
+    label: 'Quote #',
+    value: (o) => o.quote?.quote_number ?? '',
+    cellClassName: 'font-mono-label text-text-muted',
+    defaultHidden: true,
+  },
+  { key: 'client', label: 'Client', value: (o) => o.client?.name ?? '', cellClassName: 'text-text' },
+  { key: 'end_client', label: 'End client', value: (o) => o.end_client?.name ?? '' },
+  { key: 'po_number', label: 'PO number', value: (o) => o.po_number ?? '' },
+  date('po_received_date', 'PO received'),
+  {
+    key: 'advanced_without_po',
+    label: 'Advanced without PO',
+    value: (o) => yesNo(o.advanced_without_po),
+    filterOptions: YES_NO_OPTIONS,
+    defaultHidden: true,
+  },
+  date('start_date', 'Start date'),
+  date('end_date', 'End date'),
+  money('quote_value', 'Quote value'),
+  money('po_value', 'PO value'),
+  money('difference', 'Difference'),
+  {
+    key: 'quote_match',
+    label: 'Quote match',
+    value: (o) => yesNo(o.quote_match),
+    filterOptions: YES_NO_OPTIONS,
+    defaultHidden: true,
+  },
+  money('vat', 'VAT'),
+  money('total', 'Total'),
+  money('rebate', 'Rebate'),
+  money('net_value', 'Net value', false),
+  money('invoiced_to_date', 'Invoiced to date', false),
+  date('timesheet_sent', 'Timesheet sent'),
+  { key: 'created_at', label: 'Created', value: (o) => o.created_at.slice(0, 10), defaultHidden: true },
+]
+
+const getValue = columnValueGetter(COLUMNS)
+
+function getSearchText(o: SalesOrderWithRelations) {
+  return [o.reference, o.quote?.quote_number, o.client?.name, o.end_client?.name, o.po_number, o.net_value, o.invoiced_to_date]
+    .filter((v) => v !== null && v !== undefined)
+    .join(' ')
 }
 
 export default function SalesOrderList() {
@@ -43,8 +91,9 @@ export default function SalesOrderList() {
     clearFilters,
     activeCount,
     filtered: columnFiltered,
-  } = useColumnFilters(filtered, getSortValue, 'sales-orders')
-  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getSortValue, 'sales-orders')
+  } = useColumnFilters(filtered, getValue, 'sales-orders')
+  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getValue, 'sales-orders')
+  const { prefs, setPrefs, reset, visibleColumns } = useColumnPrefs('sales-orders', COLUMNS)
 
   useEffect(() => {
     listSalesOrders()
@@ -60,12 +109,16 @@ export default function SalesOrderList() {
       </div>
 
       {orders && orders.length > 0 && (
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder="Search sales orders…"
-          className="mb-4 max-w-sm"
-        />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search sales orders…" className="max-w-sm flex-1" />
+          <ColumnPicker
+            columns={COLUMNS}
+            prefs={prefs}
+            onChange={setPrefs}
+            onReset={reset}
+            onHide={(key) => setFilter(key, '')}
+          />
+        </div>
       )}
 
       <FilterSummary count={activeCount} onClear={clearFilters} />
@@ -79,68 +132,19 @@ export default function SalesOrderList() {
       )}
 
       {orders && orders.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
-              <tr>
-                <Th sortKey="reference" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Ref
-                </Th>
-                <Th sortKey="client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Client
-                </Th>
-                <Th sortKey="end_client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  End client
-                </Th>
-                <Th sortKey="po_number" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  PO number
-                </Th>
-                <Th sortKey="net_value" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Net value
-                </Th>
-                <Th sortKey="invoiced_to_date" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Invoiced to date
-                </Th>
-              </tr>
-              <tr>
-                <FilterCell value={filters.reference ?? ''} onChange={(v) => setFilter('reference', v)} />
-                <FilterCell value={filters.client ?? ''} onChange={(v) => setFilter('client', v)} />
-                <FilterCell value={filters.end_client ?? ''} onChange={(v) => setFilter('end_client', v)} />
-                <FilterCell value={filters.po_number ?? ''} onChange={(v) => setFilter('po_number', v)} />
-                <FilterCell value={filters.net_value ?? ''} onChange={(v) => setFilter('net_value', v)} />
-                <FilterCell value={filters.invoiced_to_date ?? ''} onChange={(v) => setFilter('invoiced_to_date', v)} />
-              </tr>
-            </thead>
-            <tbody>
-              {sorted && sorted.length > 0 ? (
-                sorted.map((o) => (
-                  <tr
-                    key={o.id}
-                    className="cursor-pointer border-t border-border hover:bg-surface-raised"
-                    onClick={() => navigate(`/staff/sales-orders/${o.id}`)}
-                  >
-                    <td className="px-4 py-2 font-mono-label text-text-muted">{o.reference}</td>
-                    <td className="px-4 py-2 text-text">{o.client?.name || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">{o.end_client?.name || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">{o.po_number || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">
-                      {o.net_value ? `£${Number(o.net_value).toLocaleString('en-GB')}` : '—'}
-                    </td>
-                    <td className="px-4 py-2 text-text-muted">
-                      {o.invoiced_to_date ? `£${Number(o.invoiced_to_date).toLocaleString('en-GB')}` : '—'}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-text-muted">
-                    No sales orders match your search/filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          storageKey="sales-orders"
+          columns={visibleColumns}
+          rows={sorted ?? []}
+          rowKey={(o) => o.id}
+          onRowClick={(o) => navigate(`/staff/sales-orders/${o.id}`)}
+          sortKey={sortKey}
+          direction={direction}
+          onSort={toggleSort}
+          filters={filters}
+          setFilter={setFilter}
+          emptyMessage="No sales orders match your search/filters."
+        />
       )}
     </div>
   )

@@ -2,13 +2,50 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listOpportunities } from '../../lib/api'
 import type { OpportunityWithRelations } from '../../lib/types'
-import { OPPORTUNITY_STAGE_LABELS } from '../../lib/types'
-import { Button, Card, FilterCell, FilterSummary, SearchInput, Th } from '../../components/ui'
+import { OPPORTUNITY_SOURCE_LABELS, OPPORTUNITY_STAGE_LABELS } from '../../lib/types'
+import { Button, Card, FilterSummary, SearchInput } from '../../components/ui'
+import DataTable from '../../components/DataTable'
+import ColumnPicker from '../../components/ColumnPicker'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
+import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
 
 const STAGE_OPTIONS = Object.entries(OPPORTUNITY_STAGE_LABELS).map(([, label]) => ({ value: label, label }))
+const SOURCE_OPTIONS = Object.entries(OPPORTUNITY_SOURCE_LABELS).map(([, label]) => ({ value: label, label }))
+
+// Every column the Columns box offers, in default order.
+const COLUMNS: TableColumn<OpportunityWithRelations>[] = [
+  {
+    key: 'opportunity_number',
+    label: 'Opp #',
+    value: (o) => o.opportunity_number,
+    cellClassName: 'font-mono-label text-text-muted',
+  },
+  { key: 'name', label: 'Customer Opp Name', value: (o) => o.name, cellClassName: 'text-text' },
+  { key: 'customer_opportunity_number', label: 'Customer Opp #', value: (o) => o.customer_opportunity_number ?? '' },
+  { key: 'opportunity_owner', label: 'Owner', value: (o) => o.opportunity_owner ?? '' },
+  { key: 'client', label: 'Client', value: (o) => o.client?.name ?? '', defaultHidden: true },
+  { key: 'end_client', label: 'End client', value: (o) => o.end_client?.name ?? '' },
+  { key: 'stage', label: 'Stage', value: (o) => OPPORTUNITY_STAGE_LABELS[o.stage], filterOptions: STAGE_OPTIONS },
+  {
+    key: 'estimated_value',
+    label: 'Est. value',
+    value: (o) => o.estimated_value ?? null,
+    render: (o) => formatMoney(o.estimated_value),
+  },
+  { key: 'expected_close_date', label: 'Expected close', value: (o) => o.expected_close_date ?? '' },
+  {
+    key: 'source',
+    label: 'Source',
+    value: (o) => (o.source ? OPPORTUNITY_SOURCE_LABELS[o.source] : ''),
+    filterOptions: SOURCE_OPTIONS,
+    defaultHidden: true,
+  },
+  { key: 'created_at', label: 'Created', value: (o) => o.created_at.slice(0, 10), defaultHidden: true },
+]
+
+const getValue = columnValueGetter(COLUMNS)
 
 function getSearchText(o: OpportunityWithRelations) {
   return [
@@ -16,6 +53,7 @@ function getSearchText(o: OpportunityWithRelations) {
     o.name,
     o.customer_opportunity_number,
     o.opportunity_owner,
+    o.client?.name,
     o.end_client?.name,
     OPPORTUNITY_STAGE_LABELS[o.stage],
     o.estimated_value,
@@ -23,29 +61,6 @@ function getSearchText(o: OpportunityWithRelations) {
   ]
     .filter((v) => v !== null && v !== undefined)
     .join(' ')
-}
-
-function getSortValue(o: OpportunityWithRelations, key: string) {
-  switch (key) {
-    case 'opportunity_number':
-      return o.opportunity_number
-    case 'name':
-      return o.name
-    case 'customer_opportunity_number':
-      return o.customer_opportunity_number ?? ''
-    case 'opportunity_owner':
-      return o.opportunity_owner ?? ''
-    case 'end_client':
-      return o.end_client?.name ?? ''
-    case 'stage':
-      return OPPORTUNITY_STAGE_LABELS[o.stage]
-    case 'estimated_value':
-      return o.estimated_value ?? null
-    case 'expected_close_date':
-      return o.expected_close_date ?? ''
-    default:
-      return ''
-  }
 }
 
 export default function OpportunityList() {
@@ -59,8 +74,9 @@ export default function OpportunityList() {
     clearFilters,
     activeCount,
     filtered: columnFiltered,
-  } = useColumnFilters(filtered, getSortValue, 'opportunities')
-  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getSortValue, 'opportunities')
+  } = useColumnFilters(filtered, getValue, 'opportunities')
+  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getValue, 'opportunities')
+  const { prefs, setPrefs, reset, visibleColumns } = useColumnPrefs('opportunities', COLUMNS)
 
   useEffect(() => {
     listOpportunities()
@@ -78,12 +94,16 @@ export default function OpportunityList() {
       </div>
 
       {opportunities && opportunities.length > 0 && (
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder="Search opportunities…"
-          className="mb-4 max-w-sm"
-        />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search opportunities…" className="max-w-sm flex-1" />
+          <ColumnPicker
+            columns={COLUMNS}
+            prefs={prefs}
+            onChange={setPrefs}
+            onReset={reset}
+            onHide={(key) => setFilter(key, '')}
+          />
+        </div>
       )}
 
       <FilterSummary count={activeCount} onClear={clearFilters} />
@@ -98,87 +118,19 @@ export default function OpportunityList() {
       )}
 
       {opportunities && opportunities.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
-              <tr>
-                <Th sortKey="opportunity_number" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Opp #
-                </Th>
-                <Th sortKey="name" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Customer Opp Name
-                </Th>
-                <Th
-                  sortKey="customer_opportunity_number"
-                  activeSortKey={sortKey}
-                  direction={direction}
-                  onSort={toggleSort}
-                >
-                  Customer Opp #
-                </Th>
-                <Th sortKey="opportunity_owner" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Owner
-                </Th>
-                <Th sortKey="end_client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  End client
-                </Th>
-                <Th sortKey="stage" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Stage
-                </Th>
-                <Th sortKey="estimated_value" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Est. value
-                </Th>
-                <Th sortKey="expected_close_date" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Expected close
-                </Th>
-              </tr>
-              <tr>
-                <FilterCell value={filters.opportunity_number ?? ''} onChange={(v) => setFilter('opportunity_number', v)} />
-                <FilterCell value={filters.name ?? ''} onChange={(v) => setFilter('name', v)} />
-                <FilterCell
-                  value={filters.customer_opportunity_number ?? ''}
-                  onChange={(v) => setFilter('customer_opportunity_number', v)}
-                />
-                <FilterCell value={filters.opportunity_owner ?? ''} onChange={(v) => setFilter('opportunity_owner', v)} />
-                <FilterCell value={filters.end_client ?? ''} onChange={(v) => setFilter('end_client', v)} />
-                <FilterCell value={filters.stage ?? ''} onChange={(v) => setFilter('stage', v)} options={STAGE_OPTIONS} />
-                <FilterCell value={filters.estimated_value ?? ''} onChange={(v) => setFilter('estimated_value', v)} />
-                <FilterCell
-                  value={filters.expected_close_date ?? ''}
-                  onChange={(v) => setFilter('expected_close_date', v)}
-                />
-              </tr>
-            </thead>
-            <tbody>
-              {sorted && sorted.length > 0 ? (
-                sorted.map((o) => (
-                  <tr
-                    key={o.id}
-                    className="cursor-pointer border-t border-border hover:bg-surface-raised"
-                    onClick={() => navigate(`/staff/opportunities/${o.id}`)}
-                  >
-                    <td className="px-4 py-2 font-mono-label text-text-muted">{o.opportunity_number}</td>
-                    <td className="px-4 py-2 text-text">{o.name}</td>
-                    <td className="px-4 py-2 text-text-muted">{o.customer_opportunity_number || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">{o.opportunity_owner || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">{o.end_client?.name || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">{OPPORTUNITY_STAGE_LABELS[o.stage]}</td>
-                    <td className="px-4 py-2 text-text-muted">
-                      {o.estimated_value ? `£${Number(o.estimated_value).toLocaleString('en-GB')}` : '—'}
-                    </td>
-                    <td className="px-4 py-2 text-text-muted">{o.expected_close_date || '—'}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="px-4 py-6 text-center text-sm text-text-muted">
-                    No opportunities match your search/filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          storageKey="opportunities"
+          columns={visibleColumns}
+          rows={sorted ?? []}
+          rowKey={(o) => o.id}
+          onRowClick={(o) => navigate(`/staff/opportunities/${o.id}`)}
+          sortKey={sortKey}
+          direction={direction}
+          onSort={toggleSort}
+          filters={filters}
+          setFilter={setFilter}
+          emptyMessage="No opportunities match your search/filters."
+        />
       )}
     </div>
   )

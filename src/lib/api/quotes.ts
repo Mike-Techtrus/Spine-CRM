@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import type { Quote, QuoteLine, QuoteWithRelations } from '../types'
-import { unwrap } from './_shared'
+import { fetchAllRows, unwrap } from './_shared'
 
 const WITH_RELATIONS_SELECT = `
   *,
@@ -10,8 +10,13 @@ const WITH_RELATIONS_SELECT = `
 `
 
 export async function listQuotes(): Promise<QuoteWithRelations[]> {
-  return unwrap(
-    await supabase.from('quotes').select(WITH_RELATIONS_SELECT).order('created_at', { ascending: false }),
+  return fetchAllRows<QuoteWithRelations>((from, to) =>
+    supabase
+      .from('quotes')
+      .select(WITH_RELATIONS_SELECT)
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to),
   )
 }
 

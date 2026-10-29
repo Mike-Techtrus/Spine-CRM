@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import type { Invoice, InvoiceWithRelations, Payment } from '../types'
-import { unwrap } from './_shared'
+import { fetchAllRows, unwrap } from './_shared'
 
 const WITH_RELATIONS_SELECT = `
   *,
@@ -10,8 +10,13 @@ const WITH_RELATIONS_SELECT = `
 `
 
 export async function listInvoices(): Promise<InvoiceWithRelations[]> {
-  return unwrap(
-    await supabase.from('invoices').select(WITH_RELATIONS_SELECT).order('created_at', { ascending: false }),
+  return fetchAllRows<InvoiceWithRelations>((from, to) =>
+    supabase
+      .from('invoices')
+      .select(WITH_RELATIONS_SELECT)
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to),
   )
 }
 

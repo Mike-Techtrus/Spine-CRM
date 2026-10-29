@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listQuotes } from '../../lib/api'
 import type { QuoteWithRelations } from '../../lib/types'
-import { QUOTE_STATUS_LABELS } from '../../lib/types'
-import { Card, FilterCell, FilterSummary, SearchInput, StatusBadge, Th } from '../../components/ui'
+import { QUOTE_STATUS_LABELS, quoteExpiresOn } from '../../lib/types'
+import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
+import DataTable from '../../components/DataTable'
+import ColumnPicker from '../../components/ColumnPicker'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
+import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
 
 const STATUS_BADGE_MAP: Record<string, string> = {
   draft: 'draft',
@@ -17,6 +20,66 @@ const STATUS_BADGE_MAP: Record<string, string> = {
 }
 
 const STATUS_OPTIONS = Object.entries(QUOTE_STATUS_LABELS).map(([, label]) => ({ value: label, label }))
+
+function money(key: 'value' | 'vat' | 'total' | 'rebate' | 'net_value', label: string, defaultHidden = true) {
+  return {
+    key,
+    label,
+    value: (q: QuoteWithRelations) => q[key] ?? null,
+    render: (q: QuoteWithRelations) => formatMoney(q[key]),
+    defaultHidden,
+  }
+}
+
+// Every column the Columns box offers, in default order.
+const COLUMNS: TableColumn<QuoteWithRelations>[] = [
+  { key: 'quote_number', label: 'Quote #', value: (q) => q.quote_number, cellClassName: 'font-mono-label text-text-muted' },
+  {
+    key: 'opportunity',
+    label: 'Opportunity',
+    value: (q) => q.opportunity?.opportunity_number ?? '',
+    cellClassName: 'text-text',
+    render: (q) =>
+      q.opportunity ? (
+        <Link
+          to={`/staff/opportunities/${q.opportunity.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="hover:underline"
+        >
+          <span className="font-mono-label text-text-muted">{q.opportunity.opportunity_number}</span>
+          <span className="text-text-muted"> — {q.opportunity.name}</span>
+        </Link>
+      ) : (
+        '—'
+      ),
+  },
+  { key: 'client', label: 'Client', value: (q) => q.client?.name ?? '', cellClassName: 'text-text' },
+  { key: 'end_client', label: 'End client', value: (q) => q.end_client?.name ?? '' },
+  { key: 'quote_date', label: 'Quote date', value: (q) => q.quote_date ?? '', defaultHidden: true },
+  {
+    key: 'expires',
+    label: 'Expires',
+    value: (q) => quoteExpiresOn(q).toISOString().slice(0, 10),
+    defaultHidden: true,
+  },
+  { key: 'start_date', label: 'Start date', value: (q) => q.start_date ?? '', defaultHidden: true },
+  { key: 'end_date', label: 'End date', value: (q) => q.end_date ?? '', defaultHidden: true },
+  money('value', 'Value'),
+  money('vat', 'VAT'),
+  money('total', 'Total'),
+  money('rebate', 'Rebate'),
+  money('net_value', 'Net value', false),
+  {
+    key: 'status',
+    label: 'Status',
+    value: (q) => QUOTE_STATUS_LABELS[q.status],
+    render: (q) => <StatusBadge status={STATUS_BADGE_MAP[q.status]} label={QUOTE_STATUS_LABELS[q.status]} />,
+    filterOptions: STATUS_OPTIONS,
+  },
+  { key: 'created_at', label: 'Created', value: (q) => q.created_at.slice(0, 10), defaultHidden: true },
+]
+
+const getValue = columnValueGetter(COLUMNS)
 
 function getSearchText(q: QuoteWithRelations) {
   return [
@@ -32,25 +95,6 @@ function getSearchText(q: QuoteWithRelations) {
     .join(' ')
 }
 
-function getSortValue(q: QuoteWithRelations, key: string) {
-  switch (key) {
-    case 'quote_number':
-      return q.quote_number
-    case 'opportunity':
-      return q.opportunity?.opportunity_number ?? ''
-    case 'client':
-      return q.client?.name ?? ''
-    case 'end_client':
-      return q.end_client?.name ?? ''
-    case 'net_value':
-      return q.net_value ?? null
-    case 'status':
-      return QUOTE_STATUS_LABELS[q.status]
-    default:
-      return ''
-  }
-}
-
 export default function QuoteList() {
   const navigate = useNavigate()
   const [quotes, setQuotes] = useState<QuoteWithRelations[] | null>(null)
@@ -62,8 +106,9 @@ export default function QuoteList() {
     clearFilters,
     activeCount,
     filtered: columnFiltered,
-  } = useColumnFilters(filtered, getSortValue, 'quotes')
-  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getSortValue, 'quotes')
+  } = useColumnFilters(filtered, getValue, 'quotes')
+  const { sorted, sortKey, direction, toggleSort } = useSort(columnFiltered, getValue, 'quotes')
+  const { prefs, setPrefs, reset, visibleColumns } = useColumnPrefs('quotes', COLUMNS)
 
   useEffect(() => {
     listQuotes()
@@ -79,7 +124,16 @@ export default function QuoteList() {
       </div>
 
       {quotes && quotes.length > 0 && (
-        <SearchInput value={query} onChange={setQuery} placeholder="Search quotes…" className="mb-4 max-w-sm" />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search quotes…" className="max-w-sm flex-1" />
+          <ColumnPicker
+            columns={COLUMNS}
+            prefs={prefs}
+            onChange={setPrefs}
+            onReset={reset}
+            onHide={(key) => setFilter(key, '')}
+          />
+        </div>
       )}
 
       <FilterSummary count={activeCount} onClear={clearFilters} />
@@ -93,81 +147,19 @@ export default function QuoteList() {
       )}
 
       {quotes && quotes.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
-              <tr>
-                <Th sortKey="quote_number" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Quote #
-                </Th>
-                <Th sortKey="opportunity" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Opportunity
-                </Th>
-                <Th sortKey="client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Client
-                </Th>
-                <Th sortKey="end_client" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  End client
-                </Th>
-                <Th sortKey="net_value" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Net value
-                </Th>
-                <Th sortKey="status" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
-                  Status
-                </Th>
-              </tr>
-              <tr>
-                <FilterCell value={filters.quote_number ?? ''} onChange={(v) => setFilter('quote_number', v)} />
-                <FilterCell value={filters.opportunity ?? ''} onChange={(v) => setFilter('opportunity', v)} />
-                <FilterCell value={filters.client ?? ''} onChange={(v) => setFilter('client', v)} />
-                <FilterCell value={filters.end_client ?? ''} onChange={(v) => setFilter('end_client', v)} />
-                <FilterCell value={filters.net_value ?? ''} onChange={(v) => setFilter('net_value', v)} />
-                <FilterCell value={filters.status ?? ''} onChange={(v) => setFilter('status', v)} options={STATUS_OPTIONS} />
-              </tr>
-            </thead>
-            <tbody>
-              {sorted && sorted.length > 0 ? (
-                sorted.map((q) => (
-                  <tr
-                    key={q.id}
-                    className="cursor-pointer border-t border-border hover:bg-surface-raised"
-                    onClick={() => navigate(`/staff/quotes/${q.id}`)}
-                  >
-                    <td className="px-4 py-2 font-mono-label text-text-muted">{q.quote_number}</td>
-                    <td className="px-4 py-2 text-text">
-                      {q.opportunity ? (
-                        <Link
-                          to={`/staff/opportunities/${q.opportunity.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="hover:underline"
-                        >
-                          <span className="font-mono-label text-text-muted">{q.opportunity.opportunity_number}</span>
-                          <span className="text-text-muted"> — {q.opportunity.name}</span>
-                        </Link>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-text">{q.client?.name || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">{q.end_client?.name || '—'}</td>
-                    <td className="px-4 py-2 text-text-muted">
-                      {q.net_value ? `£${Number(q.net_value).toLocaleString('en-GB')}` : '—'}
-                    </td>
-                    <td className="px-4 py-2">
-                      <StatusBadge status={STATUS_BADGE_MAP[q.status]} label={QUOTE_STATUS_LABELS[q.status]} />
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-text-muted">
-                    No quotes match your search/filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          storageKey="quotes"
+          columns={visibleColumns}
+          rows={sorted ?? []}
+          rowKey={(q) => q.id}
+          onRowClick={(q) => navigate(`/staff/quotes/${q.id}`)}
+          sortKey={sortKey}
+          direction={direction}
+          onSort={toggleSort}
+          filters={filters}
+          setFilter={setFilter}
+          emptyMessage="No quotes match your search/filters."
+        />
       )}
     </div>
   )

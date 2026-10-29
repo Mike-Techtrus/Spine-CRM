@@ -1,6 +1,6 @@
 import { supabase } from '../supabaseClient'
 import type { SalesOrder, SalesOrderWithRelations } from '../types'
-import { unwrap } from './_shared'
+import { fetchAllRows, unwrap } from './_shared'
 
 const WITH_RELATIONS_SELECT = `
   *,
@@ -10,8 +10,13 @@ const WITH_RELATIONS_SELECT = `
 `
 
 export async function listSalesOrders(): Promise<SalesOrderWithRelations[]> {
-  return unwrap(
-    await supabase.from('sales_orders').select(WITH_RELATIONS_SELECT).order('created_at', { ascending: false }),
+  return fetchAllRows<SalesOrderWithRelations>((from, to) =>
+    supabase
+      .from('sales_orders')
+      .select(WITH_RELATIONS_SELECT)
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(from, to),
   )
 }
 
