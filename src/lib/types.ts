@@ -103,6 +103,10 @@ export interface FieldEngineer {
   name: string
   email: string
   phone: string | null
+  address_line_1: string | null
+  address_line_2: string | null
+  city: string | null
+  postcode: string | null
   day_rate: number | null // "Cost rate" on screen for staff
   is_active: boolean
   created_at: string

@@ -134,6 +134,19 @@ function BackLink({ kind }: { kind: PersonKind }) {
 
 // ── Details ──────────────────────────────────────────────────────────────────
 
+function toDetailsForm(engineer: FieldEngineer) {
+  return {
+    name: engineer.name,
+    email: engineer.email,
+    phone: engineer.phone ?? '',
+    day_rate: engineer.day_rate?.toString() ?? '',
+    address_line_1: engineer.address_line_1 ?? '',
+    address_line_2: engineer.address_line_2 ?? '',
+    city: engineer.city ?? '',
+    postcode: engineer.postcode ?? '',
+  }
+}
+
 function DetailsCard({
   engineer,
   onSaved,
@@ -143,12 +156,7 @@ function DetailsCard({
   onSaved: (e: FieldEngineer) => void
   onError: (message: string | null) => void
 }) {
-  const initial = {
-    name: engineer.name,
-    email: engineer.email,
-    phone: engineer.phone ?? '',
-    day_rate: engineer.day_rate?.toString() ?? '',
-  }
+  const initial = toDetailsForm(engineer)
   const [form, setForm] = useState(initial)
   const [saving, setSaving] = useState(false)
   const dirty = JSON.stringify(form) !== JSON.stringify(initial)
@@ -158,14 +166,19 @@ function DetailsCard({
     setSaving(true)
     onError(null)
     try {
-      onSaved(
-        await updateFieldEngineer(engineer.id, {
-          name: form.name,
-          email: form.email,
-          phone: form.phone || null,
-          day_rate: form.day_rate ? Number(form.day_rate) : null,
-        }),
-      )
+      const saved = await updateFieldEngineer(engineer.id, {
+        name: form.name,
+        email: form.email,
+        phone: form.phone || null,
+        day_rate: form.day_rate ? Number(form.day_rate) : null,
+        address_line_1: form.address_line_1.trim() || null,
+        address_line_2: form.address_line_2.trim() || null,
+        city: form.city.trim() || null,
+        postcode: form.postcode.trim().toUpperCase() || null,
+      })
+      onSaved(saved)
+      // Show what was stored (trimmed, postcode in capitals) so the form isn't left "unsaved".
+      setForm(toDetailsForm(saved))
     } catch (err) {
       onError(errorMessage(err, 'Failed to save details.'))
     } finally {
@@ -202,6 +215,35 @@ function DetailsCard({
             value={form.day_rate}
             onChange={(e) => setForm({ ...form, day_rate: e.target.value })}
           />
+        </div>
+        <div className="space-y-2 pt-1">
+          <Label>Address</Label>
+          <Input
+            aria-label="Address line 1"
+            placeholder="Address line 1"
+            value={form.address_line_1}
+            onChange={(e) => setForm({ ...form, address_line_1: e.target.value })}
+          />
+          <Input
+            aria-label="Address line 2"
+            placeholder="Address line 2"
+            value={form.address_line_2}
+            onChange={(e) => setForm({ ...form, address_line_2: e.target.value })}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              aria-label="Town or city"
+              placeholder="Town / city"
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
+            />
+            <Input
+              aria-label="Postcode"
+              placeholder="Postcode"
+              value={form.postcode}
+              onChange={(e) => setForm({ ...form, postcode: e.target.value })}
+            />
+          </div>
         </div>
         <Button type="submit" disabled={!dirty || saving}>
           {saving ? 'Saving…' : 'Save details'}

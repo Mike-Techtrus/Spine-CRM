@@ -146,6 +146,10 @@ export interface FieldEngineerInput {
   phone: string | null
   day_rate: number | null
   user_id?: string | null
+  address_line_1?: string | null
+  address_line_2?: string | null
+  city?: string | null
+  postcode?: string | null
 }
 
 export async function createFieldEngineer(input: FieldEngineerInput): Promise<FieldEngineer> {
