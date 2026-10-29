@@ -90,12 +90,14 @@ export async function removeProjectAssignment(id: string): Promise<void> {
 // Timesheet days logged against allocations, for burn-down.
 export async function listAssignmentTimesheets(
   assignmentIds: string[],
-): Promise<{ project_assignment_id: string; day_type: DayType; status: TimesheetStatus }[]> {
+): Promise<
+  { project_assignment_id: string; day_type: DayType; status: TimesheetStatus; work_date: string; invoice_id: string | null }[]
+> {
   if (assignmentIds.length === 0) return []
   return unwrap(
     await supabase
       .from('timesheet_entries')
-      .select('project_assignment_id, day_type, status')
+      .select('project_assignment_id, day_type, status, work_date, invoice_id')
       .in('project_assignment_id', assignmentIds),
   )
 }
@@ -110,4 +112,26 @@ export const PROJECT_STATUSES: ProjectStatus[] = ['active', 'complete']
 // All project lines, for totals on the Projects list.
 export async function listAllProjectLines(): Promise<ProjectLine[]> {
   return unwrap(await supabase.from('project_lines').select('*'))
+}
+
+// Draft invoice from the project's approved, not-yet-invoiced timesheet days
+// in a period (create_invoice_from_timesheets, 0025). Returns the invoice id.
+export async function createInvoiceFromTimesheets(projectId: string, from: string, to: string): Promise<string> {
+  const { data, error } = await supabase.rpc('create_invoice_from_timesheets', {
+    p_project_id: projectId,
+    p_from: from,
+    p_to: to,
+  })
+  if (error) throw new Error(error.message)
+  return data as string
+}
+
+// Invoice numbers/status for the invoices a project's days were billed on.
+export async function listInvoicesByIds(
+  ids: string[],
+): Promise<{ id: string; invoice_number: string; status: string; invoice_date: string | null; value: number | null }[]> {
+  if (ids.length === 0) return []
+  return unwrap(
+    await supabase.from('invoices').select('id, invoice_number, status, invoice_date, value').in('id', ids).order('invoice_number'),
+  )
 }

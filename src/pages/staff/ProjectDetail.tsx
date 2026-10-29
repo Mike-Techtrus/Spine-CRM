@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   addProjectAssignment,
+  createInvoiceFromTimesheets,
   getProject,
   listAssignmentTimesheets,
   listFieldEngineers,
+  listInvoicesByIds,
   listProjectAssignments,
   listProjectLines,
   listStaffProfiles,
@@ -80,6 +82,7 @@ export default function ProjectDetail() {
   const [lines, setLines] = useState<ProjectLine[]>([])
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([])
   const [usage, setUsage] = useState<Map<string, Usage>>(new Map())
+  const [billing, setBilling] = useState<Billing>({ uninvoiced: [], invoicedDays: 0, invoices: [] })
   const [people, setPeople] = useState<FieldEngineer[]>([])
   const [staff, setStaff] = useState<Pick<Profile, 'id' | 'full_name'>[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -107,6 +110,15 @@ export default function ProjectDetail() {
     setLines(l)
     setAssignments(a)
     setUsage(u)
+    const approved = entries.filter((e) => e.status === 'approved')
+    const invoiceIds = [...new Set(approved.map((e) => e.invoice_id).filter((x): x is string => Boolean(x)))]
+    setBilling({
+      uninvoiced: approved
+        .filter((e) => !e.invoice_id)
+        .map((e) => ({ date: e.work_date, days: DAY_TYPE_DAYS[e.day_type] })),
+      invoicedDays: approved.filter((e) => e.invoice_id).reduce((s, e) => s + DAY_TYPE_DAYS[e.day_type], 0),
+      invoices: await listInvoicesByIds(invoiceIds),
+    })
     setPeople(everyone)
     setStaff(owners)
   }
@@ -210,6 +222,8 @@ export default function ProjectDetail() {
         </Card>
       </div>
 
+      {lines.length > 0 && <InvoicingCard projectId={project.id} billing={billing} onError={setError} />}
+
       {lines.length === 0 ? (
         <Card>
           <p className="text-sm text-text-muted">
@@ -233,6 +247,100 @@ export default function ProjectDetail() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── Invoicing (phase 3) ──────────────────────────────────────────────────────
+
+interface Billing {
+  uninvoiced: { date: string; days: number }[] // approved days not yet on an invoice
+  invoicedDays: number
+  invoices: { id: string; invoice_number: string; status: string; invoice_date: string | null; value: number | null }[]
+}
+
+function InvoicingCard({
+  projectId,
+  billing,
+  onError,
+}: {
+  projectId: string
+  billing: Billing
+  onError: (m: string | null) => void
+}) {
+  const navigate = useNavigate()
+  const dates = billing.uninvoiced.map((u) => u.date).sort()
+  const [from, setFrom] = useState(dates[0] ?? '')
+  const [to, setTo] = useState(dates[dates.length - 1] ?? '')
+  const [creating, setCreating] = useState(false)
+
+  // Default the period to the uninvoiced days once they've loaded.
+  useEffect(() => {
+    if (dates.length) {
+      setFrom((f) => f || dates[0])
+      setTo((t) => t || dates[dates.length - 1])
+    }
+  }, [dates.length])
+
+  const uninvoicedDays = billing.uninvoiced.reduce((s, u) => s + u.days, 0)
+  const inPeriod = billing.uninvoiced.filter((u) => from && to && u.date >= from && u.date <= to).reduce((s, u) => s + u.days, 0)
+
+  async function handleCreate() {
+    if (!window.confirm(`Create a draft invoice for ${days(inPeriod)} approved day(s) from ${from} to ${to}?`)) return
+    setCreating(true)
+    onError(null)
+    try {
+      const invoiceId = await createInvoiceFromTimesheets(projectId, from, to)
+      navigate(`/staff/invoices/${invoiceId}`)
+    } catch (err) {
+      onError(errorMessage(err, 'Failed to create invoice.'))
+      setCreating(false)
+    }
+  }
+
+  return (
+    <Card className="mb-6">
+      <h2 className="mb-1 text-sm font-semibold text-text">Invoicing</h2>
+      <p className="mb-4 text-xs text-text-muted">
+        Builds a <strong>draft</strong> invoice from approved timesheet days in the period — one line per project line, at
+        the quoted day rate. Add expenses and other manual lines on the invoice before sending. Invoiced days are locked.
+      </p>
+      <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat
+          label="Approved, not invoiced"
+          value={days(uninvoicedDays)}
+          sub={dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : 'none yet'}
+        />
+        <Stat label="Invoiced" value={days(billing.invoicedDays)} sub={`on ${billing.invoices.length} invoice(s)`} />
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <Label>From</Label>
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </div>
+        <div>
+          <Label>To</Label>
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+        <Button type="button" onClick={handleCreate} disabled={creating || inPeriod === 0 || !from || !to}>
+          {creating ? 'Creating…' : `Create draft invoice (${days(inPeriod)} day${inPeriod === 1 ? '' : 's'})`}
+        </Button>
+      </div>
+      {billing.invoices.length > 0 && (
+        <ul className="mt-4 space-y-1 text-sm">
+          {billing.invoices.map((inv) => (
+            <li key={inv.id}>
+              <Link to={`/staff/invoices/${inv.id}`} className="font-mono-label text-accent hover:underline">
+                {inv.invoice_number}
+              </Link>
+              <span className="text-text-muted">
+                {' '}
+                · {inv.status} · {inv.invoice_date ?? '—'} · {money(Number(inv.value ?? 0))} net
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 
