@@ -52,7 +52,7 @@ function errorMessage(err: unknown, fallback: string) {
   return message
 }
 
-// Profile page for a contractor or staff member (Users → click a name).
+// Profile page for a contractor or staff member (Admin → User Accounts → click a name).
 export default function PersonProfile() {
   const { id } = useParams<{ id: string }>()
   const kindFromUrl = useLocationKind()

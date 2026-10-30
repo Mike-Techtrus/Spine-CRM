@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { getMyFieldEngineer } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { DottedRule } from './ui'
 import SpineMark from './icons/SpineMark'
-import { canAccess } from '../lib/permissions'
-import { APP_AREAS } from '../lib/types'
+import { adminHomePath, canAccess } from '../lib/permissions'
+import { ADMIN_BASE_PATH, APP_AREAS } from '../lib/types'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -14,8 +14,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Layout() {
   const { profile, signOut } = useAuth()
+  const { pathname } = useLocation()
+  const adminPath = adminHomePath(profile)
 
-  // Staff whose login is linked to a staff profile (Users → Staff) can log
+  // Staff whose login is linked to a staff profile (Admin → User Accounts → Staff) can log
   // their own timesheets too.
   const [hasStaffProfile, setHasStaffProfile] = useState(false)
   useEffect(() => {
@@ -54,11 +56,17 @@ export default function Layout() {
         <nav className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 pb-3">
           {profile?.role === 'staff' ? (
             <>
-              {APP_AREAS.filter((a) => canAccess(profile, a.key)).map((a) => (
+              {APP_AREAS.filter((a) => !a.inAdmin && canAccess(profile, a.key)).map((a) => (
                 <NavLink key={a.key} to={a.path} className={navLinkClass}>
                   {a.label}
                 </NavLink>
               ))}
+              {/* One Admin tab for everything under /staff/admin, whichever sections they can open */}
+              {adminPath && (
+                <NavLink to={adminPath} className={() => navLinkClass({ isActive: pathname.startsWith(ADMIN_BASE_PATH) })}>
+                  Admin
+                </NavLink>
+              )}
               {hasStaffProfile && (
                 <NavLink to="/my/timesheets" className={navLinkClass}>
                   My Timesheets

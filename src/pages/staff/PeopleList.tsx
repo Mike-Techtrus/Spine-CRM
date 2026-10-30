@@ -4,6 +4,7 @@ import { createFieldEngineer, listFieldEngineers, listPersonLogins, updateFieldE
 import { PERSON_KINDS, type FieldEngineer, type PersonKind, type PersonLogin } from '../../lib/types'
 import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, Label, SearchInput, Select, Th } from '../../components/ui'
 import SectionTabs from '../../components/SectionTabs'
+import AdminTabs from './admin/AdminTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
@@ -83,7 +84,7 @@ function getSortValue(e: FieldEngineer, key: string) {
   }
 }
 
-// Users → Contractors and Users → Staff. Both live in field_engineers,
+// Admin → User Accounts → Contractors / Staff. Both live in field_engineers,
 // told apart by `kind`; staff see "Cost rate" where contractors see "Day rate".
 export default function PeopleList({ kind }: { kind: PersonKind }) {
   const meta = PERSON_KINDS[kind]
@@ -167,7 +168,8 @@ export default function PeopleList({ kind }: { kind: PersonKind }) {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold text-text">Users · {meta.plural}</h1>
+      <h1 className="mb-4 text-xl font-semibold text-text">Admin · User Accounts · {meta.plural}</h1>
+      <AdminTabs />
       <SectionTabs sections={USER_TABS} />
 
       <Card className="mb-6">

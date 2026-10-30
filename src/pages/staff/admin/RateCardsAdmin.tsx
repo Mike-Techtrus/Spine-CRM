@@ -172,7 +172,7 @@ export default function RateCardsAdmin() {
 
       <p className="mb-6 text-sm text-text-muted">
         Prices used when adding lines to a quote. Every account uses the <strong>Default</strong> card unless it's
-        given a custom one (Accounts → Edit). A custom card only needs prices that differ — anything it leaves blank
+        given a custom one (Admin → Customer Accounts → Edit). A custom card only needs prices that differ — anything it leaves blank
         uses the Default price. Changing prices here never changes quotes already written.
       </p>
 
@@ -225,7 +225,7 @@ export default function RateCardsAdmin() {
                         ? `Used by ${accountsUsing(selected.id)
                             .map((a) => a.name)
                             .join(', ')}.`
-                        : 'Not assigned to any account yet — assign it from Accounts → Edit.'}
+                        : 'Not assigned to any account yet — assign it from Admin → Customer Accounts → Edit.'}
                   </p>
                 </div>
                 {!selected.is_default && (

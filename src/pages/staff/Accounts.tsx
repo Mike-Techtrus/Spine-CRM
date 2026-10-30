@@ -5,6 +5,7 @@ import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, SearchInput,
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
+import AdminTabs from './admin/AdminTabs'
 
 const emptyForm = {
   name: '',
@@ -219,8 +220,8 @@ export default function Accounts() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text">Accounts</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-text">Admin · Customer Accounts</h1>
         <Button
           onClick={() => {
             setEditing(null)
@@ -230,6 +231,7 @@ export default function Accounts() {
           {showForm ? 'Cancel' : 'Add account'}
         </Button>
       </div>
+      <AdminTabs />
 
       {editing && (
         <Card className="mb-6">

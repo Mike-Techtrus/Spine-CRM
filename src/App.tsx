@@ -27,13 +27,27 @@ import RateCardsAdmin from './pages/staff/admin/RateCardsAdmin'
 import PersonProfile from './pages/staff/PersonProfile'
 import SetPassword from './pages/SetPassword'
 import NoAccess from './pages/NoAccess'
-import { homePath } from './lib/permissions'
-import type { AppArea } from './lib/types'
+import { adminHomePath, homePath } from './lib/permissions'
+import { PERSON_KINDS, type AppArea } from './lib/types'
 
 function RoleHome() {
   const { profile, loading } = useAuth()
   if (loading) return null
   return <Navigate to={homePath(profile)} replace />
+}
+
+// /staff/admin on its own: the first Admin section this person can open.
+function AdminHome() {
+  const { profile, loading } = useAuth()
+  if (loading) return null
+  return <Navigate to={adminHomePath(profile) ?? homePath(profile)} replace />
+}
+
+// Old Users addresses (/staff/users/...), kept so bookmarks still work.
+function OldUsersLink() {
+  const { kind, id } = useParams()
+  const base = kind === 'staff' ? PERSON_KINDS.staff.path : PERSON_KINDS.contractor.path
+  return <Navigate to={id ? `${base}/${id}` : base} replace />
 }
 
 function Staff({ area, children }: { area: AppArea; children: React.ReactNode }) {
@@ -46,7 +60,7 @@ function Staff({ area, children }: { area: AppArea; children: React.ReactNode })
 
 function OldContractorLink() {
   const { id } = useParams()
-  return <Navigate to={`/staff/users/contractors/${id}`} replace />
+  return <Navigate to={`${PERSON_KINDS.contractor.path}/${id}`} replace />
 }
 
 // A data router (rather than plain <BrowserRouter>) is required for
@@ -101,18 +115,15 @@ const router = createBrowserRouter(
         <Route path="/staff/timesheets" element={<Staff area="timesheets"><AllTimesheets /></Staff>} />
         <Route path="/staff/timesheets/:id" element={<Staff area="timesheets"><TimesheetDetail /></Staff>} />
 
-        {/* Staff: users (contractor and staff profiles — permission key "engineers") */}
-        <Route path="/staff/users" element={<Navigate to="/staff/users/contractors" replace />} />
-        <Route path="/staff/users/contractors" element={<Staff area="engineers"><PeopleList key="contractor" kind="contractor" /></Staff>} />
-        <Route path="/staff/users/staff" element={<Staff area="engineers"><PeopleList key="staff" kind="staff" /></Staff>} />
-        <Route path="/staff/users/contractors/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
-        <Route path="/staff/users/staff/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
-        {/* Old Contractors addresses, kept so bookmarks still work */}
-        <Route path="/staff/engineers" element={<Navigate to="/staff/users/contractors" replace />} />
+        {/* Old Users, Contractors and Accounts addresses (now under Admin), kept so bookmarks still work */}
+        <Route path="/staff/users" element={<OldUsersLink />} />
+        <Route path="/staff/users/:kind" element={<OldUsersLink />} />
+        <Route path="/staff/users/:kind/:id" element={<OldUsersLink />} />
+        <Route path="/staff/engineers" element={<OldUsersLink />} />
         <Route path="/staff/engineers/:id" element={<OldContractorLink />} />
+        <Route path="/staff/accounts" element={<Navigate to="/staff/admin/customer-accounts" replace />} />
 
         {/* Staff: sales pipeline */}
-        <Route path="/staff/accounts" element={<Staff area="accounts"><Accounts /></Staff>} />
 
         <Route path="/staff/opportunities" element={<Staff area="opportunities"><OpportunityList /></Staff>} />
         <Route path="/staff/opportunities/new" element={<Staff area="opportunities"><OpportunityForm /></Staff>} />
@@ -134,8 +145,15 @@ const router = createBrowserRouter(
         <Route path="/staff/invoices/:id" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
 
         {/* Staff: administration */}
-        <Route path="/staff/admin" element={<Navigate to="/staff/admin/logins" replace />} />
+        <Route path="/staff/admin" element={<AdminHome />} />
         <Route path="/staff/admin/users" element={<Navigate to="/staff/admin/logins" replace />} />
+        <Route path="/staff/admin/customer-accounts" element={<Staff area="accounts"><Accounts /></Staff>} />
+        {/* User Accounts: contractor and staff profiles — permission key "engineers" */}
+        <Route path="/staff/admin/user-accounts" element={<Navigate to={PERSON_KINDS.contractor.path} replace />} />
+        <Route path="/staff/admin/user-accounts/contractors" element={<Staff area="engineers"><PeopleList key="contractor" kind="contractor" /></Staff>} />
+        <Route path="/staff/admin/user-accounts/staff" element={<Staff area="engineers"><PeopleList key="staff" kind="staff" /></Staff>} />
+        <Route path="/staff/admin/user-accounts/contractors/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
+        <Route path="/staff/admin/user-accounts/staff/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
         <Route path="/staff/admin/logins" element={<Staff area="admin"><UserAdmin /></Staff>} />
         <Route path="/staff/admin/skills" element={<Staff area="admin"><SkillsAdmin /></Staff>} />
         <Route path="/staff/admin/rate-cards" element={<Staff area="admin"><RateCardsAdmin /></Staff>} />

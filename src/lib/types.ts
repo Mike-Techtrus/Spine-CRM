@@ -18,20 +18,28 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 }
 
 // Areas a staff user can be given access to. Order here is nav order.
+// `inAdmin` areas have no top-level tab of their own: they're sub-tabs of
+// Admin (AdminTabs.tsx) but keep their own permission, so someone can be
+// given Customer Accounts without being an admin.
 // Keep the keys in step with supabase/migrations/0012_user_admin.sql and
 // supabase/functions/admin-users/index.ts.
 export const APP_AREAS = [
-  { key: 'dashboard', label: 'Dashboard', path: '/staff/dashboard' },
-  { key: 'opportunities', label: 'Opportunities', path: '/staff/opportunities' },
-  { key: 'quotes', label: 'Quotes', path: '/staff/quotes' },
-  { key: 'sales_orders', label: 'Sales Orders', path: '/staff/sales-orders' },
-  { key: 'projects', label: 'Projects', path: '/staff/projects' },
-  { key: 'invoices', label: 'Invoices', path: '/staff/invoices' },
-  { key: 'timesheets', label: 'Timesheets', path: '/staff/timesheets' },
-  { key: 'accounts', label: 'Accounts', path: '/staff/accounts' },
-  { key: 'engineers', label: 'Users', path: '/staff/users' }, // contractor + staff profiles
-  { key: 'admin', label: 'Admin', path: '/staff/admin' },
+  { key: 'dashboard', label: 'Dashboard', path: '/staff/dashboard', inAdmin: false },
+  { key: 'opportunities', label: 'Opportunities', path: '/staff/opportunities', inAdmin: false },
+  { key: 'quotes', label: 'Quotes', path: '/staff/quotes', inAdmin: false },
+  { key: 'sales_orders', label: 'Sales Orders', path: '/staff/sales-orders', inAdmin: false },
+  { key: 'projects', label: 'Projects', path: '/staff/projects', inAdmin: false },
+  { key: 'invoices', label: 'Invoices', path: '/staff/invoices', inAdmin: false },
+  { key: 'timesheets', label: 'Timesheets', path: '/staff/timesheets', inAdmin: false },
+  { key: 'accounts', label: 'Customer Accounts', path: '/staff/admin/customer-accounts', inAdmin: true },
+  // contractor + staff profiles
+  { key: 'engineers', label: 'User Accounts', path: '/staff/admin/user-accounts/contractors', inAdmin: true },
+  // Logins, Skills, Rate cards, Invoice settings
+  { key: 'admin', label: 'Admin', path: '/staff/admin/logins', inAdmin: true },
 ] as const
+
+// Every page under the Admin tab lives below this address.
+export const ADMIN_BASE_PATH = '/staff/admin'
 
 export type AppArea = (typeof APP_AREAS)[number]['key']
 
@@ -78,7 +86,7 @@ export interface Contact {
 // ── Field engineers / timesheets ────────────────────────────────────────────
 
 // field_engineers holds both contractor and staff profiles (migration 0015).
-// Shown on screen under Users → Contractors / Staff.
+// Shown on screen under Admin → User Accounts → Contractors / Staff.
 export type PersonKind = 'contractor' | 'staff'
 
 export const PERSON_KINDS: Record<
@@ -90,14 +98,14 @@ export const PERSON_KINDS: Record<
     singular: 'contractor',
     rateLabel: 'Day rate',
     loginRole: 'field_engineer',
-    path: '/staff/users/contractors',
+    path: '/staff/admin/user-accounts/contractors',
   },
   staff: {
     plural: 'Staff',
     singular: 'staff member',
     rateLabel: 'Cost rate', // same day_rate column, shown differently for staff
     loginRole: 'staff',
-    path: '/staff/users/staff',
+    path: '/staff/admin/user-accounts/staff',
   },
 }
 

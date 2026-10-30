@@ -4,6 +4,12 @@ export function canAccess(profile: Profile | null, area: AppArea) {
   return profile?.role === 'staff' && (profile.permissions ?? []).includes(area)
 }
 
+// Where the Admin tab goes: the first Admin section this person can open,
+// or null to hide the tab.
+export function adminHomePath(profile: Profile | null) {
+  return APP_AREAS.find((a) => a.inAdmin && canAccess(profile, a.key))?.path ?? null
+}
+
 // Where to send someone when they land on "/" or on a page they can't open.
 export function homePath(profile: Profile | null) {
   if (profile?.role !== 'staff') return '/my/timesheets'
