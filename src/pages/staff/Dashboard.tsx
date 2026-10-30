@@ -1,71 +1,93 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { listAllTimesheets, listInvoices, listOpportunities, listQuotes } from '../../lib/api'
-import type {
-  InvoiceWithRelations,
-  OpportunityWithRelations,
-  QuoteWithRelations,
-  TimesheetEntryWithRelations,
-} from '../../lib/types'
-import { quoteExpiresOn } from '../../lib/types'
-import { Card, Eyebrow, StatTile } from '../../components/ui'
+import { useEffect, useRef, useState } from 'react'
+import { listAllTimesheets, listInvoices, listOpportunities, listQuotes, listSalesOrders } from '../../lib/api'
+import { Eyebrow } from '../../components/ui'
+import { Tile, gbp, gbpCompact, pct } from './dashboard/charts'
+import {
+  expiresWithin,
+  invoiceValue,
+  isOpenQuote,
+  isRaised,
+  isoDate,
+  monthKey,
+  ordersToInvoice,
+  outstandingInvoices,
+  quoteValue,
+  winRate,
+} from './dashboard/metrics'
+import {
+  InvoicesSection,
+  OpportunitiesSection,
+  ProjectsSection,
+  QuotesSection,
+  SalesOrdersSection,
+  TimesheetsSection,
+  type DashboardData,
+} from './dashboard/sections'
 
-function gbp(n: number) {
-  return `£${n.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`
+const SECTIONS = [
+  { key: 'invoices', label: 'Invoices' },
+  { key: 'sales_orders', label: 'Sales Orders' },
+  { key: 'opportunities', label: 'Opportunities' },
+  { key: 'quotes', label: 'Quotes' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'timesheets', label: 'Timesheets' },
+] as const
+type SectionKey = (typeof SECTIONS)[number]['key']
+
+const SECTION_STORAGE_KEY = 'spine.dashboard.section'
+
+function savedSection(): SectionKey {
+  try {
+    const v = localStorage.getItem(SECTION_STORAGE_KEY)
+    if (SECTIONS.some((s) => s.key === v)) return v as SectionKey
+  } catch {
+    // storage blocked — fall back to the default
+  }
+  return 'invoices'
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate()
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const [openOpportunities, setOpenOpportunities] = useState<OpportunityWithRelations[]>([])
-  const [quotesAwaiting, setQuotesAwaiting] = useState(0)
-  const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetEntryWithRelations[]>([])
-  const [outstandingInvoices, setOutstandingInvoices] = useState<InvoiceWithRelations[]>([])
-  const [expiredQuotes, setExpiredQuotes] = useState<QuoteWithRelations[]>([])
-  const [quotesExpiringSoon, setQuotesExpiringSoon] = useState(0)
+  const [section, setSection] = useState<SectionKey>(savedSection)
+  const sectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     ;(async () => {
       try {
-        const [opportunities, quotes, timesheets, invoices] = await Promise.all([
+        const [opportunities, quotes, salesOrders, invoices, timesheets] = await Promise.all([
           listOpportunities(),
           listQuotes(),
-          listAllTimesheets({ status: 'submitted' }),
+          listSalesOrders(),
           listInvoices(),
+          listAllTimesheets(),
         ])
-        setOpenOpportunities(opportunities.filter((o) => o.is_active))
-        setQuotesAwaiting(quotes.filter((q) => q.status === 'sent').length)
-        setPendingTimesheets(timesheets)
-        setOutstandingInvoices(invoices.filter((inv) => inv.status === 'sent'))
-        setExpiredQuotes(quotes.filter((q) => q.status === 'expired'))
-
-        // Quotes still awaiting a decision whose 30-day validity window
-        // runs out within the next 7 days — a nudge to chase them up
-        // before they auto-expire. The server flips the stored status to
-        // "expired" once a day, so this is a forward-looking count, not
-        // the live/current status.
-        const now = new Date()
-        const in7Days = new Date(now)
-        in7Days.setDate(in7Days.getDate() + 7)
-        setQuotesExpiringSoon(
-          quotes.filter((q) => {
-            if (q.status !== 'draft' && q.status !== 'sent') return false
-            const expiresOn = quoteExpiresOn(q)
-            return expiresOn >= now && expiresOn <= in7Days
-          }).length,
-        )
+        const today = new Date()
+        const yearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
+        setData({
+          opportunities,
+          quotes,
+          salesOrders,
+          invoices,
+          timesheets,
+          todayIso: isoDate(today),
+          yearAgoIso: isoDate(yearAgo),
+        })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load dashboard.')
-      } finally {
-        setLoading(false)
       }
     })()
   }, [])
 
-  const openOppValue = openOpportunities.reduce((sum, o) => sum + Number(o.estimated_value || 0), 0)
-  const outstandingValue = outstandingInvoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0)
+  function choose(key: SectionKey, scroll = false) {
+    setSection(key)
+    try {
+      localStorage.setItem(SECTION_STORAGE_KEY, key)
+    } catch {
+      // not remembered — fine
+    }
+    if (scroll) sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <div>
@@ -73,116 +95,141 @@ export default function Dashboard() {
       <h1 className="font-display mt-1 mb-6 text-2xl font-semibold text-text">Dashboard</h1>
 
       {error && <p className="text-sm text-danger">{error}</p>}
-      {loading && <p className="text-sm text-text-muted">Loading…</p>}
+      {!data && !error && <p className="text-sm text-text-muted">Loading…</p>}
 
-      {!loading && !error && (
+      {data && (
         <>
-          <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            <StatTile value={openOpportunities.length} label="open opportunities" accent />
-            <StatTile value={gbp(openOppValue)} label="pipeline value" />
-            <StatTile value={quotesAwaiting} label="quotes awaiting response" />
-            <StatTile value={pendingTimesheets.length} label="timesheets to approve" accent={pendingTimesheets.length > 0} />
-            <StatTile value={quotesExpiringSoon} label="quotes expiring in 7 days" accent={quotesExpiringSoon > 0} />
-            <StatTile value={expiredQuotes.length} label="expired quotes" />
-          </div>
+          <Banner data={data} onPick={(k) => choose(k, true)} />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <Card>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-sm font-semibold text-text">Timesheets to approve</h2>
+          <div ref={sectionRef} className="mt-8 scroll-mt-4">
+            <div
+              role="tablist"
+              aria-label="Dashboard section"
+              className="mb-4 flex flex-wrap gap-1 rounded-lg border border-border bg-sunken p-1"
+            >
+              {SECTIONS.map((s) => (
                 <button
-                  onClick={() => navigate('/staff/timesheets')}
-                  className="text-xs text-accent hover:underline"
+                  key={s.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={section === s.key}
+                  onClick={() => choose(s.key)}
+                  className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                    section === s.key
+                      ? 'bg-surface-raised font-semibold text-text shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
                 >
-                  View all →
+                  {s.label}
                 </button>
-              </div>
-              {pendingTimesheets.length === 0 && (
-                <p className="text-sm text-text-muted">Nothing waiting on you right now.</p>
-              )}
-              <ul className="space-y-2">
-                {pendingTimesheets.slice(0, 6).map((ts) => (
-                  <li
-                    key={ts.id}
-                    className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-surface-raised"
-                    onClick={() => navigate(`/staff/timesheets/${ts.id}`)}
-                  >
-                    <span className="text-text">
-                      {ts.field_engineer.name} <span className="text-text-muted">· {ts.client.name}</span>
-                    </span>
-                    <span className="font-mono-label text-xs text-text-dim">{ts.work_date}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
+              ))}
+            </div>
 
-            <Card>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-sm font-semibold text-text">Outstanding invoices</h2>
-                <button
-                  onClick={() => navigate('/staff/invoices')}
-                  className="text-xs text-accent hover:underline"
-                >
-                  View all →
-                </button>
-              </div>
-              {outstandingInvoices.length === 0 && (
-                <p className="text-sm text-text-muted">Nothing outstanding right now.</p>
-              )}
-              <ul className="space-y-2">
-                {outstandingInvoices.slice(0, 6).map((inv) => (
-                  <li
-                    key={inv.id}
-                    className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-surface-raised"
-                    onClick={() => navigate(`/staff/invoices/${inv.id}`)}
-                  >
-                    <span className="text-text">
-                      {inv.client?.name || '—'} <span className="text-text-muted">· {inv.invoice_number}</span>
-                    </span>
-                    <span className="font-mono-label text-xs text-text-dim">
-                      {inv.total ? gbp(Number(inv.total)) : '—'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {outstandingInvoices.length > 0 && (
-                <p className="mt-3 border-t border-hair pt-3 text-xs text-text-dim">
-                  {gbp(outstandingValue)} total outstanding
-                </p>
-              )}
-            </Card>
-
-            <Card>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-sm font-semibold text-text">Expired quotes</h2>
-                <button
-                  onClick={() => navigate('/staff/quotes')}
-                  className="text-xs text-accent hover:underline"
-                >
-                  View all →
-                </button>
-              </div>
-              {expiredQuotes.length === 0 && <p className="text-sm text-text-muted">No expired quotes.</p>}
-              <ul className="space-y-2">
-                {expiredQuotes.slice(0, 6).map((q) => (
-                  <li
-                    key={q.id}
-                    className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-surface-raised"
-                    onClick={() => navigate(`/staff/quotes/${q.id}`)}
-                  >
-                    <span className="text-text">
-                      {q.client?.name || '—'} <span className="text-text-muted">· {q.quote_number}</span>
-                    </span>
-                    <span className="font-mono-label text-xs text-text-dim">
-                      {q.net_value ? gbp(Number(q.net_value)) : '—'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
+            {section === 'invoices' && <InvoicesSection data={data} />}
+            {section === 'sales_orders' && <SalesOrdersSection data={data} />}
+            {section === 'opportunities' && <OpportunitiesSection data={data} />}
+            {section === 'quotes' && <QuotesSection data={data} />}
+            {section === 'projects' && <ProjectsSection />}
+            {section === 'timesheets' && <TimesheetsSection data={data} />}
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+// The headline numbers. Each tile opens the section that explains it.
+function Banner({ data, onPick }: { data: DashboardData; onPick: (k: SectionKey) => void }) {
+  const today = new Date()
+  const thisMonth = monthKey(today)
+  const lastMonth = monthKey(new Date(today.getFullYear(), today.getMonth() - 1, 1))
+  const thisYear = String(today.getFullYear())
+
+  const raised = data.invoices.filter(isRaised)
+  const sumFor = (prefix: string) =>
+    raised.filter((i) => (i.invoice_date ?? '').startsWith(prefix)).reduce((s, i) => s + invoiceValue(i), 0)
+  const invoicedThisMonth = sumFor(thisMonth)
+  const invoicedLastMonth = sumFor(lastMonth)
+  const invoicedThisYear = sumFor(thisYear)
+
+  const outstanding = outstandingInvoices(data.invoices, data.todayIso)
+  const outstandingTotal = outstanding.reduce((s, o) => s + o.amount, 0)
+  const overdue = outstanding.filter((o) => o.daysOverdue > 0)
+
+  const toInvoice = ordersToInvoice(data.salesOrders)
+  const toInvoiceTotal = toInvoice.reduce((s, o) => s + o.balance, 0)
+
+  const openQuotes = data.quotes.filter(isOpenQuote)
+  const pipeline = openQuotes.reduce((s, q) => s + quoteValue(q), 0)
+  const quotingOpps = data.opportunities.filter((o) => o.stage === 'quoting').length
+
+  const win = winRate(data.opportunities, data.yearAgoIso)
+  const toApprove = data.timesheets.filter((t) => t.status === 'submitted').length
+  const expiring = data.quotes.filter((q) => expiresWithin(q, 7)).length
+
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <Tile
+        label="Invoiced this month · ex VAT"
+        value={gbp(invoicedThisMonth)}
+        sub={`Last month ${gbp(invoicedLastMonth)}`}
+        tone="accent"
+        onClick={() => onPick('invoices')}
+      />
+      <Tile
+        label={`Invoiced in ${thisYear} · ex VAT`}
+        value={gbpCompact(invoicedThisYear)}
+        sub={gbp(invoicedThisYear)}
+        onClick={() => onPick('invoices')}
+      />
+      <Tile
+        label="Owed to us · inc VAT"
+        value={gbpCompact(outstandingTotal)}
+        sub={
+          <>
+            {outstanding.length} invoices
+            {overdue.length > 0 && (
+              <span className="text-danger">
+                {' '}
+                · {overdue.length} overdue ({gbpCompact(overdue.reduce((s, o) => s + o.amount, 0))})
+              </span>
+            )}
+          </>
+        }
+        onClick={() => onPick('invoices')}
+      />
+      <Tile
+        label="Still to invoice · net"
+        value={gbpCompact(toInvoiceTotal)}
+        sub={`${toInvoice.length} open sales orders`}
+        onClick={() => onPick('sales_orders')}
+      />
+      <Tile
+        label="Open quotes · ex VAT"
+        value={gbpCompact(pipeline)}
+        sub={`${openQuotes.length} quotes · ${quotingOpps} opportunities quoting`}
+        onClick={() => onPick('quotes')}
+      />
+      <Tile
+        label="Win rate · last 12 months"
+        value={win.rate === null ? '—' : pct(win.rate)}
+        sub={`${win.won} won · ${win.lost} lost`}
+        onClick={() => onPick('opportunities')}
+      />
+      <Tile
+        label="Timesheets to approve"
+        value={toApprove}
+        sub={toApprove === 0 ? 'All clear' : 'Waiting on approval'}
+        tone={toApprove > 0 ? 'accent' : 'normal'}
+        onClick={() => onPick('timesheets')}
+      />
+      <Tile
+        label="Quotes expiring in 7 days"
+        value={expiring}
+        sub={expiring === 0 ? 'Nothing to chase' : 'Worth chasing'}
+        tone={expiring > 0 ? 'accent' : 'normal'}
+        onClick={() => onPick('quotes')}
+      />
     </div>
   )
 }
