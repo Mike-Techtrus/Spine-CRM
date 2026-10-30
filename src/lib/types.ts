@@ -230,7 +230,7 @@ export const STATUS_LABELS: Record<TimesheetStatus, string> = {
 // ── Opportunities ───────────────────────────────────────────────────────────
 
 export type OpportunitySource = 'email' | 'web_form' | 'phone' | 'referral' | 'other'
-export type OpportunityStage = 'qualifying' | 'quoting' | 'quote_accepted' | 'po_received'
+export type OpportunityStage = 'qualifying' | 'quoting' | 'closed_won' | 'closed_lost' | 'quote_accepted' | 'po_received'
 
 export interface Opportunity {
   id: string
@@ -267,11 +267,29 @@ export const OPPORTUNITY_SOURCE_LABELS: Record<OpportunitySource, string> = {
   other: 'Other',
 }
 
+// Stages are set automatically from the opportunity's quotes (migration 0029):
+// no quotes → Qualifying, a draft/sent quote → Quoting, any accepted quote →
+// Closed Won, every quote expired/declined → Closed Lost. 'quote_accepted' and
+// 'po_received' are old values no longer used.
 export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
   qualifying: 'Qualifying',
   quoting: 'Quoting',
+  closed_won: 'Closed Won',
+  closed_lost: 'Closed Lost',
   quote_accepted: 'Quote accepted',
   po_received: 'PO received',
+}
+
+export const CURRENT_OPPORTUNITY_STAGES: OpportunityStage[] = ['qualifying', 'quoting', 'closed_won', 'closed_lost']
+
+// StatusBadge colours (see STATUS_STYLES in components/ui.tsx).
+export const OPPORTUNITY_STAGE_BADGE: Record<OpportunityStage, string> = {
+  qualifying: 'draft',
+  quoting: 'submitted',
+  closed_won: 'approved',
+  closed_lost: 'rejected',
+  quote_accepted: 'approved',
+  po_received: 'approved',
 }
 
 // ── Quotes ───────────────────────────────────────────────────────────────────

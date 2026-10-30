@@ -8,7 +8,7 @@ import {
   updateOpportunity,
 } from '../../lib/api'
 import type { Account, OpportunitySource, OpportunityStage, QuoteWithRelations } from '../../lib/types'
-import { OPPORTUNITY_SOURCE_LABELS, OPPORTUNITY_STAGE_LABELS, QUOTE_STATUS_LABELS } from '../../lib/types'
+import { OPPORTUNITY_SOURCE_LABELS, OPPORTUNITY_STAGE_BADGE, OPPORTUNITY_STAGE_LABELS, QUOTE_STATUS_LABELS } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
 import AccountQuickAdd from '../../components/AccountQuickAdd'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
@@ -113,7 +113,6 @@ export default function OpportunityForm() {
           : { estimated_value: form.estimated_value ? Number(form.estimated_value) : null }),
         expected_close_date: form.expected_close_date || null,
         source: form.source || null,
-        stage: form.stage,
       }
 
       if (isEditing && id) {
@@ -243,13 +242,13 @@ export default function OpportunityForm() {
             </div>
             <div>
               <Label>Stage</Label>
-              <Select value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value as OpportunityStage })}>
-                {Object.entries(OPPORTUNITY_STAGE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
+              <div className="py-2">
+                <StatusBadge status={OPPORTUNITY_STAGE_BADGE[form.stage]} label={OPPORTUNITY_STAGE_LABELS[form.stage]} />
+              </div>
+              <p className="text-xs text-text-faint">
+                Set automatically: Qualifying until a quote is raised, then Quoting; Closed Won once a quote is accepted,
+                Closed Lost if every quote expires or is declined.
+              </p>
             </div>
           </div>
 

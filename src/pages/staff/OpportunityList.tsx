@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listOpportunities } from '../../lib/api'
 import type { OpportunityWithRelations } from '../../lib/types'
-import { OPPORTUNITY_SOURCE_LABELS, OPPORTUNITY_STAGE_LABELS } from '../../lib/types'
-import { Button, Card, FilterSummary, SearchInput } from '../../components/ui'
+import {
+  CURRENT_OPPORTUNITY_STAGES,
+  OPPORTUNITY_SOURCE_LABELS,
+  OPPORTUNITY_STAGE_BADGE,
+  OPPORTUNITY_STAGE_LABELS,
+} from '../../lib/types'
+import { Button, Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
 import ColumnPicker from '../../components/ColumnPicker'
 import { useSort } from '../../lib/useSort'
@@ -11,7 +16,7 @@ import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
 
-const STAGE_OPTIONS = Object.entries(OPPORTUNITY_STAGE_LABELS).map(([, label]) => ({ value: label, label }))
+const STAGE_OPTIONS = CURRENT_OPPORTUNITY_STAGES.map((s) => ({ value: OPPORTUNITY_STAGE_LABELS[s], label: OPPORTUNITY_STAGE_LABELS[s] }))
 const SOURCE_OPTIONS = Object.entries(OPPORTUNITY_SOURCE_LABELS).map(([, label]) => ({ value: label, label }))
 
 // Every column the Columns box offers, in default order.
@@ -27,7 +32,13 @@ const COLUMNS: TableColumn<OpportunityWithRelations>[] = [
   { key: 'opportunity_owner', label: 'Owner', value: (o) => o.opportunity_owner ?? '' },
   { key: 'client', label: 'Client', value: (o) => o.client?.name ?? '', defaultHidden: true },
   { key: 'end_client', label: 'End client', value: (o) => o.end_client?.name ?? '' },
-  { key: 'stage', label: 'Stage', value: (o) => OPPORTUNITY_STAGE_LABELS[o.stage], filterOptions: STAGE_OPTIONS },
+  {
+    key: 'stage',
+    label: 'Stage',
+    value: (o) => OPPORTUNITY_STAGE_LABELS[o.stage],
+    render: (o) => <StatusBadge status={OPPORTUNITY_STAGE_BADGE[o.stage]} label={OPPORTUNITY_STAGE_LABELS[o.stage]} />,
+    filterOptions: STAGE_OPTIONS,
+  },
   {
     key: 'estimated_value',
     label: 'Est. value',
