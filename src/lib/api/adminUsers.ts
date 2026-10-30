@@ -1,5 +1,6 @@
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from '../supabaseClient'
+import { publicAppUrl } from '../appUrl'
 import type { AdminUser, AppArea, UserRole } from '../types'
 
 // Everything here goes through the admin-users Edge Function
@@ -19,9 +20,10 @@ async function call<T>(body: Record<string, unknown>): Promise<T> {
   return data as T
 }
 
-// Where password-reset emails send people back to. The app picks up the
-// recovery link on any page and moves them to /set-password.
-const resetRedirect = () => window.location.origin
+// Where password-reset emails send people back to: the public app address,
+// never a Vercel-protected one (see appUrl.ts). The app picks up the recovery
+// link on any page and moves them to /set-password.
+const resetRedirect = publicAppUrl
 
 export async function listAdminUsers(): Promise<AdminUser[]> {
   return (await call<{ users: AdminUser[] }>({ action: 'list' })).users

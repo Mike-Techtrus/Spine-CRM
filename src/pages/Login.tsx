@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
+import { publicAppUrl } from '../lib/appUrl'
 import { Button, Card, ErrorText, Eyebrow, Input, Label } from '../components/ui'
 import SpineMark from '../components/icons/SpineMark'
 
@@ -28,7 +29,7 @@ export default function Login() {
       } else {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: publicAppUrl() },
         })
         if (error) throw error
         setMagicLinkSent(true)
