@@ -31,6 +31,7 @@ import {
   isoDate,
   monthKey,
   monthlyColumns,
+  num,
   ordersToInvoice,
   outstandingInvoices,
   quoteDate,
@@ -116,30 +117,64 @@ export function InvoicesSection({ data }: { data: DashboardData }) {
         {outstanding.length === 0 ? (
           <Empty>Nothing outstanding.</Empty>
         ) : (
-          <ul className="max-h-80 space-y-1 overflow-y-auto">
-            {outstanding.map((o) => (
-              <Row
-                key={o.invoice.id}
-                onClick={() => navigate(`/staff/invoices/${o.invoice.id}`)}
-                left={
-                  <>
-                    {o.invoice.client?.name || '—'}{' '}
-                    <span className="text-text-muted">· {o.invoice.invoice_number}</span>
-                  </>
-                }
-                right={
-                  <>
-                    {gbp(o.amount)}{' '}
-                    {o.daysOverdue > 0 ? (
-                      <span className="text-danger">· {o.daysOverdue}d overdue</span>
-                    ) : (
-                      <span>· due {shortDate(o.invoice.due_date)}</span>
-                    )}
-                  </>
-                }
-              />
-            ))}
-          </ul>
+          <div className="max-h-80 overflow-auto">
+            <table className="w-full text-sm">
+              <caption className="sr-only">Outstanding invoices</caption>
+              <thead className="sticky top-0 bg-surface">
+                <tr className="text-left font-mono-label text-xs text-text-dim">
+                  <th className="px-2 py-1.5 font-normal">Invoice</th>
+                  <th className="px-2 py-1.5 font-normal">Client</th>
+                  <th className="px-2 py-1.5 font-normal">End client</th>
+                  <th className="px-2 py-1.5 text-right font-normal">Value</th>
+                  <th className="px-2 py-1.5 text-right font-normal">VAT</th>
+                  <th className="px-2 py-1.5 text-right font-normal">Total</th>
+                  <th className="px-2 py-1.5 text-right font-normal">Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {outstanding.map((o) => {
+                  const open = () => navigate(`/staff/invoices/${o.invoice.id}`)
+                  return (
+                    <tr
+                      key={o.invoice.id}
+                      onClick={open}
+                      className="cursor-pointer border-t border-hair hover:bg-surface-raised"
+                    >
+                      <td className="whitespace-nowrap px-2 py-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            open()
+                          }}
+                          className="text-text hover:underline focus:underline focus:outline-none">
+                          {o.invoice.invoice_number}
+                        </button>
+                      </td>
+                      <td className="px-2 py-1.5 text-text">{o.invoice.client?.name || '—'}</td>
+                      <td className="px-2 py-1.5 text-text-muted">{o.invoice.end_client?.name || '—'}</td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-mono-label text-xs text-text-dim">
+                        {gbp(num(o.invoice.value))}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-mono-label text-xs text-text-dim">
+                        {gbp(num(o.invoice.vat))}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-mono-label text-xs text-text">
+                        {gbp(o.amount)}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-mono-label text-xs">
+                        {o.daysOverdue > 0 ? (
+                          <span className="text-danger">{o.daysOverdue}d overdue</span>
+                        ) : (
+                          <span className="text-text-dim">{shortDate(o.invoice.due_date)}</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         {overdue.length > 0 && (
           <p className="mt-3 border-t border-hair pt-3 text-xs text-text-dim">

@@ -90,7 +90,7 @@ export function monthlyColumns<T>(
   })
 }
 
-const num = (n: number | null | undefined) => Number(n ?? 0)
+export const num = (n: number | null | undefined) => Number(n ?? 0)
 
 // ── Invoices ────────────────────────────────────────────────────────────────
 
