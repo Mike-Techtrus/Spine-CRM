@@ -44,6 +44,8 @@ export default function OpportunityForm() {
   const [addingAccountFor, setAddingAccountFor] = useState<'billing_account_id' | 'client_id' | null>(null)
   const [opportunityNumber, setOpportunityNumber] = useState<string | null>(null)
   const [linkedQuotes, setLinkedQuotes] = useState<QuoteWithRelations[]>([])
+  // Accepted quotes that have a Value — these set the estimate (0026/0027).
+  const acceptedQuotes = linkedQuotes.filter((q) => q.status === 'accepted' && q.value !== null)
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -104,7 +106,11 @@ export default function OpportunityForm() {
         billing_account_id: form.billing_account_id || null,
         client_id: form.client_id || null,
         description: form.description || null,
-        estimated_value: form.estimated_value ? Number(form.estimated_value) : null,
+        // Worked out from accepted quotes by the database (0026) once there are
+        // any — don't send it then, or a stale value could overwrite it.
+        ...(acceptedQuotes.length > 0
+          ? {}
+          : { estimated_value: form.estimated_value ? Number(form.estimated_value) : null }),
         expected_close_date: form.expected_close_date || null,
         source: form.source || null,
         stage: form.stage,
@@ -222,9 +228,18 @@ export default function OpportunityForm() {
               <Input
                 type="number"
                 step="0.01"
+                disabled={acceptedQuotes.length > 0}
                 value={form.estimated_value}
                 onChange={(e) => setForm({ ...form, estimated_value: e.target.value })}
               />
+              {acceptedQuotes.length > 0 ? (
+                <p className="mt-1 text-xs text-text-faint">
+                  Total Value of {acceptedQuotes.length} accepted quote{acceptedQuotes.length === 1 ? '' : 's'} — updates
+                  automatically.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-text-faint">Optional — set automatically once a quote is accepted.</p>
+              )}
             </div>
             <div>
               <Label>Stage</Label>
