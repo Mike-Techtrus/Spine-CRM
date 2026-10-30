@@ -19,6 +19,7 @@ export interface AccountInput {
   email: string | null
   billing_name: string | null
   rate_card_id: string | null
+  rebate_rate: number
   address_line_1: string | null
   address_line_2: string | null
   city: string | null

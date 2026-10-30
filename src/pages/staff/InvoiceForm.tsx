@@ -15,7 +15,7 @@ import {
   type InvoiceLineInput,
 } from '../../lib/api'
 import type { Account, CompanySettings, InvoiceStatus, LineType, Payment } from '../../lib/types'
-import { REBATE_RATE, isRebateEligible } from '../../lib/rebate'
+import { accountRebateRate, isRebateEligible } from '../../lib/rebate'
 import { INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select } from '../../components/ui'
 import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
@@ -40,19 +40,19 @@ const emptyForm = {
   status: 'draft' as InvoiceStatus,
 }
 
-// Same rules as QuoteForm: VAT 20% of Value, Rebate 7.5% of the lines whose
-// line type earns it (lib/rebate.ts; lines with no line type earn it, as
-// before), Net value = Total − Rebate.
+// Same rules as QuoteForm: VAT 20% of Value, Rebate = the client's agreed
+// rate (0% for most) on the lines whose line type earns it (lib/rebate.ts;
+// lines with no line type earn it, as before), Net value = Total − Rebate.
 const VAT_RATE = 0.2
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
-function deriveFinancials(value: number, rebateEligibleValue = value) {
+function deriveFinancials(value: number, eligibleValue: number, rebateRate: number) {
   const vat = round2(value * VAT_RATE)
   const total = round2(value + vat)
-  const rebate = round2(rebateEligibleValue * REBATE_RATE)
+  const rebate = round2(eligibleValue * rebateRate)
   return {
     value: value.toString(),
     vat: vat.toString(),
@@ -307,12 +307,26 @@ export default function InvoiceForm() {
 
   // Lines drive Value (and so VAT/Total/Rebate/Net) once any exist; an
   // invoice with no lines keeps the manual figures (e.g. imported invoices).
+  function clientRebateRate(clientId: string): number {
+    return accountRebateRate(accounts.find((a) => a.id === clientId))
+  }
+
+  function totalsFromLines(forLines: LocalLine[], clientId: string) {
+    const sum = round2(forLines.reduce((acc, l) => acc + lineTotal(l), 0))
+    const eligible = forLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
+    return deriveFinancials(sum, eligible, clientRebateRate(clientId))
+  }
+
   function applyLines(newLines: LocalLine[]) {
     setLines(newLines)
     if (newLines.length === 0) return
-    const sum = round2(newLines.reduce((acc, l) => acc + lineTotal(l), 0))
-    const eligible = newLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
-    setForm((prev) => ({ ...prev, ...deriveFinancials(sum, eligible) }))
+    setForm((prev) => ({ ...prev, ...totalsFromLines(newLines, prev.client_id) }))
+  }
+
+  // A different client can mean a different rebate rate (only redone when
+  // lines drive the totals — otherwise the figures are typed in).
+  function handleClientChange(clientId: string) {
+    setForm({ ...form, client_id: clientId, ...(lines.length > 0 ? totalsFromLines(lines, clientId) : {}) })
   }
 
   const linesControlTotals = lines.length > 0
@@ -492,7 +506,7 @@ export default function InvoiceForm() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Client</Label>
-              <Select value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })}>
+              <Select value={form.client_id} onChange={(e) => handleClientChange(e.target.value)}>
                 <option value="">—</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -665,8 +679,8 @@ export default function InvoiceForm() {
 
           {linesControlTotals && (
             <p className="text-xs text-text-faint">
-              Worked out from the lines above (VAT 20%; rebate 7.5% of resource lines — lines with no line type count
-              too).
+              Worked out from the lines above (VAT 20%; rebate {round2(clientRebateRate(form.client_id) * 100)}% — the
+              client&apos;s agreed rate — of resource lines, and of lines with no line type).
             </p>
           )}
           <div className="grid grid-cols-3 gap-4">

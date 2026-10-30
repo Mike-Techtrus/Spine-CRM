@@ -18,6 +18,7 @@ const emptyForm = {
   city: '',
   postcode: '',
   rate_card_id: '', // '' = Default rate card
+  rebate_rate: '0', // percent, e.g. 7.5
 }
 type AccountForm = typeof emptyForm
 
@@ -33,6 +34,7 @@ function toForm(a: Account): AccountForm {
     city: a.city ?? '',
     postcode: a.postcode ?? '',
     rate_card_id: a.rate_card_id ?? '',
+    rebate_rate: String(a.rebate_rate ?? 0),
   }
 }
 
@@ -49,6 +51,7 @@ function toInput(form: AccountForm) {
     city: orNull(form.city),
     postcode: form.postcode.trim().toUpperCase() || null,
     rate_card_id: form.rate_card_id || null,
+    rebate_rate: Number(form.rebate_rate) || 0,
   }
 }
 
@@ -102,6 +105,10 @@ function AccountFields({
               </option>
             ))}
         </Select>
+      </div>
+      <div>
+        <label className={label}>Rebate % (agreed with this client; 0 = none)</label>
+        <Input type="number" step="0.01" min="0" max="100" {...field('rebate_rate')} />
       </div>
       <div className="col-span-3">
         <label className={label}>Billing address</label>
@@ -286,6 +293,7 @@ export default function Accounts() {
                 Email
               </Th>
               <th className="px-4 py-2">Rate card</th>
+              <th className="px-4 py-2">Rebate</th>
               <Th sortKey="status" activeSortKey={sortKey} direction={direction} onSort={toggleSort}>
                 Status
               </Th>
@@ -296,6 +304,7 @@ export default function Accounts() {
               <FilterCell value={filters.city ?? ''} onChange={(v) => setFilter('city', v)} />
               <FilterCell value={filters.phone ?? ''} onChange={(v) => setFilter('phone', v)} />
               <FilterCell value={filters.email ?? ''} onChange={(v) => setFilter('email', v)} />
+              <th className="px-4 pb-2 pt-0"></th>
               <th className="px-4 pb-2 pt-0"></th>
               <FilterCell value={filters.status ?? ''} onChange={(v) => setFilter('status', v)} options={STATUS_OPTIONS} />
               <th className="px-4 pb-2 pt-0"></th>
@@ -316,6 +325,7 @@ export default function Accounts() {
                   <td className="px-4 py-2 text-text-muted">
                     {(a.rate_card_id && rateCards.find((c) => c.id === a.rate_card_id)?.name) || 'Default'}
                   </td>
+                  <td className="px-4 py-2 text-text-muted">{a.rebate_rate ? `${a.rebate_rate}%` : '—'}</td>
                   <td className="px-4 py-2 text-text-muted">{a.is_active ? 'Active' : 'Inactive'}</td>
                   <td className="px-4 py-2 text-right">
                     <span className="flex justify-end gap-3 text-xs">
@@ -331,7 +341,7 @@ export default function Accounts() {
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-text-muted">
+                <td colSpan={8} className="px-4 py-6 text-center text-sm text-text-muted">
                   No accounts match your search/filters.
                 </td>
               </tr>

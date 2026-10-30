@@ -1,10 +1,15 @@
-import type { LineType } from './types'
+import type { Account, LineType } from './types'
 
-// The rebate is 7.5% of the value of lines whose line type earns it (ticked
-// under Admin → Rate cards: Resource, Outsource Resource). Blank or unknown
-// line types keep the old rule and earn it — same as rebate_eligible_type()
-// in supabase/migrations/0030_rebate_by_line_type.sql.
-export const REBATE_RATE = 0.075
+// The rebate is the client account's agreed rate (Customer Accounts → Edit;
+// only CDW has one, 7.5%) × the value of lines whose line type earns it
+// (ticked under Admin → Rate cards: Resource, Outsource Resource). Blank or
+// unknown line types earn it, as before. Same rules as account_rebate_rate()
+// and rebate_eligible_type() in supabase/migrations/0030 and 0031.
+
+// The client's rate as a fraction (7.5% → 0.075); 0 with no client.
+export function accountRebateRate(account: Account | null | undefined): number {
+  return (Number(account?.rebate_rate) || 0) / 100
+}
 
 export function isRebateEligible(lineType: string | null | undefined, lineTypes: LineType[]): boolean {
   const name = (lineType ?? '').trim().toLowerCase()

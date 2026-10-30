@@ -14,7 +14,7 @@ import {
   updateQuote,
 } from '../../lib/api'
 import type { Account, LineType, QuoteStatus, RateCard } from '../../lib/types'
-import { REBATE_RATE, isRebateEligible } from '../../lib/rebate'
+import { accountRebateRate, isRebateEligible } from '../../lib/rebate'
 import {
   QUOTE_LINE_PART_CODE_SUGGESTIONS,
   QUOTE_LINE_TYPE_SUGGESTIONS,
@@ -201,12 +201,35 @@ export default function QuoteForm() {
     return v === '' ? null : Number(v)
   }
 
-  // VAT (20%) applies to the quote Value; Rebate (7.5%) only to the value of
-  // lines whose line type earns it (lib/rebate.ts) — the whole Value when
-  // there are no lines. Total and Net value follow from those. Recalculated
-  // whenever Value or the lines change — the four derived fields stay
-  // editable afterwards in case a specific quote needs a manual override.
+  // VAT (20%) applies to the quote Value. Rebate is the client's agreed rate
+  // (0% for most) on the value of lines whose line type earns it
+  // (lib/rebate.ts) — the whole Value when there are no lines. Total and Net
+  // value follow from those. Recalculated whenever Value, the lines or the
+  // client change — the four derived fields stay editable afterwards in case
+  // a specific quote needs a manual override.
   const VAT_RATE = 0.2
+
+  function clientRebateRate(clientId: string): number {
+    return accountRebateRate(accounts.find((a) => a.id === clientId))
+  }
+
+  function rebateEligibleValue(forLines: LocalLine[]): number {
+    return forLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
+  }
+
+  // A different client can mean a different rebate rate: redo Rebate and Net
+  // value from the current figures.
+  function handleClientChange(clientId: string) {
+    const eligible = lines.length > 0 ? rebateEligibleValue(lines) : Number(form.value) || 0
+    const rebate = round2(eligible * clientRebateRate(clientId))
+    const total = Number(form.total)
+    setForm({
+      ...form,
+      client_id: clientId,
+      rebate: rebate.toString(),
+      net_value: form.total === '' || Number.isNaN(total) ? form.net_value : round2(total - rebate).toString(),
+    })
+  }
 
   function round2(n: number): number {
     return Math.round(n * 100) / 100
@@ -219,10 +242,10 @@ export default function QuoteForm() {
     return accounts.find((a) => a.id === accountId)?.name ?? '—'
   }
 
-  function deriveFinancials(value: number, rebateEligibleValue = value) {
+  function deriveFinancials(value: number, eligibleValue: number, rebateRate: number) {
     const vat = round2(value * VAT_RATE)
     const total = round2(value + vat)
-    const rebate = round2(rebateEligibleValue * REBATE_RATE)
+    const rebate = round2(eligibleValue * rebateRate)
     const net_value = round2(total - rebate)
     return { vat: vat.toString(), total: total.toString(), rebate: rebate.toString(), net_value: net_value.toString() }
   }
@@ -233,7 +256,7 @@ export default function QuoteForm() {
       setForm({ ...form, value: raw })
       return
     }
-    setForm({ ...form, value: raw, ...deriveFinancials(value) })
+    setForm({ ...form, value: raw, ...deriveFinancials(value, value, clientRebateRate(form.client_id)) })
   }
 
   // Line items drive Value (and so VAT/Total/Rebate/Net) once any exist —
@@ -250,8 +273,12 @@ export default function QuoteForm() {
     setLines(newLines)
     if (newLines.length === 0) return
     const sum = round2(newLines.reduce((acc, l) => acc + lineTotal(l), 0))
-    const eligible = newLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
-    setForm((prev) => ({ ...prev, value: sum.toString(), ...deriveFinancials(sum, eligible) }))
+    const eligible = rebateEligibleValue(newLines)
+    setForm((prev) => ({
+      ...prev,
+      value: sum.toString(),
+      ...deriveFinancials(sum, eligible, clientRebateRate(prev.client_id)),
+    }))
   }
 
   function updateLine(key: string, patch: Partial<LocalLine>) {
@@ -511,7 +538,7 @@ export default function QuoteForm() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Client</Label>
-              <Select value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })}>
+              <Select value={form.client_id} onChange={(e) => handleClientChange(e.target.value)}>
                 <option value="">—</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -735,7 +762,9 @@ export default function QuoteForm() {
               />
             </div>
             <div>
-              <Label>Rebate (£){linesControlTotals && ' — 7.5% of resource lines'}</Label>
+              <Label>
+                Rebate (£) — {round2(clientRebateRate(form.client_id) * 100)}%{linesControlTotals && ' of resource lines'}
+              </Label>
               <Input
                 type="number"
                 step="0.01"

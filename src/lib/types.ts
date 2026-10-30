@@ -66,6 +66,7 @@ export interface Account {
   email: string | null
   billing_name: string | null // legal name for invoices, e.g. "CDW Limited" — falls back to name
   rate_card_id: string | null // custom rate card; null = the Default rate card
+  rebate_rate: number // agreed rebate %, e.g. 7.5 (CDW); 0 = none — see lib/rebate.ts
   address_line_1: string | null
   address_line_2: string | null
   city: string | null
@@ -422,7 +423,7 @@ export interface LineType {
   id: string
   name: string
   billing: LineTypeBilling
-  rebate_eligible: boolean // earns the 7.5% rebate (see lib/rebate.ts)
+  rebate_eligible: boolean // lines of this type earn the client's rebate (see lib/rebate.ts)
   sort_order: number
   is_active: boolean
   created_at: string

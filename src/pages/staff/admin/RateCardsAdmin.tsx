@@ -368,7 +368,7 @@ export default function RateCardsAdmin() {
         <p className="mb-4 text-xs text-text-muted">
           How each type gets onto an invoice. <strong>From timesheets (T&amp;M)</strong> types will be added to invoices
           automatically from approved timesheets once the timesheet module does invoicing; <strong>Added manually</strong>{' '}
-          types are put on an invoice by hand. <strong>Earns rebate</strong>: the 7.5% rebate on quotes and invoices is
+          types are put on an invoice by hand. <strong>Earns rebate</strong>: a client's agreed rebate (Customer Accounts, e.g. CDW 7.5%) is
           only worked out on lines of the ticked types (changing a tick affects quotes and invoices when they're next
           edited, not past figures).
         </p>
@@ -409,7 +409,7 @@ export default function RateCardsAdmin() {
                   <td className="px-3 py-2">
                     <input
                       type="checkbox"
-                      aria-label={`${t.name} earns the 7.5% rebate`}
+                      aria-label={`${t.name} earns rebate`}
                       checked={t.rebate_eligible}
                       onChange={(e) =>
                         run(() => updateLineType(t.id, { rebate_eligible: e.target.checked }), 'Failed to update.')
