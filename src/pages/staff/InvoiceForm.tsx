@@ -103,6 +103,21 @@ function shortDate(iso: string): string {
   return iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''
 }
 
+// Payment terms come from the client account (Customer Accounts → Edit);
+// 30 days is standard, and used when there's no client.
+const STANDARD_PAYMENT_TERMS_DAYS = 30
+
+function paymentTermsDays(account: Account | undefined): number {
+  return account?.payment_terms_days ?? STANDARD_PAYMENT_TERMS_DAYS
+}
+
+// "2026-10-30" + 30 → "2026-11-29" (worked in UTC so time zones can't shift the day).
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 export default function InvoiceForm() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
@@ -323,10 +338,29 @@ export default function InvoiceForm() {
     setForm((prev) => ({ ...prev, ...totalsFromLines(newLines, prev.client_id) }))
   }
 
+  function dueDateFor(invoiceDate: string, clientId: string): string {
+    return addDays(invoiceDate, paymentTermsDays(accounts.find((a) => a.id === clientId)))
+  }
+
   // A different client can mean a different rebate rate (only redone when
-  // lines drive the totals — otherwise the figures are typed in).
+  // lines drive the totals — otherwise the figures are typed in) and
+  // different payment terms.
   function handleClientChange(clientId: string) {
-    setForm({ ...form, client_id: clientId, ...(lines.length > 0 ? totalsFromLines(lines, clientId) : {}) })
+    setForm({
+      ...form,
+      client_id: clientId,
+      ...(form.invoice_date ? { due_date: dueDateFor(form.invoice_date, clientId) } : {}),
+      ...(lines.length > 0 ? totalsFromLines(lines, clientId) : {}),
+    })
+  }
+
+  // Due date follows the invoice date by the client's terms (still editable).
+  function handleInvoiceDateChange(invoiceDate: string) {
+    setForm({
+      ...form,
+      invoice_date: invoiceDate,
+      due_date: invoiceDate ? dueDateFor(invoiceDate, form.client_id) : form.due_date,
+    })
   }
 
   const linesControlTotals = lines.length > 0
@@ -441,7 +475,7 @@ export default function InvoiceForm() {
                 </div>
                 <div>
                   <p className="font-semibold">Terms</p>
-                  <p>{company?.payment_terms}</p>
+                  <p>{client ? `${paymentTermsDays(client)} Days` : company?.payment_terms}</p>
                 </div>
                 <div>
                   <p className="font-semibold">Date</p>
@@ -474,7 +508,10 @@ export default function InvoiceForm() {
 
           <div className="grid grid-cols-[1fr_16rem] gap-8">
             <div className="space-y-3 text-xs">
-              {company?.payment_terms_text && <p>{company.payment_terms_text}</p>}
+              {company?.payment_terms_text && (
+                // "{days}" in the wording (Admin → Invoice settings) becomes the client's terms.
+                <p>{company.payment_terms_text.replaceAll('{days}', String(paymentTermsDays(client)))}</p>
+              )}
               {bankDetails.length > 0 && (
                 <p className="flex flex-wrap gap-x-8 font-semibold">
                   {bankDetails.map((d) => (
@@ -539,11 +576,11 @@ export default function InvoiceForm() {
               <Input
                 type="date"
                 value={form.invoice_date}
-                onChange={(e) => setForm({ ...form, invoice_date: e.target.value })}
+                onChange={(e) => handleInvoiceDateChange(e.target.value)}
               />
             </div>
             <div>
-              <Label>Due date</Label>
+              <Label>Due date ({paymentTermsDays(client)} days)</Label>
               <Input
                 type="date"
                 value={form.due_date}

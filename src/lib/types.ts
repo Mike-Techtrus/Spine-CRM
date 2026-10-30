@@ -67,6 +67,7 @@ export interface Account {
   billing_name: string | null // legal name for invoices, e.g. "CDW Limited" — falls back to name
   rate_card_id: string | null // custom rate card; null = the Default rate card
   rebate_rate: number // agreed rebate %, e.g. 7.5 (CDW); 0 = none — see lib/rebate.ts
+  payment_terms_days: number // days to pay from the invoice date; standard 30
   address_line_1: string | null
   address_line_2: string | null
   city: string | null

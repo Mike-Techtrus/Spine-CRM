@@ -111,12 +111,16 @@ export default function InvoiceSettings() {
           <Card>
             <h2 className="mb-4 text-sm font-semibold text-text">Payment terms</h2>
             <div className="space-y-4">
+              <p className="text-xs text-text-muted">
+                Each client&apos;s payment terms (standard 30 days) are set on Admin → Customer Accounts → Edit and
+                shown as &quot;Terms&quot; on its invoices.
+              </p>
               <div className="max-w-xs">
-                <Label>Terms (shown next to PO No.)</Label>
-                <Input placeholder="e.g. 40 Days" {...field('payment_terms')} />
+                <Label>Terms if an invoice has no client</Label>
+                <Input placeholder="e.g. 30 Days" {...field('payment_terms')} />
               </div>
               <div>
-                <Label>Terms wording</Label>
+                <Label>Terms wording — write {'{days}'} where the client&apos;s number of days should go</Label>
                 <Textarea rows={3} {...field('payment_terms_text')} />
               </div>
             </div>
