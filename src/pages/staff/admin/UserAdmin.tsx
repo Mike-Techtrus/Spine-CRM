@@ -52,7 +52,7 @@ function formatDate(value: string | null) {
 }
 
 function areaSummary(u: AdminUser) {
-  if (u.role !== 'staff') return 'My Timesheets only'
+  if (u.role !== 'staff') return 'Own timesheets only'
   if (u.permissions.length === APP_AREAS.length) return 'All areas'
   if (u.permissions.length === 0) return 'None'
   return APP_AREAS.filter((a) => u.permissions.includes(a.key))

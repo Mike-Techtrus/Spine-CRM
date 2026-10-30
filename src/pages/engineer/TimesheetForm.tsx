@@ -148,7 +148,7 @@ export default function TimesheetForm() {
                 {projectLabel}
               </p>
               <p className="mt-1 text-xs text-text-faint">
-                Project time — change the day on the weekly grid on My Timesheets.
+                Project time — change the day on the weekly grid (Timesheets → My timesheets).
               </p>
             </div>
           ) : (

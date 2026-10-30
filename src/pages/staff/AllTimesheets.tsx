@@ -4,6 +4,7 @@ import { listAllTimesheets, listAccounts, listFieldEngineers } from '../../lib/a
 import type { Account, FieldEngineer, TimesheetEntryWithRelations, TimesheetStatus } from '../../lib/types'
 import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel } from '../../lib/types'
 import { Card, SearchInput, Select, StatusBadge, Th } from '../../components/ui'
+import TimesheetTabs from '../../components/TimesheetTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 
@@ -79,7 +80,8 @@ export default function AllTimesheets() {
 
   return (
     <div>
-      <h1 className="mb-6 text-xl font-semibold text-text">Timesheets</h1>
+      <h1 className="mb-4 text-xl font-semibold text-text">Timesheets</h1>
+      <TimesheetTabs />
 
       <SearchInput value={query} onChange={setQuery} placeholder="Search timesheets…" className="mb-4 max-w-sm" />
 

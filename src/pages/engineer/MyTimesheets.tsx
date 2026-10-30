@@ -5,6 +5,7 @@ import { getMyFieldEngineer, listMyTimesheets } from '../../lib/api'
 import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEntryWithRelations } from '../../lib/types'
 import { Button, Card, StatusBadge } from '../../components/ui'
 import WeeklyTimesheet from '../../components/WeeklyTimesheet'
+import TimesheetTabs from '../../components/TimesheetTabs'
 
 export default function MyTimesheets() {
   const { session } = useAuth()
@@ -48,12 +49,13 @@ export default function MyTimesheets() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text">My Timesheets</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-text">Timesheets</h1>
         <Link to="/my/timesheets/new">
           <Button variant="secondary">Log other time</Button>
         </Link>
       </div>
+      <TimesheetTabs />
 
       {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} onChanged={() => loadList(engineerId)} />}
 

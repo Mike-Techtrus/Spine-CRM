@@ -52,7 +52,7 @@ function days(n: number) {
 const key = (assignmentId: string, date: string) => `${assignmentId}:${date}`
 
 /**
- * My Timesheets → weekly grid: one row per project line I'm assigned to,
+ * Timesheets → My timesheets → weekly grid: one row per project line I'm assigned to,
  * Mon–Sun cells (Full / AM / PM). Save keeps drafts; Submit week sends the
  * week's drafts for approval. The database blocks anything that would take an
  * allocation past its days, or put more than a day on one date.

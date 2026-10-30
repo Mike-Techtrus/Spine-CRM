@@ -4,6 +4,7 @@ import { getMyFieldEngineer } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import { DottedRule } from './ui'
 import SpineMark from './icons/SpineMark'
+import { isTimesheetPath, timesheetSections, type LayoutContext } from './TimesheetTabs'
 import { adminHomePath, canAccess } from '../lib/permissions'
 import { ADMIN_BASE_PATH, APP_AREAS } from '../lib/types'
 
@@ -26,6 +27,14 @@ export default function Layout() {
       .then((record) => setHasStaffProfile(record !== null))
       .catch(() => setHasStaffProfile(false))
   }, [profile?.id, profile?.role])
+  const sections = timesheetSections(profile, hasStaffProfile)
+  const outletContext: LayoutContext = { timesheetSections: sections }
+
+  const timesheetsTab = sections.length > 0 && (
+    <NavLink key="timesheets" to={sections[0].path} className={() => navLinkClass({ isActive: isTimesheetPath(pathname) })}>
+      Timesheets
+    </NavLink>
+  )
 
   return (
     <div className="min-h-screen bg-bg dot-grid-bg print:min-h-0 print:bg-white">
@@ -56,33 +65,32 @@ export default function Layout() {
         <nav className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-4 pb-3">
           {profile?.role === 'staff' ? (
             <>
-              {APP_AREAS.filter((a) => !a.inAdmin && canAccess(profile, a.key)).map((a) => (
-                <NavLink key={a.key} to={a.path} className={navLinkClass}>
-                  {a.label}
-                </NavLink>
-              ))}
+              {APP_AREAS.filter((a) => !a.inAdmin).map((a) =>
+                // Timesheets: one tab for My + Team timesheets, shown even without the
+                // "timesheets" area if they can log their own.
+                a.key === 'timesheets' ? (
+                  timesheetsTab
+                ) : canAccess(profile, a.key) ? (
+                  <NavLink key={a.key} to={a.path} className={navLinkClass}>
+                    {a.label}
+                  </NavLink>
+                ) : null,
+              )}
               {/* One Admin tab for everything under /staff/admin, whichever sections they can open */}
               {adminPath && (
                 <NavLink to={adminPath} className={() => navLinkClass({ isActive: pathname.startsWith(ADMIN_BASE_PATH) })}>
                   Admin
                 </NavLink>
               )}
-              {hasStaffProfile && (
-                <NavLink to="/my/timesheets" className={navLinkClass}>
-                  My Timesheets
-                </NavLink>
-              )}
             </>
           ) : (
-            <NavLink to="/my/timesheets" className={navLinkClass}>
-              My Timesheets
-            </NavLink>
+            timesheetsTab
           )}
         </nav>
         <DottedRule />
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8 print:max-w-none print:p-0">
-        <Outlet />
+        <Outlet context={outletContext} />
       </main>
     </div>
   )

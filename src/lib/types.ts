@@ -30,7 +30,7 @@ export const APP_AREAS = [
   { key: 'sales_orders', label: 'Sales Orders', path: '/staff/sales-orders', inAdmin: false },
   { key: 'projects', label: 'Projects', path: '/staff/projects', inAdmin: false },
   { key: 'invoices', label: 'Invoices', path: '/staff/invoices', inAdmin: false },
-  { key: 'timesheets', label: 'Timesheets', path: '/staff/timesheets', inAdmin: false },
+  { key: 'timesheets', label: 'Team timesheets', path: '/staff/timesheets', inAdmin: false }, // nav tab is "Timesheets" — see TimesheetTabs.tsx
   { key: 'accounts', label: 'Customer Accounts', path: '/staff/admin/customer-accounts', inAdmin: true },
   // contractor + staff profiles
   { key: 'engineers', label: 'User Accounts', path: '/staff/admin/user-accounts/contractors', inAdmin: true },
