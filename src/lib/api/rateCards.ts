@@ -15,7 +15,7 @@ export async function createLineType(name: string, billing: LineTypeBilling, sor
 // Renaming cascades to the line items using it (foreign key "on update cascade").
 export async function updateLineType(
   id: string,
-  input: Partial<Pick<LineType, 'name' | 'billing' | 'is_active'>>,
+  input: Partial<Pick<LineType, 'name' | 'billing' | 'rebate_eligible' | 'is_active'>>,
 ): Promise<LineType> {
   return unwrap(await supabase.from('line_types').update(input).eq('id', id).select().single())
 }

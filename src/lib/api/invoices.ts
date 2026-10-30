@@ -81,7 +81,7 @@ export async function recordPayment(input: {
 
 // ── Invoice lines (migration 0018) ─────────────────────────────────────────
 
-export type InvoiceLineInput = Pick<InvoiceLine, 'description' | 'qty' | 'unit_price'>
+export type InvoiceLineInput = Pick<InvoiceLine, 'description' | 'line_type' | 'qty' | 'unit_price'>
 
 export async function listInvoiceLines(invoiceId: string): Promise<InvoiceLine[]> {
   return unwrap(

@@ -7,13 +7,15 @@ import {
   getSalesOrderForConversion,
   listAccounts,
   listInvoiceLines,
+  listLineTypes,
   listPaymentsForInvoice,
   recordPayment,
   replaceInvoiceLines,
   updateInvoice,
   type InvoiceLineInput,
 } from '../../lib/api'
-import type { Account, CompanySettings, InvoiceStatus, Payment } from '../../lib/types'
+import type { Account, CompanySettings, InvoiceStatus, LineType, Payment } from '../../lib/types'
+import { REBATE_RATE, isRebateEligible } from '../../lib/rebate'
 import { INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select } from '../../components/ui'
 import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
@@ -38,19 +40,19 @@ const emptyForm = {
   status: 'draft' as InvoiceStatus,
 }
 
-// Same rules the imported invoices follow (and QuoteForm uses): VAT 20% of
-// Value, Rebate 7.5% of Value, Net value = Total − Rebate.
+// Same rules as QuoteForm: VAT 20% of Value, Rebate 7.5% of the lines whose
+// line type earns it (lib/rebate.ts; lines with no line type earn it, as
+// before), Net value = Total − Rebate.
 const VAT_RATE = 0.2
-const REBATE_RATE = 0.075
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
-function deriveFinancials(value: number) {
+function deriveFinancials(value: number, rebateEligibleValue = value) {
   const vat = round2(value * VAT_RATE)
   const total = round2(value + vat)
-  const rebate = round2(value * REBATE_RATE)
+  const rebate = round2(rebateEligibleValue * REBATE_RATE)
   return {
     value: value.toString(),
     vat: vat.toString(),
@@ -64,12 +66,13 @@ function deriveFinancials(value: number) {
 interface LocalLine {
   key: string
   description: string
+  line_type: string // '' = not given
   qty: string
   unit_price: string
 }
 
 function emptyLine(): LocalLine {
-  return { key: crypto.randomUUID(), description: '', qty: '1', unit_price: '' }
+  return { key: crypto.randomUUID(), description: '', line_type: '', qty: '1', unit_price: '' }
 }
 
 function lineTotal(line: LocalLine): number {
@@ -81,6 +84,7 @@ function lineTotal(line: LocalLine): number {
 function toLineInput(line: LocalLine): InvoiceLineInput {
   return {
     description: line.description.trim() || null,
+    line_type: line.line_type || null,
     qty: Number(line.qty) || 0,
     unit_price: Number(line.unit_price) || 0,
   }
@@ -88,7 +92,7 @@ function toLineInput(line: LocalLine): InvoiceLineInput {
 
 // Lines compared by content only, for the unsaved-changes check.
 function linesSnapshot(lines: LocalLine[]) {
-  return JSON.stringify(lines.map(({ description, qty, unit_price }) => [description, qty, unit_price]))
+  return JSON.stringify(lines.map(({ description, line_type, qty, unit_price }) => [description, line_type, qty, unit_price]))
 }
 
 function money(v: string | number | null): string {
@@ -121,6 +125,13 @@ export default function InvoiceForm() {
 
   const [lines, setLines] = useState<LocalLine[]>([])
   const [company, setCompany] = useState<CompanySettings | null>(null)
+  const [lineTypes, setLineTypes] = useState<LineType[]>([])
+
+  useEffect(() => {
+    listLineTypes()
+      .then(setLineTypes)
+      .catch(() => setLineTypes([]))
+  }, [])
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
   const [initialLines, setInitialLines] = useState('[]')
@@ -168,6 +179,7 @@ export default function InvoiceForm() {
           const loadedLines: LocalLine[] = (await listInvoiceLines(id)).map((l) => ({
             key: l.id,
             description: l.description ?? '',
+            line_type: l.line_type ?? '',
             qty: l.qty.toString(),
             unit_price: l.unit_price.toString(),
           }))
@@ -299,7 +311,8 @@ export default function InvoiceForm() {
     setLines(newLines)
     if (newLines.length === 0) return
     const sum = round2(newLines.reduce((acc, l) => acc + lineTotal(l), 0))
-    setForm((prev) => ({ ...prev, ...deriveFinancials(sum) }))
+    const eligible = newLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
+    setForm((prev) => ({ ...prev, ...deriveFinancials(sum, eligible) }))
   }
 
   const linesControlTotals = lines.length > 0
@@ -563,6 +576,7 @@ export default function InvoiceForm() {
                   <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
                     <tr>
                       <th className="px-2 py-2">Product description</th>
+                      <th className="w-44 px-2 py-2">Line type</th>
                       <th className="w-24 px-2 py-2">Quantity</th>
                       <th className="w-32 px-2 py-2">Price (£)</th>
                       <th className="w-28 px-2 py-2 text-right">Net amount</th>
@@ -582,6 +596,29 @@ export default function InvoiceForm() {
                               )
                             }
                           />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Select
+                            aria-label="Line type"
+                            value={line.line_type}
+                            onChange={(e) =>
+                              applyLines(
+                                lines.map((l) => (l.key === line.key ? { ...l, line_type: e.target.value } : l)),
+                              )
+                            }
+                          >
+                            <option value="">—</option>
+                            {lineTypes
+                              .filter((t) => t.is_active || t.name === line.line_type)
+                              .map((t) => (
+                                <option key={t.id} value={t.name}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            {line.line_type && !lineTypes.some((t) => t.name === line.line_type) && (
+                              <option value={line.line_type}>{line.line_type}</option>
+                            )}
+                          </Select>
                         </td>
                         <td className="px-2 py-1.5">
                           <Input
@@ -627,7 +664,10 @@ export default function InvoiceForm() {
           </div>
 
           {linesControlTotals && (
-            <p className="text-xs text-text-faint">Worked out from the lines above (VAT 20%, rebate 7.5%).</p>
+            <p className="text-xs text-text-faint">
+              Worked out from the lines above (VAT 20%; rebate 7.5% of resource lines — lines with no line type count
+              too).
+            </p>
           )}
           <div className="grid grid-cols-3 gap-4">
             <div>

@@ -422,6 +422,7 @@ export interface LineType {
   id: string
   name: string
   billing: LineTypeBilling
+  rebate_eligible: boolean // earns the 7.5% rebate (see lib/rebate.ts)
   sort_order: number
   is_active: boolean
   created_at: string
@@ -604,6 +605,7 @@ export interface InvoiceLine {
   invoice_id: string
   sort_order: number
   description: string | null
+  line_type: string | null // decides whether the line earns rebate; null = not given (earns it)
   qty: number
   unit_price: number
   created_at: string

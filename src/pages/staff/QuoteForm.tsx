@@ -13,7 +13,8 @@ import {
   replaceQuoteLines,
   updateQuote,
 } from '../../lib/api'
-import type { Account, QuoteStatus, RateCard } from '../../lib/types'
+import type { Account, LineType, QuoteStatus, RateCard } from '../../lib/types'
+import { REBATE_RATE, isRebateEligible } from '../../lib/rebate'
 import {
   QUOTE_LINE_PART_CODE_SUGGESTIONS,
   QUOTE_LINE_TYPE_SUGGESTIONS,
@@ -103,12 +104,15 @@ export default function QuoteForm() {
   // it has a price, else Default) — for the "Add from rate card" picker.
   const [rateCard, setRateCard] = useState<RateCard | null>(null)
   const [pricedItems, setPricedItems] = useState<PricedLineItem[]>([])
-  const [lineTypeNames, setLineTypeNames] = useState<string[]>([])
+  // All line types (inactive ones too, so old lines still get the right
+  // rebate); only active ones are offered as suggestions.
+  const [lineTypes, setLineTypes] = useState<LineType[]>([])
+  const lineTypeNames = lineTypes.filter((t) => t.is_active).map((t) => t.name)
 
   useEffect(() => {
     listLineTypes()
-      .then((types) => setLineTypeNames(types.filter((t) => t.is_active).map((t) => t.name)))
-      .catch(() => setLineTypeNames([]))
+      .then(setLineTypes)
+      .catch(() => setLineTypes([]))
   }, [])
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify({ form: emptyForm, lines: [] }))
@@ -197,12 +201,12 @@ export default function QuoteForm() {
     return v === '' ? null : Number(v)
   }
 
-  // VAT (20%) and Rebate (7.5%) are standard rates applied to the quote
-  // Value; Total and Net value follow from those. Recalculated whenever
-  // Value changes — the four derived fields stay editable afterwards in
-  // case a specific quote needs a manual override.
+  // VAT (20%) applies to the quote Value; Rebate (7.5%) only to the value of
+  // lines whose line type earns it (lib/rebate.ts) — the whole Value when
+  // there are no lines. Total and Net value follow from those. Recalculated
+  // whenever Value or the lines change — the four derived fields stay
+  // editable afterwards in case a specific quote needs a manual override.
   const VAT_RATE = 0.2
-  const REBATE_RATE = 0.075
 
   function round2(n: number): number {
     return Math.round(n * 100) / 100
@@ -215,10 +219,10 @@ export default function QuoteForm() {
     return accounts.find((a) => a.id === accountId)?.name ?? '—'
   }
 
-  function deriveFinancials(value: number) {
+  function deriveFinancials(value: number, rebateEligibleValue = value) {
     const vat = round2(value * VAT_RATE)
     const total = round2(value + vat)
-    const rebate = round2(value * REBATE_RATE)
+    const rebate = round2(rebateEligibleValue * REBATE_RATE)
     const net_value = round2(total - rebate)
     return { vat: vat.toString(), total: total.toString(), rebate: rebate.toString(), net_value: net_value.toString() }
   }
@@ -246,7 +250,8 @@ export default function QuoteForm() {
     setLines(newLines)
     if (newLines.length === 0) return
     const sum = round2(newLines.reduce((acc, l) => acc + lineTotal(l), 0))
-    setForm((prev) => ({ ...prev, value: sum.toString(), ...deriveFinancials(sum) }))
+    const eligible = newLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
+    setForm((prev) => ({ ...prev, value: sum.toString(), ...deriveFinancials(sum, eligible) }))
   }
 
   function updateLine(key: string, patch: Partial<LocalLine>) {
@@ -730,7 +735,7 @@ export default function QuoteForm() {
               />
             </div>
             <div>
-              <Label>Rebate (£)</Label>
+              <Label>Rebate (£){linesControlTotals && ' — 7.5% of resource lines'}</Label>
               <Input
                 type="number"
                 step="0.01"

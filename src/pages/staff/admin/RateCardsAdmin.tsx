@@ -368,7 +368,9 @@ export default function RateCardsAdmin() {
         <p className="mb-4 text-xs text-text-muted">
           How each type gets onto an invoice. <strong>From timesheets (T&amp;M)</strong> types will be added to invoices
           automatically from approved timesheets once the timesheet module does invoicing; <strong>Added manually</strong>{' '}
-          types are put on an invoice by hand.
+          types are put on an invoice by hand. <strong>Earns rebate</strong>: the 7.5% rebate on quotes and invoices is
+          only worked out on lines of the ticked types (changing a tick affects quotes and invoices when they're next
+          edited, not past figures).
         </p>
         <div className="mb-4 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
@@ -376,6 +378,7 @@ export default function RateCardsAdmin() {
               <tr>
                 <th className="px-3 py-2">Line type</th>
                 <th className="w-64 px-3 py-2">Billed</th>
+                <th className="px-3 py-2">Earns rebate</th>
                 <th className="px-3 py-2">Line items</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -402,6 +405,16 @@ export default function RateCardsAdmin() {
                         </option>
                       ))}
                     </Select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      aria-label={`${t.name} earns the 7.5% rebate`}
+                      checked={t.rebate_eligible}
+                      onChange={(e) =>
+                        run(() => updateLineType(t.id, { rebate_eligible: e.target.checked }), 'Failed to update.')
+                      }
+                    />
                   </td>
                   <td className="px-3 py-2 text-text-muted">{items.filter((i) => i.line_type === t.name).length}</td>
                   <td className="px-3 py-2 text-right">
