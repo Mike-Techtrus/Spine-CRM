@@ -321,8 +321,7 @@ export default function SalesOrderForm() {
                   <th className="py-1.5 pr-2 font-normal">Date</th>
                   <th className="py-1.5 pr-2 font-normal">Status</th>
                   <th className="py-1.5 pr-2 text-right font-normal">Value</th>
-                  <th className="py-1.5 pr-2 text-right font-normal">Total</th>
-                  <th className="py-1.5 text-right font-normal">Net</th>
+                  <th className="py-1.5 text-right font-normal">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -342,18 +341,15 @@ export default function SalesOrderForm() {
                     <td className="whitespace-nowrap py-1.5 pr-2 text-right font-mono-label text-xs text-text-dim">
                       {inv.value == null ? '—' : money(Number(inv.value))}
                     </td>
-                    <td className="whitespace-nowrap py-1.5 pr-2 text-right font-mono-label text-xs text-text-dim">
-                      {inv.total == null ? '—' : money(Number(inv.total))}
-                    </td>
                     <td className="whitespace-nowrap py-1.5 text-right font-mono-label text-xs text-text">
-                      {inv.net_value == null ? '—' : money(Number(inv.net_value))}
+                      {inv.total == null ? '—' : money(Number(inv.total))}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <p className="mt-2 text-xs text-text-faint">
-              Value is ex VAT, Total inc VAT. Invoiced to date adds up the Net of Sent and Paid invoices (not drafts or
+              Value is ex VAT, Total inc VAT. Invoiced to date counts Sent and Paid invoices only (not drafts or
               cancelled).
             </p>
           </div>

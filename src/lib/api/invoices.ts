@@ -27,14 +27,14 @@ export async function getInvoice(id: string): Promise<InvoiceWithRelations> {
 // A sales order's invoices, oldest first — for the list on the Sales Order page.
 export type SalesOrderInvoice = Pick<
   Invoice,
-  'id' | 'invoice_number' | 'invoice_date' | 'due_date' | 'status' | 'value' | 'total' | 'net_value'
+  'id' | 'invoice_number' | 'invoice_date' | 'due_date' | 'status' | 'value' | 'total'
 >
 
 export async function listInvoicesForSalesOrder(salesOrderId: string): Promise<SalesOrderInvoice[]> {
   return unwrap(
     await supabase
       .from('invoices')
-      .select('id, invoice_number, invoice_date, due_date, status, value, total, net_value')
+      .select('id, invoice_number, invoice_date, due_date, status, value, total')
       .eq('sales_order_id', salesOrderId)
       .order('invoice_date', { ascending: true, nullsFirst: false })
       .order('invoice_number'),
