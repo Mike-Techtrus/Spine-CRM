@@ -25,6 +25,8 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 
 ## Recent work (as of late Oct 2026)
 
+- **Performance tidy-up** (migration 0035, no UI change): 8 RLS policies now use `(select auth.uid())` / `(select public.is_staff())` so they're evaluated once per query, not per row — write new policies the same way. Indexes added on 15 foreign-key columns — add an index whenever you add a foreign key. Supabase's "Memory commitment" warning (Nov 2026) was down to the small compute size, not the data (DB was 17 MB); the real fix for that is a bigger compute size, only if swap climbs or the app slows.
+
 - **Timesheet how-to guide** (no migration): `components/TimesheetGuide.tsx`, a collapsible panel at the top of Timesheets → My timesheets. Wording differs for staff (auto-approve, own un-approve) and contractors (project owner approves). Open on first visit; open/closed is remembered per browser. Keep it in step if the timesheet rules change.
 
 - **Un-approve timesheets** (migration 0034): approved → Draft clears approved_by/approved_on/submitted_on. Allowed for a staff member's own time, the project owner or an admin for anyone's project timesheet, any staff for non-project time; contractors can't (RLS); invoiced days stay locked (0025). "Un-approve (back to draft)" button on the staff timesheet page (`TimesheetDetail.tsx`) and on a staff member's own entry (`TimesheetForm.tsx`); `unapproveTimesheet()` in api/timesheets.ts.
