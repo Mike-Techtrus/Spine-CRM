@@ -24,7 +24,9 @@ export default function AdminTabs() {
   const tabs: SectionTab[] = SECTIONS.filter((s) => canAccess(profile, s.area)).map((s) =>
     s.path === '/staff/admin/skills'
       ? { ...s, badge: actionCounts.skill_requests, badgeTitle: 'Skill requests waiting for approval' }
-      : s,
+      : s.path === '/staff/admin/user-accounts'
+        ? { ...s, badge: actionCounts.expiring ?? 0, badgeTitle: 'Certifications or documents expiring within 60 days' }
+        : s,
   )
   return <SectionTabs sections={tabs} />
 }

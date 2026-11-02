@@ -6,6 +6,7 @@ export interface SectionTab {
   path: string
   badge?: number // things waiting on you in this section
   badgeTitle?: string
+  end?: boolean // only highlight on this exact path, not the pages under it
 }
 
 // Sub-navigation under a top-level tab, e.g. Admin → Logins / Skills.
@@ -16,6 +17,7 @@ export default function SectionTabs({ sections }: { sections: SectionTab[] }) {
         <NavLink
           key={s.path}
           to={s.path}
+          end={s.end}
           className={({ isActive }) =>
             `-mb-px flex items-center border-b-2 px-3 py-2 text-sm transition-colors ${
               isActive ? 'border-accent text-text' : 'border-transparent text-text-muted hover:text-text'

@@ -6,6 +6,7 @@ import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
 import ColumnPicker from '../../components/ColumnPicker'
+import InvoiceTabs from './InvoiceTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
@@ -110,6 +111,7 @@ export default function InvoiceList() {
         <h1 className="text-xl font-semibold text-text">Invoices</h1>
         <p className="text-xs text-text-faint">Created from a sales order — open a sales order to create one.</p>
       </div>
+      <InvoiceTabs />
 
       {invoices && invoices.length > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3">

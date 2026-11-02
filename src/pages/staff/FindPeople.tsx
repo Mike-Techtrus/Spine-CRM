@@ -33,9 +33,8 @@ import {
   type PersonAvailability,
 } from '../../lib/availability'
 import { Card, ErrorText, Label, Select } from '../../components/ui'
-import SectionTabs from '../../components/SectionTabs'
 import AdminTabs from './admin/AdminTabs'
-import { USER_TABS } from './PeopleList'
+import UserAccountsTabs from './UserAccountsTabs'
 
 // Admin → User Accounts → Find & availability: who has these skills, and
 // who's free over the next 8 weeks (lib/availability.ts explains the sums).
@@ -153,7 +152,7 @@ export default function FindPeople() {
     <div>
       <h1 className="mb-4 text-xl font-semibold text-text">Admin · User Accounts · Find &amp; availability</h1>
       <AdminTabs />
-      <SectionTabs sections={USER_TABS} />
+      <UserAccountsTabs />
 
       <ErrorText>{error}</ErrorText>
 

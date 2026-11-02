@@ -4,6 +4,7 @@ import {
   createSkillRequest,
   getMyFieldEngineer,
   listContractorSkills,
+  listPersonDocuments,
   listMySkillRequests,
   listSkillCategories,
   listSkills,
@@ -11,10 +12,12 @@ import {
   withdrawSkillRequest,
 } from '../../lib/api'
 import {
+  PERSON_DOCUMENT_LABELS,
   SKILL_REQUEST_STATUS_BADGE,
   SKILL_REQUEST_STATUS_LABELS,
   type ContractorSkill,
   type FieldEngineer,
+  type PersonDocument,
   type Skill,
   type SkillCategory,
   type SkillRequest,
@@ -40,15 +43,18 @@ export default function MyProfile() {
   const [skills, setSkills] = useState<Skill[]>([])
   const [profileSkills, setProfileSkills] = useState<ContractorSkill[]>([])
   const [requests, setRequests] = useState<SkillRequest[]>([])
+  const [documents, setDocuments] = useState<PersonDocument[]>([])
   const [error, setError] = useState<string | null>(null)
 
   async function refreshSkills(id: string) {
-    const [c, s, ps, r] = await Promise.all([
+    const [c, s, ps, r, d] = await Promise.all([
       listSkillCategories(),
       listSkills(),
       listContractorSkills(id),
       listMySkillRequests(id),
+      listPersonDocuments(id),
     ])
+    setDocuments(d)
     setCategories(c)
     setSkills(s)
     setProfileSkills(ps)
@@ -100,6 +106,13 @@ export default function MyProfile() {
 
       <ErrorText>{error}</ErrorText>
 
+      <ExpiryReminder
+        items={[
+          ...profileSkills.map((ps) => ({ what: skills.find((sk) => sk.id === ps.skill_id)?.name ?? 'A skill', expiresOn: ps.expires_on })),
+          ...documents.map((d) => ({ what: PERSON_DOCUMENT_LABELS[d.doc_type], expiresOn: d.expires_on })),
+        ]}
+      />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
           <MyDetailsCard engineer={engineer} onSaved={setEngineer} onError={setError} />
@@ -127,6 +140,41 @@ export default function MyProfile() {
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Reminder: your own certifications / documents due within 60 days ─────────
+
+const REMINDER_DAYS = 60 // same window as the badge (my_action_counts, 0042)
+
+function ExpiryReminder({ items }: { items: { what: string; expiresOn: string | null }[] }) {
+  const now = new Date()
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+  const due = items
+    .filter((i): i is { what: string; expiresOn: string } => Boolean(i.expiresOn))
+    .map((i) => ({ ...i, daysLeft: Math.round((Date.parse(`${i.expiresOn}T00:00:00Z`) - today) / 86_400_000) }))
+    .filter((i) => i.daysLeft <= REMINDER_DAYS)
+    .sort((a, b) => a.daysLeft - b.daysLeft)
+  if (due.length === 0) return null
+  return (
+    <Card className="mb-6 border-warning/40">
+      <p className="mb-2 text-sm font-semibold text-text">Coming up for renewal</p>
+      <ul className="space-y-1 text-sm">
+        {due.map((i) => (
+          <li key={i.what + i.expiresOn}>
+            <span className="text-text">{i.what}</span>{' '}
+            {i.daysLeft < 0 ? (
+              <span className="text-danger">expired on {formatDate(i.expiresOn)}</span>
+            ) : (
+              <span className="text-warning">
+                expires on {formatDate(i.expiresOn)} ({i.daysLeft === 0 ? 'today' : `in ${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'}`})
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-text-faint">Once renewed, update the expiry date below (and upload the new copy for ID documents).</p>
+    </Card>
   )
 }
 

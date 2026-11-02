@@ -175,3 +175,8 @@ export async function declineSkillRequest(requestId: string, response: string): 
   const { error } = await supabase.rpc('decline_skill_request', { p_request_id: requestId, p_response: response })
   if (error) throw new Error(error.message)
 }
+
+// Every identity document the current user may see (admins: everyone's), for the expiry watch list.
+export async function listAllPersonDocuments(): Promise<PersonDocument[]> {
+  return unwrap(await supabase.from('person_documents').select('*').not('expires_on', 'is', null))
+}

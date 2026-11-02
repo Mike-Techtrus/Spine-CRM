@@ -19,6 +19,7 @@ import SalesOrderList from './pages/staff/SalesOrderList'
 import SalesOrderForm from './pages/staff/SalesOrderForm'
 import InvoiceList from './pages/staff/InvoiceList'
 import InvoiceForm from './pages/staff/InvoiceForm'
+import ContractorCosts from './pages/staff/ContractorCosts'
 import ProjectList from './pages/staff/ProjectList'
 import ProjectDetail from './pages/staff/ProjectDetail'
 import UserAdmin from './pages/staff/admin/UserAdmin'
@@ -28,6 +29,7 @@ import RateCardsAdmin from './pages/staff/admin/RateCardsAdmin'
 import ActivityAdmin from './pages/staff/admin/ActivityAdmin'
 import PersonProfile from './pages/staff/PersonProfile'
 import FindPeople from './pages/staff/FindPeople'
+import ExpiringList from './pages/staff/ExpiringList'
 import SetPassword from './pages/SetPassword'
 import NoAccess from './pages/NoAccess'
 import { adminHomePath, homePath } from './lib/permissions'
@@ -155,6 +157,7 @@ const router = createBrowserRouter(
 
         <Route path="/staff/invoices" element={<Staff area="invoices"><InvoiceList /></Staff>} />
         <Route path="/staff/invoices/new" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
+        <Route path="/staff/invoices/contractor-costs" element={<Staff area="invoices"><ContractorCosts /></Staff>} />
         <Route path="/staff/invoices/:id" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
 
         {/* Staff: administration */}
@@ -166,6 +169,7 @@ const router = createBrowserRouter(
         <Route path="/staff/admin/user-accounts/contractors" element={<Staff area="engineers"><PeopleList key="contractor" kind="contractor" /></Staff>} />
         <Route path="/staff/admin/user-accounts/staff" element={<Staff area="engineers"><PeopleList key="staff" kind="staff" /></Staff>} />
         <Route path="/staff/admin/user-accounts/availability" element={<Staff area="engineers"><FindPeople /></Staff>} />
+        <Route path="/staff/admin/user-accounts/expiring" element={<Staff area="engineers"><ExpiringList /></Staff>} />
         <Route path="/staff/admin/user-accounts/contractors/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
         <Route path="/staff/admin/user-accounts/staff/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
         <Route path="/staff/admin/logins" element={<Staff area="admin"><UserAdmin /></Staff>} />

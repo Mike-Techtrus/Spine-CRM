@@ -3,17 +3,12 @@ import { Link } from 'react-router-dom'
 import { createFieldEngineer, listFieldEngineers, listPersonLogins, updateFieldEngineer } from '../../lib/api'
 import { PERSON_KINDS, type FieldEngineer, type PersonKind, type PersonLogin } from '../../lib/types'
 import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, Label, SearchInput, Select, Th } from '../../components/ui'
-import SectionTabs from '../../components/SectionTabs'
+import UserAccountsTabs from './UserAccountsTabs'
 import AdminTabs from './admin/AdminTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 
-// Sub-tabs under Admin → User Accounts (also used by FindPeople).
-export const USER_TABS = [
-  ...(['contractor', 'staff'] as const).map((k) => ({ label: PERSON_KINDS[k].plural, path: PERSON_KINDS[k].path })),
-  { label: 'Find & availability', path: '/staff/admin/user-accounts/availability' },
-]
 
 const emptyForm = { name: '', email: '', phone: '', day_rate: '', user_id: '' }
 const STATUS_OPTIONS = [
@@ -174,7 +169,7 @@ export default function PeopleList({ kind }: { kind: PersonKind }) {
     <div>
       <h1 className="mb-4 text-xl font-semibold text-text">Admin · User Accounts · {meta.plural}</h1>
       <AdminTabs />
-      <SectionTabs sections={USER_TABS} />
+      <UserAccountsTabs />
 
       <Card className="mb-6">
         <form onSubmit={handleAdd} className="grid grid-cols-4 items-end gap-4">

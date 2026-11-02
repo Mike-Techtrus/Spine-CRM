@@ -65,8 +65,9 @@ export default function Layout() {
 
   // My Profile: contractors, and staff linked to a staff profile.
   const myProfileTab = (profile?.role === 'field_engineer' || hasStaffProfile) && (
-    <NavLink to={MY_PROFILE_PATH} className={navLinkClass}>
+    <NavLink to={MY_PROFILE_PATH} className={(s) => `${navLinkClass(s)} inline-flex items-center`}>
       My Profile
+      <CountBadge count={counts.my_expiring ?? 0} title="Your certifications or documents expiring soon" />
     </NavLink>
   )
 
@@ -117,7 +118,15 @@ export default function Layout() {
                   className={() => `${navLinkClass({ isActive: pathname.startsWith(ADMIN_BASE_PATH) })} inline-flex items-center`}
                 >
                   Admin
-                  <CountBadge count={counts.skill_requests} title={`Skill requests: ${counts.skill_requests}`} />
+                  <CountBadge
+                    count={(counts.skill_requests ?? 0) + (counts.expiring ?? 0)}
+                    title={[
+                      counts.skill_requests ? `Skill requests: ${counts.skill_requests}` : '',
+                      counts.expiring ? `Expiring: ${counts.expiring}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  />
                 </NavLink>
               )}
               {myProfileTab}
