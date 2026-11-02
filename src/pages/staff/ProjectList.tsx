@@ -8,10 +8,11 @@ import ColumnPicker from '../../components/ColumnPicker'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
-import { columnValueGetter, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
+import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
+import { formatPercent, summariseMargin, type MarginItem, type MarginSummary } from '../../lib/margin'
 
 // A project with its day totals worked out from lines, assignments and timesheets.
-type ProjectRow = ProjectWithRelations & { quoted: number; allocated: number; used: number }
+type ProjectRow = ProjectWithRelations & { quoted: number; allocated: number; used: number; margin: MarginSummary }
 
 const STATUS_OPTIONS = Object.values(PROJECT_STATUS_LABELS).map((label) => ({ value: label, label }))
 
@@ -38,6 +39,19 @@ const COLUMNS: TableColumn<ProjectRow>[] = [
     label: 'Timesheeted',
     value: (p) => p.used,
     render: (p) => (p.allocated ? `${days(p.used)} (${Math.round((p.used / p.allocated) * 100)}%)` : days(p.used)),
+  },
+  {
+    key: 'margin',
+    label: 'Planned margin',
+    value: (p) => p.margin.margin,
+    render: (p) =>
+      p.margin.revenue ? (
+        <span className={p.margin.margin < 0 ? 'text-danger' : ''}>
+          {formatMoney(p.margin.margin)} <span className="text-text-faint">({formatPercent(p.margin.percent)})</span>
+        </span>
+      ) : (
+        '—'
+      ),
   },
   {
     key: 'status',
@@ -84,18 +98,30 @@ export default function ProjectList() {
         const entries = await listAssignmentTimesheets(assignments.map((a) => a.id))
         const lineProject = new Map(lines.map((l) => [l.id, l.project_id]))
         const assignmentProject = new Map(assignments.map((a) => [a.id, lineProject.get(a.project_line_id)]))
-        const totals = new Map<string, { quoted: number; allocated: number; used: number }>()
-        const get = (id: string) => totals.get(id) ?? totals.set(id, { quoted: 0, allocated: 0, used: 0 }).get(id)!
+        const totals = new Map<string, { quoted: number; allocated: number; used: number; margin: MarginItem[] }>()
+        const get = (id: string) => totals.get(id) ?? totals.set(id, { quoted: 0, allocated: 0, used: 0, margin: [] }).get(id)!
+        const sellOf = new Map(lines.map((l) => [l.id, Number(l.day_rate)]))
         for (const l of lines) get(l.project_id).quoted += Number(l.quoted_days)
         for (const a of assignments) {
           const pid = lineProject.get(a.project_line_id)
-          if (pid) get(pid).allocated += Number(a.allocated_days)
+          if (!pid) continue
+          get(pid).allocated += Number(a.allocated_days)
+          get(pid).margin.push({
+            days: Number(a.allocated_days),
+            sellRate: sellOf.get(a.project_line_id) ?? 0,
+            costRate: a.cost_rate === null ? null : Number(a.cost_rate),
+          })
         }
         for (const e of entries) {
           const pid = assignmentProject.get(e.project_assignment_id)
           if (pid && e.status !== 'rejected') get(pid).used += DAY_TYPE_DAYS[e.day_type]
         }
-        setRows(projects.map((p) => ({ ...p, ...(totals.get(p.id) ?? { quoted: 0, allocated: 0, used: 0 }) })))
+        setRows(
+          projects.map((p) => {
+            const t = totals.get(p.id) ?? { quoted: 0, allocated: 0, used: 0, margin: [] }
+            return { ...p, quoted: t.quoted, allocated: t.allocated, used: t.used, margin: summariseMargin(t.margin) }
+          }),
+        )
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load.')
       }

@@ -76,10 +76,11 @@ export async function addProjectAssignment(
   )
 }
 
-export async function updateProjectAssignment(id: string, allocatedDays: number): Promise<ProjectAssignment> {
-  return unwrap(
-    await supabase.from('project_assignments').update({ allocated_days: allocatedDays }).eq('id', id).select().single(),
-  )
+export async function updateProjectAssignment(
+  id: string,
+  input: Partial<Pick<ProjectAssignment, 'allocated_days' | 'cost_rate'>>,
+): Promise<ProjectAssignment> {
+  return unwrap(await supabase.from('project_assignments').update(input).eq('id', id).select().single())
 }
 
 export async function removeProjectAssignment(id: string): Promise<void> {

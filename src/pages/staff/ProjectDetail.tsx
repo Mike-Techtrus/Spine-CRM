@@ -27,6 +27,7 @@ import {
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
 import HistoryCard from '../../components/HistoryCard'
+import { formatPercent, summariseMargin, type MarginSummary } from '../../lib/margin'
 
 // Timesheeted days per allocation, split by timesheet status. Rejected days
 // don't count.
@@ -157,6 +158,20 @@ export default function ProjectDetail() {
     return { quoted, value, allocated, usage: u }
   }, [lines, assignments, usage])
 
+  // Margin (0041): planned = allocated days, delivered = approved timesheet days.
+  const margin = useMemo(() => {
+    const sellOf = new Map(lines.map((l) => [l.id, Number(l.day_rate)]))
+    const item = (a: ProjectAssignment, d: number) => ({
+      days: d,
+      sellRate: sellOf.get(a.project_line_id) ?? 0,
+      costRate: a.cost_rate === null ? null : Number(a.cost_rate),
+    })
+    return {
+      planned: summariseMargin(assignments.map((a) => item(a, Number(a.allocated_days)))),
+      delivered: summariseMargin(assignments.map((a) => item(a, usageOf(a.id).approved))),
+    }
+  }, [lines, assignments, usage])
+
   if (!project) {
     return (
       <div>
@@ -223,6 +238,8 @@ export default function ProjectDetail() {
         </Card>
       </div>
 
+      {lines.length > 0 && <MarginCard planned={margin.planned} delivered={margin.delivered} unallocated={totals.quoted - totals.allocated} />}
+
       {lines.length > 0 && <InvoicingCard projectId={project.id} billing={billing} onError={setError} />}
 
       {lines.length === 0 ? (
@@ -248,6 +265,60 @@ export default function ProjectDetail() {
         </div>
       )}
       <HistoryCard table="projects" recordId={id} />
+    </div>
+  )
+}
+
+// ── Margin ───────────────────────────────────────────────────────────────────
+
+function MarginCard({
+  planned,
+  delivered,
+  unallocated,
+}: {
+  planned: MarginSummary
+  delivered: MarginSummary
+  unallocated: number
+}) {
+  const uncosted = planned.uncostedDays
+  return (
+    <Card className="mb-6">
+      <h2 className="mb-1 text-sm font-semibold text-text">Margin</h2>
+      <p className="mb-4 text-xs text-text-muted">
+        Quoted day rate minus each person&apos;s cost rate (set per person below; it starts as their Day / Cost rate from
+        User Accounts). Ex VAT, before any rebate.
+      </p>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <MarginBlock title="Planned · allocated days" figures={planned} />
+        <MarginBlock title="Delivered · approved days" figures={delivered} />
+      </div>
+      {(uncosted > 0 || unallocated > 0) && (
+        <ul className="mt-4 space-y-1 text-xs text-text-faint">
+          {uncosted > 0 && (
+            <li className="text-warning">
+              {days(uncosted)} allocated day{uncosted === 1 ? '' : 's'} have no cost rate, so they&apos;re left out — add
+              the rate below.
+            </li>
+          )}
+          {unallocated > 0 && (
+            <li>{days(unallocated)} quoted day{unallocated === 1 ? '' : 's'} not allocated to anyone yet, so not costed.</li>
+          )}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+function MarginBlock({ title, figures }: { title: string; figures: MarginSummary }) {
+  const loss = figures.margin < 0
+  return (
+    <div>
+      <p className="mb-2 text-xs font-mono-label text-text-muted">{title}</p>
+      <div className="grid grid-cols-3 gap-3">
+        <Stat label="Sell" value={money(figures.revenue)} />
+        <Stat label="Cost" value={money(figures.cost)} />
+        <Stat label="Margin" value={money(figures.margin)} sub={formatPercent(figures.percent)} warn={loss} />
+      </div>
     </div>
   )
 }
@@ -495,6 +566,7 @@ function LineCard({
   }
 
   const unallocated = quoted - allocated
+  const sell = Number(line.day_rate)
 
   return (
     <Card>
@@ -529,6 +601,8 @@ function LineCard({
               <tr>
                 <th className="px-3 py-2">Person</th>
                 <th className="w-28 px-3 py-2">Allocated</th>
+                <th className="w-32 px-3 py-2">Cost rate (£)</th>
+                <th className="px-3 py-2">Margin / day</th>
                 <th className="px-3 py-2">Timesheeted</th>
                 <th className="px-3 py-2">Remaining</th>
                 <th className="w-40 px-3 py-2">Burn-down</th>
@@ -550,8 +624,24 @@ function LineCard({
                       <DaysInput
                         key={`${a.id}:${a.allocated_days}`}
                         value={Number(a.allocated_days)}
-                        onSave={(n) => run(() => updateProjectAssignment(a.id, n), 'Failed to update days.')}
+                        onSave={(n) => run(() => updateProjectAssignment(a.id, { allocated_days: n }), 'Failed to update days.')}
                       />
+                    </td>
+                    <td className="px-3 py-2">
+                      <RateInput
+                        key={`${a.id}:${a.cost_rate}`}
+                        value={a.cost_rate === null ? null : Number(a.cost_rate)}
+                        onSave={(n) => run(() => updateProjectAssignment(a.id, { cost_rate: n }), 'Failed to update cost rate.')}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      {a.cost_rate === null ? (
+                        <span className="text-xs text-warning">No cost rate</span>
+                      ) : (
+                        <span className={sell - Number(a.cost_rate) < 0 ? 'text-danger' : 'text-text-muted'}>
+                          {money(sell - Number(a.cost_rate))}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-text-muted">
                       {days(usedDays(u))}
@@ -612,6 +702,34 @@ function LineCard({
         </Button>
       </form>
     </Card>
+  )
+}
+
+// Cost rate box that saves on blur; empty means "no cost rate".
+function RateInput({ value, onSave }: { value: number | null; onSave: (n: number | null) => Promise<unknown> }) {
+  const [text, setText] = useState(value === null ? '' : String(value))
+  async function commit() {
+    const n = text.trim() === '' ? null : Number(text)
+    if (n === value) return
+    if (n !== null && (Number.isNaN(n) || n < 0)) {
+      setText(value === null ? '' : String(value))
+      return
+    }
+    await onSave(n)
+  }
+  return (
+    <Input
+      type="number"
+      step="0.01"
+      min="0"
+      aria-label="Cost rate per day"
+      value={text}
+      placeholder="—"
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      className="py-1"
+    />
   )
 }
 

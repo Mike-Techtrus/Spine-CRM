@@ -449,6 +449,7 @@ export interface ProjectAssignment {
   project_line_id: string
   field_engineer_id: string
   allocated_days: number
+  cost_rate: number | null // cost per day on this line (0041); defaults to the person's Day / Cost rate
   created_at: string
 }
 

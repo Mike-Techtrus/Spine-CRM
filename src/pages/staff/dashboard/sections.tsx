@@ -4,6 +4,7 @@ import { listAllProjectLines, listAssignmentTimesheets, listProjectAssignments, 
 import type {
   InvoiceWithRelations,
   OpportunityWithRelations,
+  ProjectAssignment,
   ProjectWithRelations,
   QuoteWithRelations,
   SalesOrderWithRelations,
@@ -22,6 +23,7 @@ import {
   type InvoicingStatus,
 } from '../../../lib/types'
 import { StatusBadge } from '../../../components/ui'
+import { formatPercent, summariseMargin, type MarginItem, type MarginSummary } from '../../../lib/margin'
 import { BarList, ColumnChart, Meter, Panel, Tile, gbp, gbpCompact, pct } from './charts'
 import {
   AGE_BUCKETS,
@@ -474,11 +476,20 @@ interface ProjectSummary {
   used: number // submitted + approved days
   uninvoicedDays: number // approved, not on an invoice
   uninvoicedValue: number
+  planned: MarginItem[] // allocated days × (sell − cost), for the planned margin
+}
+
+// Margin on approved project days by when they were worked (0041).
+interface DeliveredMargin {
+  thisMonth: MarginSummary
+  lastMonth: MarginSummary
+  last12: MarginSummary
 }
 
 export function ProjectsSection() {
   const navigate = useNavigate()
   const [rows, setRows] = useState<ProjectSummary[] | null>(null)
+  const [delivered, setDelivered] = useState<DeliveredMargin | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -491,11 +502,12 @@ export function ProjectsSection() {
         ])
         const entries = await listAssignmentTimesheets(assignments.map((a) => a.id))
         const lineById = new Map(lines.map((l) => [l.id, l]))
+        const costOf = (a: ProjectAssignment) => (a.cost_rate === null ? null : Number(a.cost_rate))
         const assignmentById = new Map(assignments.map((a) => [a.id, a]))
         const summaries = new Map<string, ProjectSummary>(
           projects.map((p) => [
             p.id,
-            { project: p, allocated: 0, quoted: 0, used: 0, uninvoicedDays: 0, uninvoicedValue: 0 },
+            { project: p, allocated: 0, quoted: 0, used: 0, uninvoicedDays: 0, uninvoicedValue: 0, planned: [] },
           ]),
         )
         for (const l of lines) {
@@ -505,8 +517,16 @@ export function ProjectsSection() {
         for (const a of assignments) {
           const line = lineById.get(a.project_line_id)
           const s = line && summaries.get(line.project_id)
-          if (s) s.allocated += Number(a.allocated_days)
+          if (!s || !line) continue
+          s.allocated += Number(a.allocated_days)
+          s.planned.push({ days: Number(a.allocated_days), sellRate: Number(line.day_rate), costRate: costOf(a) })
         }
+        const now = new Date()
+        const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        const thisMonth = monthKey(now)
+        const lastMonth = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1))
+        const yearAgo = monthKey(new Date(now.getFullYear(), now.getMonth() - 11, 1))
+        const byPeriod: Record<keyof DeliveredMargin, MarginItem[]> = { thisMonth: [], lastMonth: [], last12: [] }
         for (const e of entries) {
           const a = assignmentById.get(e.project_assignment_id)
           const line = a && lineById.get(a.project_line_id)
@@ -514,12 +534,24 @@ export function ProjectsSection() {
           if (!s || !line) continue
           const d = DAY_TYPE_DAYS[e.day_type]
           if (e.status === 'submitted' || e.status === 'approved') s.used += d
+          if (e.status === 'approved' && a) {
+            const item = { days: d, sellRate: Number(line.day_rate), costRate: costOf(a) }
+            const month = e.work_date.slice(0, 7)
+            if (month === thisMonth) byPeriod.thisMonth.push(item)
+            if (month === lastMonth) byPeriod.lastMonth.push(item)
+            if (month >= yearAgo && month <= thisMonth) byPeriod.last12.push(item)
+          }
           if (e.status === 'approved' && !e.invoice_id) {
             s.uninvoicedDays += d
             s.uninvoicedValue += d * Number(line.day_rate)
           }
         }
         setRows([...summaries.values()].filter((s) => s.project.status === 'active'))
+        setDelivered({
+          thisMonth: summariseMargin(byPeriod.thisMonth),
+          lastMonth: summariseMargin(byPeriod.lastMonth),
+          last12: summariseMargin(byPeriod.last12),
+        })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load projects.')
       }
@@ -567,6 +599,12 @@ export function ProjectsSection() {
                   </div>
                   <p className="mt-0.5 text-xs text-text-faint">
                     {days(r.allocated)} allocated · owner {r.project.owner?.full_name || '—'}
+                    {(() => {
+                      const m = summariseMargin(r.planned)
+                      return m.revenue > 0 ? (
+                        <span className={m.margin < 0 ? 'text-danger' : ''}> · planned margin {formatPercent(m.percent)}</span>
+                      ) : null
+                    })()}
                     {r.quoted > 0 && r.used > r.quoted && <span className="text-danger"> · over quoted days</span>}
                   </p>
                 </button>
@@ -576,6 +614,7 @@ export function ProjectsSection() {
         )}
       </Panel>
 
+      <div className="space-y-4">
       <Panel title="Ready to invoice · approved days">
         <BarList
           empty="No approved days waiting to be invoiced."
@@ -592,7 +631,36 @@ export function ProjectsSection() {
           }))}
         />
       </Panel>
+      {delivered && <DeliveredMarginPanel delivered={delivered} />}
+      </div>
     </div>
+  )
+}
+
+function DeliveredMarginPanel({ delivered }: { delivered: DeliveredMargin }) {
+  const rows: [string, MarginSummary][] = [
+    ['This month', delivered.thisMonth],
+    ['Last month', delivered.lastMonth],
+    ['Last 12 months', delivered.last12],
+  ]
+  const uncosted = delivered.last12.uncostedDays
+  return (
+    <Panel title="Margin · approved project days, ex VAT">
+      <ul className="space-y-2 text-sm">
+        {rows.map(([label, m]) => (
+          <li key={label} className="flex items-baseline justify-between gap-3">
+            <span className="text-text-muted">{label}</span>
+            <span className={`font-mono-label ${m.margin < 0 ? 'text-danger' : 'text-text'}`}>
+              {gbp(m.margin)} <span className="text-xs text-text-faint">{formatPercent(m.percent)} of {gbp(m.revenue)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 border-t border-hair pt-3 text-xs text-text-dim">
+        Quoted day rate minus each person's cost rate, by the date the day was worked.
+        {uncosted > 0 && <span className="text-warning"> {days(uncosted)} day(s) left out — no cost rate set.</span>}
+      </p>
+    </Panel>
   )
 }
 
