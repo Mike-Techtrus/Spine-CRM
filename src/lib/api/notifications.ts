@@ -5,6 +5,7 @@ import { unwrap } from './_shared'
 export interface ActionCounts {
   timesheets_to_approve: number
   my_rejected_timesheets: number
+  my_unsubmitted: number // your own draft days before this week, never submitted (0044)
   skill_requests: number
   expiring: number // certifications / clearances (+ ID documents for admins) expiring within 60 days or expired (0042)
   my_expiring: number // your own, for the My Profile tab
@@ -13,6 +14,7 @@ export interface ActionCounts {
 export const NO_ACTION_COUNTS: ActionCounts = {
   timesheets_to_approve: 0,
   my_rejected_timesheets: 0,
+  my_unsubmitted: 0,
   skill_requests: 0,
   expiring: 0,
   my_expiring: 0,

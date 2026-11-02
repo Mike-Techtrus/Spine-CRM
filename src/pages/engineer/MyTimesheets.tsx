@@ -1,12 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { getMyFieldEngineer, listMyTimesheets } from '../../lib/api'
+import { getMyFieldEngineer, listMyAssignments, listMyTimesheets } from '../../lib/api'
 import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEntryWithRelations } from '../../lib/types'
 import { Button, Card, StatusBadge } from '../../components/ui'
 import WeeklyTimesheet from '../../components/WeeklyTimesheet'
 import TimesheetTabs, { type LayoutContext } from '../../components/TimesheetTabs'
 import TimesheetGuide from '../../components/TimesheetGuide'
+import { addDays, mondayOf } from '../../lib/availability'
+
+function todayIso() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function weekLabel(monday: string) {
+  return new Date(`${monday}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+}
 
 export default function MyTimesheets() {
   const { session } = useAuth()
@@ -17,6 +27,8 @@ export default function MyTimesheets() {
   const [noEngineerRecord, setNoEngineerRecord] = useState(false)
   const [engineerId, setEngineerId] = useState<string | null>(null)
   const [isStaff, setIsStaff] = useState(false)
+  const [hasActiveProject, setHasActiveProject] = useState(false)
+  const [jumpTo, setJumpTo] = useState<{ week: string; at: number } | undefined>()
 
   async function loadList(id: string) {
     setTimesheets(await listMyTimesheets(id))
@@ -34,11 +46,37 @@ export default function MyTimesheets() {
         setEngineerId(engineer.id)
         setIsStaff(engineer.kind === 'staff')
         await loadList(engineer.id)
+        const mine = await listMyAssignments(engineer.id)
+        setHasActiveProject(mine.some((a) => a.project_line.project.status === 'active'))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load timesheets.')
       }
     })()
   }, [session])
+
+  // Reminders: drafts from past weeks never submitted, rejected days, and a
+  // quiet last week when they're on an active project (badge count: 0044).
+  const reminders = useMemo(() => {
+    if (!timesheets) return null
+    const thisMonday = mondayOf(todayIso())
+    const lastMonday = addDays(thisMonday, -7)
+    const draftWeeks = new Map<string, number>()
+    for (const t of timesheets) {
+      if (t.status === 'draft' && t.work_date < thisMonday) {
+        const w = mondayOf(t.work_date)
+        draftWeeks.set(w, (draftWeeks.get(w) ?? 0) + 1)
+      }
+    }
+    const rejected = timesheets.filter((t) => t.status === 'rejected')
+    const loggedLastWeek = timesheets.some(
+      (t) => t.status !== 'rejected' && t.work_date >= lastMonday && t.work_date < thisMonday,
+    )
+    return {
+      draftWeeks: [...draftWeeks.entries()].sort(([a], [b]) => a.localeCompare(b)),
+      rejected,
+      quietLastWeek: hasActiveProject && !loggedLastWeek ? lastMonday : null,
+    }
+  }, [timesheets, hasActiveProject])
 
   if (noEngineerRecord) {
     return (
@@ -61,9 +99,58 @@ export default function MyTimesheets() {
       </div>
       <TimesheetTabs />
 
+      {reminders && (reminders.draftWeeks.length > 0 || reminders.rejected.length > 0 || reminders.quietLastWeek) && (
+        <Card className="mb-6 border-warning/40">
+          <p className="mb-2 text-sm font-semibold text-text">Needs your attention</p>
+          <ul className="space-y-1.5 text-sm">
+            {reminders.draftWeeks.map(([week, count]) => (
+              <li key={week}>
+                <span className="text-warning">Not submitted:</span> {count} day{count === 1 ? '' : 's'} in the week of{' '}
+                {weekLabel(week)} {count === 1 ? 'is' : 'are'} still {count === 1 ? 'a draft' : 'drafts'}.{' '}
+                <button type="button" onClick={() => setJumpTo({ week, at: Date.now() })} className="text-accent hover:underline">
+                  Open that week
+                </button>
+              </li>
+            ))}
+            {reminders.rejected.map((t) => (
+              <li key={t.id}>
+                <span className="text-danger">Rejected:</span> {t.work_date} — {timesheetProjectLabel(t) ?? t.client.name}
+                {t.rejection_notes && <span className="text-text-muted"> (&ldquo;{t.rejection_notes}&rdquo;)</span>}.{' '}
+                {t.project_assignment_id ? (
+                  <button
+                    type="button"
+                    onClick={() => setJumpTo({ week: mondayOf(t.work_date), at: Date.now() })}
+                    className="text-accent hover:underline"
+                  >
+                    Fix it on the grid
+                  </button>
+                ) : (
+                  <Link to={`/my/timesheets/${t.id}`} className="text-accent hover:underline">
+                    Open it
+                  </Link>
+                )}
+              </li>
+            ))}
+            {reminders.quietLastWeek && (
+              <li className="text-text-muted">
+                No time logged for last week (w/c {weekLabel(reminders.quietLastWeek)}). If you worked on a project,{' '}
+                <button
+                  type="button"
+                  onClick={() => setJumpTo({ week: reminders.quietLastWeek!, at: Date.now() })}
+                  className="text-accent hover:underline"
+                >
+                  fill it in
+                </button>
+                .
+              </li>
+            )}
+          </ul>
+        </Card>
+      )}
+
       {engineerId && <TimesheetGuide isStaff={isStaff} />}
 
-      {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} autoApproved={isStaff} onChanged={() => {
+      {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} autoApproved={isStaff} jumpTo={jumpTo} onChanged={() => {
             loadList(engineerId)
             refreshActionCounts() // a resubmitted rejected day clears the badge
           }} />}

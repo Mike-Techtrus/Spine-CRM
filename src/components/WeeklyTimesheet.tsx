@@ -62,12 +62,18 @@ export default function WeeklyTimesheet({
   fieldEngineerId,
   autoApproved,
   onChanged,
+  jumpTo,
 }: {
   fieldEngineerId: string
   autoApproved: boolean // staff: submitted time is approved automatically
   onChanged: () => void
+  jumpTo?: { week: string; at: number } // show this week (yyyy-mm-dd Monday); `at` lets the same week be picked twice
 }) {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()))
+
+  useEffect(() => {
+    if (jumpTo) setWeekStart(new Date(`${jumpTo.week}T00:00:00`))
+  }, [jumpTo])
   const [assignments, setAssignments] = useState<MyAssignment[]>([])
   const [entries, setEntries] = useState<TimesheetEntry[]>([])
   const [usage, setUsage] = useState<{ project_assignment_id: string; day_type: DayType; status: TimesheetStatus }[]>([])

@@ -19,8 +19,8 @@ export function timesheetSections(profile: Profile | null, hasOwnProfile: boolea
     sections.push({
       label: 'My timesheets',
       path: MY_TIMESHEETS_PATH,
-      badge: counts.my_rejected_timesheets,
-      badgeTitle: 'Rejected — needs changing and resubmitting',
+      badge: (counts.my_rejected_timesheets ?? 0) + (counts.my_unsubmitted ?? 0),
+      badgeTitle: 'Rejected, or from past weeks and not submitted yet',
     })
   if (canAccess(profile, 'timesheets'))
     sections.push({
