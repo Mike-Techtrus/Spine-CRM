@@ -170,7 +170,7 @@ export default function MyTimesheets() {
       )}
 
       {timesheets && timesheets.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
               <tr>

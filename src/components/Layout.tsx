@@ -74,9 +74,9 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-bg dot-grid-bg print:min-h-0 print:bg-white">
       <header className="border-b border-border bg-bg/95 backdrop-blur print:hidden">
-        <div className="mx-auto grid max-w-6xl grid-cols-3 items-center px-4 py-3">
+        <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3">
           <div className="flex items-center">
-            <img src="/techtrus-logo.png" alt="Techtrus" className="h-6 w-auto" />
+            <img src="/techtrus-logo.png" alt="Techtrus" className="h-5 w-auto sm:h-6" />
           </div>
           <div className="flex items-center justify-center gap-2.5">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent text-accent-contrast">
@@ -84,11 +84,11 @@ export default function Layout() {
             </span>
             <div className="leading-tight">
               <p className="font-display text-base font-semibold text-text">Spine CRM</p>
-              <p className="font-mono-label text-[10px] text-text-faint">techtrus // internal</p>
+              <p className="hidden font-mono-label text-[10px] text-text-faint sm:block">techtrus // internal</p>
             </div>
           </div>
           <div className="flex items-center justify-end gap-3">
-            <span className="text-sm text-text-muted">{profile?.full_name || '…'}</span>
+            <span className="hidden text-sm text-text-muted sm:inline">{profile?.full_name || '…'}</span>
             <button
               onClick={() => signOut()}
               className="text-xs font-mono-label text-text-muted hover:text-danger"
@@ -140,7 +140,7 @@ export default function Layout() {
         </nav>
         <DottedRule />
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 print:max-w-none print:p-0">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8 print:max-w-none print:p-0">
         <Outlet context={outletContext} />
       </main>
     </div>

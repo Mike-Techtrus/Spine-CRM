@@ -82,6 +82,7 @@ export default function WeeklyTimesheet({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [showWeekend, setShowWeekend] = useState(false) // phones only: weekends hidden unless they have time on them
 
   const dates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
   const from = iso(dates[0])
@@ -257,7 +258,120 @@ export default function WeeklyTimesheet({
         </p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border">
+          {/* Phones: one card per day with big buttons. Tablets and up: the table below. */}
+          <div className="space-y-3 md:hidden">
+            <div className="rounded-lg border border-border p-3 text-xs text-text-muted">
+              {rows.map((a) => {
+                const n = rowNumbers(a)
+                return (
+                  <p key={a.id} className="flex justify-between gap-3 py-0.5">
+                    <span className="min-w-0 truncate">
+                      <span className="font-mono-label">{a.project_line.project.reference}</span> ·{' '}
+                      {a.project_line.part_code || a.project_line.line_type}
+                    </span>
+                    <span className={`shrink-0 ${n.left < 0 ? 'font-semibold text-danger' : ''}`}>
+                      {days(n.left)} of {days(n.allocated)} left
+                    </span>
+                  </p>
+                )
+              })}
+            </div>
+
+            {dates.map((d, i) => {
+              const date = iso(d)
+              const weekend = i >= 5
+              const hasTime = rows.some((a) => cells.get(key(a.id, date)) || entryAt(a.id, date))
+              if (weekend && !showWeekend && !hasTime) return null
+              const total = dayTotal(date)
+              return (
+                <div
+                  key={date}
+                  className={`rounded-lg border p-3 ${date === today ? 'border-accent/60' : 'border-border'}`}
+                >
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <p className={`text-sm font-semibold ${date === today ? 'text-accent' : 'text-text'}`}>
+                      {d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}
+                      {date === today && <span className="ml-2 text-xs font-normal">today</span>}
+                    </p>
+                    {total > 0 && (
+                      <span className={`text-xs ${total > 1 ? 'font-semibold text-danger' : 'text-text-muted'}`}>
+                        {days(total)} day{total === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    {rows.map((a) => {
+                      const p = a.project_line.project
+                      const e = entryAt(a.id, date)
+                      const label = (
+                        <p className="mb-1 text-xs text-text-muted">
+                          <span className="font-mono-label">{p.reference}</span> · {a.project_line.part_code || a.project_line.line_type}
+                        </p>
+                      )
+                      if (e && (e.status === 'submitted' || e.status === 'approved')) {
+                        return (
+                          <div key={a.id}>
+                            {label}
+                            <span className={`inline-block rounded border px-3 py-2 text-sm ${LOCKED_STYLE[e.status]}`}>
+                              {CELL_LABEL[e.day_type]} · {e.status === 'approved' ? 'Approved' : 'Waiting for approval'}
+                            </span>
+                          </div>
+                        )
+                      }
+                      const rejected = e?.status === 'rejected'
+                      const current = cells.get(key(a.id, date)) ?? ''
+                      return (
+                        <div key={a.id}>
+                          {label}
+                          {rejected && (
+                            <p className="mb-1 text-xs text-danger">Rejected: {e?.rejection_notes || 'no reason given'} — change it and submit again.</p>
+                          )}
+                          <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label={`${p.reference} ${date}`}>
+                            {CELL_OPTIONS.map((o) => {
+                              const on = current === o.value
+                              return (
+                                <button
+                                  key={o.value}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={on}
+                                  disabled={busy || p.status === 'complete'}
+                                  onClick={() => {
+                                    const next = new Map(cells)
+                                    next.set(key(a.id, date), o.value)
+                                    setCells(next)
+                                  }}
+                                  className={`min-h-11 rounded-md border text-sm font-medium transition-colors disabled:opacity-40 ${
+                                    on
+                                      ? o.value
+                                        ? 'border-accent bg-accent text-accent-contrast'
+                                        : 'border-border-strong bg-surface-raised text-text'
+                                      : rejected
+                                        ? 'border-danger/50 text-text-muted'
+                                        : 'border-border text-text-muted'
+                                  }`}
+                                >
+                                  {o.value ? o.label : 'None'}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+
+            {!showWeekend && (
+              <button type="button" onClick={() => setShowWeekend(true)} className="w-full text-center text-xs text-accent hover:underline">
+                Show Saturday and Sunday
+              </button>
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
             <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
                 <tr>
@@ -353,7 +467,12 @@ export default function WeeklyTimesheet({
             </table>
           </div>
 
-          <p className="mt-2 text-xs text-text-faint">
+          <p className="mt-2 text-xs text-text-faint md:hidden">
+            Tap Full, AM or PM for each day you worked, then Save draft or Submit week. Submitting is blocked if it would
+            take you over your allocated days.
+            {autoApproved && ' As a staff member, your time is approved as soon as you submit it.'}
+          </p>
+          <p className="mt-2 hidden text-xs text-text-faint md:block">
             Pick Full, AM or PM for each day worked. Grey cells are saved drafts; amber are submitted, green approved; a red
             border means rejected (hover for the reason) — change it and submit again. Submitting is blocked if it would
             take you over the days allocated to you.
@@ -363,11 +482,12 @@ export default function WeeklyTimesheet({
           <ErrorText>{error}</ErrorText>
           {message && !error && <p className="mt-2 text-sm text-accent">{message}</p>}
 
-          <div className="mt-4 flex gap-3">
-            <Button type="button" variant="secondary" onClick={handleSave} disabled={busy}>
+          {/* On phones the buttons stay pinned to the bottom of the screen while scrolling the days. */}
+          <div className="sticky bottom-0 -mx-5 mt-4 flex gap-3 border-t border-border bg-surface px-5 py-3 md:static md:mx-0 md:border-0 md:bg-transparent md:p-0">
+            <Button type="button" variant="secondary" className="flex-1 md:flex-none" onClick={handleSave} disabled={busy}>
               {busy ? 'Working…' : 'Save draft'}
             </Button>
-            <Button type="button" onClick={handleSubmit} disabled={busy}>
+            <Button type="button" className="flex-1 md:flex-none" onClick={handleSubmit} disabled={busy}>
               Submit week
             </Button>
           </div>
