@@ -3,6 +3,7 @@ import type { TableColumn } from '../lib/useColumnPrefs'
 import type { SortDirection } from '../lib/useSort'
 import { PAGE_SIZE_OPTIONS, usePagination } from '../lib/usePagination'
 import { FilterCell, Th } from './ui'
+import { downloadXlsx } from '../lib/xlsx'
 
 /**
  * A sortable, filterable list table drawn from column definitions, so the
@@ -23,6 +24,7 @@ export default function DataTable<T>({
   filters,
   setFilter,
   emptyMessage,
+  exportName,
 }: {
   storageKey: string
   columns: TableColumn<T>[]
@@ -35,10 +37,23 @@ export default function DataTable<T>({
   filters: ColumnFilters
   setFilter: (key: string, value: string) => void
   emptyMessage: string
+  exportName?: string // shows "Export to Excel": every row in the current search/filters/sort, visible columns only
 }) {
   const { pageRows, page, pageCount, pageSize, setPage, setPageSize, total } = usePagination(rows, storageKey)
   const first = total === 0 ? 0 : (page - 1) * pageSize + 1
   const last = Math.min(page * pageSize, total)
+
+  function exportToExcel() {
+    if (!exportName) return
+    const d = new Date()
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    downloadXlsx(
+      `${exportName} ${stamp}`,
+      exportName,
+      columns.map((c) => c.label),
+      rows.map((row) => columns.map((c) => c.value(row))),
+    )
+  }
 
   return (
     <div>
@@ -90,6 +105,7 @@ export default function DataTable<T>({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">
           Rows per page
           <select
@@ -104,6 +120,18 @@ export default function DataTable<T>({
             ))}
           </select>
         </label>
+        {exportName && (
+          <button
+            type="button"
+            onClick={exportToExcel}
+            disabled={total === 0}
+            className="rounded border border-border px-2 py-1 hover:border-accent hover:text-accent disabled:opacity-30"
+            title="Downloads every row in your current search and filters, with the columns you have showing"
+          >
+            Export to Excel ({total.toLocaleString('en-GB')} row{total === 1 ? '' : 's'})
+          </button>
+        )}
+        </div>
         <div className="flex items-center gap-3">
           <span>
             {first.toLocaleString('en-GB')}–{last.toLocaleString('en-GB')} of {total.toLocaleString('en-GB')}

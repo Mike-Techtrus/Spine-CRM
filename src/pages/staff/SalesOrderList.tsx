@@ -174,6 +174,7 @@ export default function SalesOrderList() {
           filters={filters}
           setFilter={setFilter}
           emptyMessage="No sales orders match your search/filters."
+          exportName="Sales orders"
         />
       )}
     </div>

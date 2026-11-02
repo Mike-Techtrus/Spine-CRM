@@ -168,6 +168,7 @@ export default function ProjectList() {
           filters={filters}
           setFilter={setFilter}
           emptyMessage="No projects match your search/filters."
+          exportName="Projects"
         />
       )}
     </div>

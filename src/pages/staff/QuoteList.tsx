@@ -159,6 +159,7 @@ export default function QuoteList() {
           filters={filters}
           setFilter={setFilter}
           emptyMessage="No quotes match your search/filters."
+          exportName="Quotes"
         />
       )}
     </div>

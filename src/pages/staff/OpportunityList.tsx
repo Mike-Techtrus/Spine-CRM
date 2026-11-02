@@ -141,6 +141,7 @@ export default function OpportunityList() {
           filters={filters}
           setFilter={setFilter}
           emptyMessage="No opportunities match your search/filters."
+          exportName="Opportunities"
         />
       )}
     </div>

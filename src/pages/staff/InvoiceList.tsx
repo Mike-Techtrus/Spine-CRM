@@ -149,6 +149,7 @@ export default function InvoiceList() {
           filters={filters}
           setFilter={setFilter}
           emptyMessage="No invoices match your search/filters."
+          exportName="Invoices"
         />
       )}
     </div>
