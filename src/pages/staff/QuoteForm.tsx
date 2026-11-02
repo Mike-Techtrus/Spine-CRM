@@ -15,6 +15,7 @@ import {
 } from '../../lib/api'
 import type { Account, LineType, QuoteStatus, RateCard } from '../../lib/types'
 import { accountRebateRate, isRebateEligible } from '../../lib/rebate'
+import { moneyTotals, round2 } from '../../lib/money'
 import {
   QUOTE_LINE_PART_CODE_SUGGESTIONS,
   QUOTE_LINE_TYPE_SUGGESTIONS,
@@ -207,8 +208,7 @@ export default function QuoteForm() {
   // (lib/rebate.ts) — the whole Value when there are no lines. Total and Net
   // value follow from those. Recalculated whenever Value, the lines or the
   // client change — the four derived fields stay editable afterwards in case
-  // a specific quote needs a manual override.
-  const VAT_RATE = 0.2
+  // a specific quote needs a manual override. The sums themselves are in lib/money.ts.
 
   function clientRebateRate(clientId: string): number {
     return accountRebateRate(accounts.find((a) => a.id === clientId))
@@ -232,10 +232,6 @@ export default function QuoteForm() {
     })
   }
 
-  function round2(n: number): number {
-    return Math.round(n * 100) / 100
-  }
-
   // Looks up an account's display name for the printable quote view below —
   // the form only carries the id, same as the Client/End client <Select>s.
   function accountName(accountId: string): string {
@@ -244,11 +240,8 @@ export default function QuoteForm() {
   }
 
   function deriveFinancials(value: number, eligibleValue: number, rebateRate: number) {
-    const vat = round2(value * VAT_RATE)
-    const total = round2(value + vat)
-    const rebate = round2(eligibleValue * rebateRate)
-    const net_value = round2(total - rebate)
-    return { vat: vat.toString(), total: total.toString(), rebate: rebate.toString(), net_value: net_value.toString() }
+    const t = moneyTotals(value, eligibleValue, rebateRate)
+    return { vat: t.vat.toString(), total: t.total.toString(), rebate: t.rebate.toString(), net_value: t.net_value.toString() }
   }
 
   function handleValueChange(raw: string) {

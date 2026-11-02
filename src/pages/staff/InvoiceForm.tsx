@@ -16,6 +16,7 @@ import {
 } from '../../lib/api'
 import type { Account, CompanySettings, InvoiceStatus, LineType, Payment } from '../../lib/types'
 import { accountRebateRate, isRebateEligible } from '../../lib/rebate'
+import { addDaysIso, lineAmount, moneyTotals, paymentTermsDays, round2 } from '../../lib/money'
 import { INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select } from '../../components/ui'
 import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
@@ -41,25 +42,17 @@ const emptyForm = {
   status: 'draft' as InvoiceStatus,
 }
 
-// Same rules as QuoteForm: VAT 20% of Value, Rebate = the client's agreed
-// rate (0% for most) on the lines whose line type earns it (lib/rebate.ts;
-// lines with no line type earn it, as before), Net value = Total − Rebate.
-const VAT_RATE = 0.2
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100
-}
-
+// Same rules as QuoteForm (lib/money.ts): VAT 20% of Value, Rebate = the
+// client's agreed rate (0% for most) on the lines whose line type earns it
+// (lib/rebate.ts; lines with no line type earn it, as before), Net value = Total − Rebate.
 function deriveFinancials(value: number, eligibleValue: number, rebateRate: number) {
-  const vat = round2(value * VAT_RATE)
-  const total = round2(value + vat)
-  const rebate = round2(eligibleValue * rebateRate)
+  const t = moneyTotals(value, eligibleValue, rebateRate)
   return {
-    value: value.toString(),
-    vat: vat.toString(),
-    total: total.toString(),
-    rebate: rebate.toString(),
-    net_value: round2(total - rebate).toString(),
+    value: t.value.toString(),
+    vat: t.vat.toString(),
+    total: t.total.toString(),
+    rebate: t.rebate.toString(),
+    net_value: t.net_value.toString(),
   }
 }
 
@@ -77,9 +70,7 @@ function emptyLine(): LocalLine {
 }
 
 function lineTotal(line: LocalLine): number {
-  const qty = Number(line.qty)
-  const price = Number(line.unit_price)
-  return Number.isNaN(qty) || Number.isNaN(price) ? 0 : round2(qty * price)
+  return lineAmount(line.qty, line.unit_price)
 }
 
 function toLineInput(line: LocalLine): InvoiceLineInput {
@@ -105,19 +96,8 @@ function shortDate(iso: string): string {
 }
 
 // Payment terms come from the client account (Customer Accounts → Edit);
-// 30 days is standard, and used when there's no client.
-const STANDARD_PAYMENT_TERMS_DAYS = 30
-
-function paymentTermsDays(account: Account | undefined): number {
-  return account?.payment_terms_days ?? STANDARD_PAYMENT_TERMS_DAYS
-}
-
-// "2026-10-30" + 30 → "2026-11-29" (worked in UTC so time zones can't shift the day).
-function addDays(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
-}
+// 30 days is standard, and used when there's no client (paymentTermsDays, lib/money.ts).
+const addDays = addDaysIso
 
 export default function InvoiceForm() {
   const { id } = useParams()
