@@ -26,6 +26,7 @@ import {
   type ProjectWithRelations,
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
+import HistoryCard from '../../components/HistoryCard'
 
 // Timesheeted days per allocation, split by timesheet status. Rejected days
 // don't count.
@@ -246,6 +247,7 @@ export default function ProjectDetail() {
           ))}
         </div>
       )}
+      <HistoryCard table="projects" recordId={id} />
     </div>
   )
 }

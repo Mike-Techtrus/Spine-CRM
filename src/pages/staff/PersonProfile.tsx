@@ -20,6 +20,7 @@ import {
   ProfilePhoto,
   SkillsCard,
 } from '../../components/profile/ProfileCards'
+import HistoryCard from '../../components/HistoryCard'
 
 // Profile page for a contractor or staff member (Admin → User Accounts → click a name).
 export default function PersonProfile() {
@@ -89,6 +90,7 @@ export default function PersonProfile() {
           />
         </div>
       </div>
+      <HistoryCard table="field_engineers" recordId={id} />
     </div>
   )
 }

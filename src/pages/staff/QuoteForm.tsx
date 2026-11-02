@@ -25,6 +25,7 @@ import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../c
 import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
+import HistoryCard from '../../components/HistoryCard'
 
 // A quote line item while it's being edited in this form — numbers kept as
 // strings (same convention as `form` below) so inputs can hold intermediate
@@ -814,6 +815,7 @@ export default function QuoteForm() {
           </div>
         </form>
       </Card>
+      <HistoryCard table="quotes" recordId={id} />
     </div>
   )
 }

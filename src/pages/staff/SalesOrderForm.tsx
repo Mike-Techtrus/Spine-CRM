@@ -22,6 +22,7 @@ import {
 import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
+import HistoryCard from '../../components/HistoryCard'
 
 const emptyForm = {
   quote_id: '',
@@ -550,6 +551,7 @@ export default function SalesOrderForm() {
           </Button>
         </form>
       </Card>
+      <HistoryCard table="sales_orders" recordId={id} />
     </div>
   )
 }

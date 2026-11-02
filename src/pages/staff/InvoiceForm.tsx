@@ -21,6 +21,7 @@ import { Button, Card, ErrorText, Input, Label, Select } from '../../components/
 import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
+import HistoryCard from '../../components/HistoryCard'
 
 const emptyForm = {
   sales_order_id: '',
@@ -846,6 +847,7 @@ export default function InvoiceForm() {
           </form>
         </Card>
       )}
+      <HistoryCard table="invoices" recordId={id} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { approveTimesheet, getTimesheet, rejectTimesheet, unapproveTimesheet } f
 import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEntryWithRelations } from '../../lib/types'
 import { canAccess } from '../../lib/permissions'
 import { Button, Card, ErrorText, Label, StatusBadge, Textarea } from '../../components/ui'
+import HistoryCard from '../../components/HistoryCard'
 
 export default function TimesheetDetail() {
   const { id } = useParams()
@@ -181,6 +182,7 @@ export default function TimesheetDetail() {
           )}
         </div>
       )}
+      <HistoryCard table="timesheet_entries" recordId={id} />
     </div>
   )
 }

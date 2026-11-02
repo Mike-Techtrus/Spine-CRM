@@ -25,6 +25,7 @@ import UserAdmin from './pages/staff/admin/UserAdmin'
 import SkillsAdmin from './pages/staff/admin/SkillsAdmin'
 import InvoiceSettings from './pages/staff/admin/InvoiceSettings'
 import RateCardsAdmin from './pages/staff/admin/RateCardsAdmin'
+import ActivityAdmin from './pages/staff/admin/ActivityAdmin'
 import PersonProfile from './pages/staff/PersonProfile'
 import SetPassword from './pages/SetPassword'
 import NoAccess from './pages/NoAccess'
@@ -169,6 +170,7 @@ const router = createBrowserRouter(
         <Route path="/staff/admin/skills" element={<Staff area="admin"><SkillsAdmin /></Staff>} />
         <Route path="/staff/admin/rate-cards" element={<Staff area="admin"><RateCardsAdmin /></Staff>} />
         <Route path="/staff/admin/invoice-settings" element={<Staff area="admin"><InvoiceSettings /></Staff>} />
+        <Route path="/staff/admin/activity" element={<Staff area="admin"><ActivityAdmin /></Staff>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -15,6 +15,7 @@ const SECTIONS: { label: string; path: string; area: AppArea }[] = [
   { label: 'Skills', path: '/staff/admin/skills', area: 'admin' },
   { label: 'Rate cards', path: '/staff/admin/rate-cards', area: 'admin' },
   { label: 'Invoice settings', path: '/staff/admin/invoice-settings', area: 'admin' },
+  { label: 'Activity', path: '/staff/admin/activity', area: 'admin' },
 ]
 
 export default function AdminTabs() {

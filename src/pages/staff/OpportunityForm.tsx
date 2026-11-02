@@ -13,6 +13,7 @@ import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } 
 import AccountQuickAdd from '../../components/AccountQuickAdd'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
+import HistoryCard from '../../components/HistoryCard'
 
 const QUOTE_STATUS_BADGE_MAP: Record<string, string> = {
   draft: 'draft',
@@ -334,6 +335,7 @@ export default function OpportunityForm() {
           )}
         </Card>
       )}
+      <HistoryCard table="opportunities" recordId={id} />
     </div>
   )
 }
