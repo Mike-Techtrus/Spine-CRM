@@ -24,6 +24,23 @@ export async function getInvoice(id: string): Promise<InvoiceWithRelations> {
   return unwrap(await supabase.from('invoices').select(WITH_RELATIONS_SELECT).eq('id', id).single())
 }
 
+// A sales order's invoices, oldest first — for the list on the Sales Order page.
+export type SalesOrderInvoice = Pick<
+  Invoice,
+  'id' | 'invoice_number' | 'invoice_date' | 'due_date' | 'status' | 'value' | 'total' | 'net_value'
+>
+
+export async function listInvoicesForSalesOrder(salesOrderId: string): Promise<SalesOrderInvoice[]> {
+  return unwrap(
+    await supabase
+      .from('invoices')
+      .select('id, invoice_number, invoice_date, due_date, status, value, total, net_value')
+      .eq('sales_order_id', salesOrderId)
+      .order('invoice_date', { ascending: true, nullsFirst: false })
+      .order('invoice_number'),
+  )
+}
+
 export type InvoiceInput = Omit<Invoice, 'id' | 'invoice_number' | 'created_at' | 'updated_at'>
 
 export async function createInvoice(input: Partial<InvoiceInput>): Promise<Invoice> {

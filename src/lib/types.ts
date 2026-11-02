@@ -635,6 +635,14 @@ export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   cancelled: 'Cancelled',
 }
 
+// Badge colour for each invoice status (StatusBadge's status names).
+export const INVOICE_STATUS_BADGE: Record<InvoiceStatus, string> = {
+  draft: 'draft',
+  sent: 'submitted',
+  paid: 'approved',
+  cancelled: 'rejected',
+}
+
 // ── Payments ─────────────────────────────────────────────────────────────────
 
 export interface Payment {

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listInvoices } from '../../lib/api'
 import type { InvoiceWithRelations } from '../../lib/types'
-import { INVOICE_STATUS_LABELS } from '../../lib/types'
+import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
 import ColumnPicker from '../../components/ColumnPicker'
@@ -10,13 +10,6 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
-
-const STATUS_BADGE_MAP: Record<string, string> = {
-  draft: 'draft',
-  sent: 'submitted',
-  paid: 'approved',
-  cancelled: 'rejected',
-}
 
 const STATUS_OPTIONS = Object.entries(INVOICE_STATUS_LABELS).map(([, label]) => ({ value: label, label }))
 
@@ -67,7 +60,7 @@ const COLUMNS: TableColumn<InvoiceWithRelations>[] = [
     key: 'status',
     label: 'Status',
     value: (inv) => INVOICE_STATUS_LABELS[inv.status],
-    render: (inv) => <StatusBadge status={STATUS_BADGE_MAP[inv.status]} label={INVOICE_STATUS_LABELS[inv.status]} />,
+    render: (inv) => <StatusBadge status={INVOICE_STATUS_BADGE[inv.status]} label={INVOICE_STATUS_LABELS[inv.status]} />,
     filterOptions: STATUS_OPTIONS,
   },
   { key: 'created_at', label: 'Created', value: (inv) => inv.created_at.slice(0, 10), defaultHidden: true },

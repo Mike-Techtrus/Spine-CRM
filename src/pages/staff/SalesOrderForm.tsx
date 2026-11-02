@@ -1,5 +1,5 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   createProjectFromSalesOrder,
   createSalesOrder,
@@ -7,10 +7,18 @@ import {
   getQuoteForConversion,
   getSalesOrder,
   listAccounts,
+  listInvoicesForSalesOrder,
   updateSalesOrder,
+  type SalesOrderInvoice,
 } from '../../lib/api'
 import type { Account, Project } from '../../lib/types'
-import { INVOICING_STATUS_BADGE, INVOICING_STATUS_LABELS, invoicingStatus } from '../../lib/types'
+import {
+  INVOICE_STATUS_BADGE,
+  INVOICE_STATUS_LABELS,
+  INVOICING_STATUS_BADGE,
+  INVOICING_STATUS_LABELS,
+  invoicingStatus,
+} from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
@@ -61,6 +69,7 @@ export default function SalesOrderForm() {
   const [closing, setClosing] = useState(false)
   const [project, setProject] = useState<Project | null>(null)
   const [creatingProject, setCreatingProject] = useState(false)
+  const [invoices, setInvoices] = useState<SalesOrderInvoice[]>([])
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
   const isDirty = !loading && !blocked && JSON.stringify(form) !== initialSnapshot
@@ -99,7 +108,9 @@ export default function SalesOrderForm() {
           setForm(loaded)
           setInitialSnapshot(JSON.stringify(loaded))
           setClosed({ at: so.closed_at, reason: so.closed_reason })
-          setProject(await getProjectForSalesOrder(id))
+          const [proj, soInvoices] = await Promise.all([getProjectForSalesOrder(id), listInvoicesForSalesOrder(id)])
+          setProject(proj)
+          setInvoices(soInvoices)
         } else if (quoteIdFromQuery) {
           const q = await getQuoteForConversion(quoteIdFromQuery)
           setSourceQuoteNumber(q.quote_number)
@@ -293,6 +304,61 @@ export default function SalesOrderForm() {
           {closed.reason ? ` — ${closed.reason}` : ''}
         </p>
       )}
+
+      {/* Linked invoices. Invoiced to date counts the Net of Sent and Paid ones only. */}
+      <div className="mt-4 border-t border-hair pt-3">
+        <p className="mb-2 text-xs font-mono-label text-text-muted">
+          Invoices ({invoices.length})
+        </p>
+        {invoices.length === 0 ? (
+          <p className="text-sm text-text-muted">No invoices yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left font-mono-label text-xs text-text-dim">
+                <tr>
+                  <th className="py-1.5 pr-2 font-normal">Invoice</th>
+                  <th className="py-1.5 pr-2 font-normal">Date</th>
+                  <th className="py-1.5 pr-2 font-normal">Status</th>
+                  <th className="py-1.5 pr-2 text-right font-normal">Value</th>
+                  <th className="py-1.5 pr-2 text-right font-normal">Total</th>
+                  <th className="py-1.5 text-right font-normal">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="border-t border-hair">
+                    <td className="whitespace-nowrap py-1.5 pr-2">
+                      <Link to={`/staff/invoices/${inv.id}`} className="text-text hover:text-accent hover:underline">
+                        {inv.invoice_number}
+                      </Link>
+                    </td>
+                    <td className="whitespace-nowrap py-1.5 pr-2 text-text-muted">
+                      {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('en-GB') : '—'}
+                    </td>
+                    <td className="py-1.5 pr-2">
+                      <StatusBadge status={INVOICE_STATUS_BADGE[inv.status]} label={INVOICE_STATUS_LABELS[inv.status]} />
+                    </td>
+                    <td className="whitespace-nowrap py-1.5 pr-2 text-right font-mono-label text-xs text-text-dim">
+                      {inv.value == null ? '—' : money(Number(inv.value))}
+                    </td>
+                    <td className="whitespace-nowrap py-1.5 pr-2 text-right font-mono-label text-xs text-text-dim">
+                      {inv.total == null ? '—' : money(Number(inv.total))}
+                    </td>
+                    <td className="whitespace-nowrap py-1.5 text-right font-mono-label text-xs text-text">
+                      {inv.net_value == null ? '—' : money(Number(inv.net_value))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-text-faint">
+              Value is ex VAT, Total inc VAT. Invoiced to date adds up the Net of Sent and Paid invoices (not drafts or
+              cancelled).
+            </p>
+          </div>
+        )}
+      </div>
     </Card>
   )
 
