@@ -55,8 +55,6 @@ const COLUMNS: TableColumn<InvoiceWithRelations>[] = [
   money('value', 'Value'),
   money('vat', 'VAT'),
   money('total', 'Total', false),
-  money('rebate', 'Rebate'),
-  money('net_value', 'Net value'),
   {
     key: 'status',
     label: 'Status',

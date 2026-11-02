@@ -1,0 +1,40 @@
+import { supabase } from '../supabaseClient'
+import { unwrap } from './_shared'
+
+// Data for Reports (Reports area). Lines are fetched in batches of ids so a
+// year of invoices doesn't make one enormous request.
+
+const BATCH = 200
+
+async function inBatches<T>(ids: string[], fetch: (batch: string[]) => Promise<T[]>): Promise<T[]> {
+  const out: T[] = []
+  for (let i = 0; i < ids.length; i += BATCH) out.push(...(await fetch(ids.slice(i, i + BATCH))))
+  return out
+}
+
+export interface InvoiceLineAmount {
+  invoice_id: string
+  line_type: string | null
+  qty: number
+  unit_price: number
+}
+
+export async function listInvoiceLinesFor(invoiceIds: string[]): Promise<InvoiceLineAmount[]> {
+  return inBatches(invoiceIds, async (batch) =>
+    unwrap(await supabase.from('invoice_lines').select('invoice_id, line_type, qty, unit_price').in('invoice_id', batch)),
+  )
+}
+
+export interface QuoteLineAmount {
+  quote_id: string
+  line_type: string | null
+  qty: number | null
+  unit_cost: number | null
+  line_total: number | null
+}
+
+export async function listQuoteLinesFor(quoteIds: string[]): Promise<QuoteLineAmount[]> {
+  return inBatches(quoteIds, async (batch) =>
+    unwrap(await supabase.from('quote_lines').select('quote_id, line_type, qty, unit_cost, line_total').in('quote_id', batch)),
+  )
+}

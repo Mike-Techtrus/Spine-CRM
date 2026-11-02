@@ -24,6 +24,7 @@ const AREA_KEYS = [
   'accounts',
   'engineers',
   'admin',
+  'reports',
 ]
 const ROLES = ['staff', 'field_engineer']
 const MIN_PASSWORD_LENGTH = 8

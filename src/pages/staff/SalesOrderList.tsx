@@ -68,8 +68,6 @@ const COLUMNS: TableColumn<SalesOrderWithRelations>[] = [
   },
   money('vat', 'VAT'),
   money('total', 'Total'),
-  money('rebate', 'Rebate'),
-  money('net_value', 'Net value', false),
   {
     key: 'value_ex_vat',
     label: 'Value (ex VAT)',
@@ -105,7 +103,7 @@ const COLUMNS: TableColumn<SalesOrderWithRelations>[] = [
 const getValue = columnValueGetter(COLUMNS)
 
 function getSearchText(o: SalesOrderWithRelations) {
-  return [o.reference, o.quote?.quote_number, o.client?.name, o.end_client?.name, o.po_number, o.net_value, o.invoiced_to_date]
+  return [o.reference, o.quote?.quote_number, o.client?.name, o.end_client?.name, o.po_number, o.total, o.invoiced_to_date]
     .filter((v) => v !== null && v !== undefined)
     .join(' ')
 }

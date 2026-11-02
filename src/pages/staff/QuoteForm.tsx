@@ -755,28 +755,7 @@ export default function QuoteForm() {
                 onChange={(e) => setForm({ ...form, total: e.target.value })}
               />
             </div>
-            <div>
-              <Label>
-                Rebate (£) — {round2(clientRebateRate(form.client_id) * 100)}%{linesControlTotals && ' of resource lines'}
-              </Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.rebate}
-                disabled={linesControlTotals}
-                onChange={(e) => setForm({ ...form, rebate: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Net value (£)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.net_value}
-                disabled={linesControlTotals}
-                onChange={(e) => setForm({ ...form, net_value: e.target.value })}
-              />
-            </div>
+            {/* Rebate and Net value are still worked out and stored behind the scenes, but no longer shown — see Reports → Rebate. */}
             <div>
               <Label>Status</Label>
               <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as QuoteStatus })}>

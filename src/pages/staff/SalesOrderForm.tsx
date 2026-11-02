@@ -519,14 +519,7 @@ export default function SalesOrderForm() {
               <Label>Total (£)</Label>
               <Input type="number" step="0.01" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} />
             </div>
-            <div>
-              <Label>Rebate (£)</Label>
-              <Input type="number" step="0.01" value={form.rebate} onChange={(e) => setForm({ ...form, rebate: e.target.value })} />
-            </div>
-            <div>
-              <Label>Net value (£)</Label>
-              <Input type="number" step="0.01" value={form.net_value} onChange={(e) => setForm({ ...form, net_value: e.target.value })} />
-            </div>
+            {/* Rebate and Net value are still stored (kept as loaded) but no longer shown — see Reports → Rebate. */}
             <div>
               <Label>Invoiced to date, ex VAT (£)</Label>
               {/* Worked out by the database from this order's invoices (migrations 0017, 0038), so not editable. */}

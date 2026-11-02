@@ -196,7 +196,7 @@ export default function InvoiceForm() {
             client_id: so.client_id ?? '',
             end_client_id: so.end_client_id ?? '',
             po_number: so.po_number ?? '',
-            value: so.net_value?.toString() ?? '',
+            value: so.total != null ? String(round2(Number(so.total) - Number(so.vat ?? 0))) : '',
             vat: so.vat?.toString() ?? '',
             total: so.total?.toString() ?? '',
             rebate: so.rebate?.toString() ?? '',
@@ -611,7 +611,7 @@ export default function InvoiceForm() {
                       <th className="w-44 px-2 py-2">Line type</th>
                       <th className="w-24 px-2 py-2">Quantity</th>
                       <th className="w-32 px-2 py-2">Price (£)</th>
-                      <th className="w-28 px-2 py-2 text-right">Net amount</th>
+                      <th className="w-28 px-2 py-2 text-right">Amount</th>
                       <th className="w-8 px-2 py-2"></th>
                     </tr>
                   </thead>
@@ -697,8 +697,7 @@ export default function InvoiceForm() {
 
           {linesControlTotals && (
             <p className="text-xs text-text-faint">
-              Worked out from the lines above (VAT 20%; rebate {round2(clientRebateRate(form.client_id) * 100)}% — the
-              client&apos;s agreed rate — of resource lines, and of lines with no line type).
+              Worked out from the lines above (VAT 20%).
             </p>
           )}
           <div className="grid grid-cols-3 gap-4">
@@ -732,26 +731,7 @@ export default function InvoiceForm() {
                 onChange={(e) => setForm({ ...form, total: e.target.value })}
               />
             </div>
-            <div>
-              <Label>Rebate (£)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                disabled={linesControlTotals}
-                value={form.rebate}
-                onChange={(e) => setForm({ ...form, rebate: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Net value (£)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                disabled={linesControlTotals}
-                value={form.net_value}
-                onChange={(e) => setForm({ ...form, net_value: e.target.value })}
-              />
-            </div>
+            {/* Rebate and Net value are still worked out and stored behind the scenes, but no longer shown — see Reports → Rebate. */}
             <div>
               <Label>Status</Label>
               <Select

@@ -309,7 +309,7 @@ export default function OpportunityForm() {
                     <th className="px-4 py-2">Quote #</th>
                     <th className="px-4 py-2">Quote date</th>
                     <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2">Net value</th>
+                    <th className="px-4 py-2">Value (ex VAT)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -325,7 +325,7 @@ export default function OpportunityForm() {
                         <StatusBadge status={QUOTE_STATUS_BADGE_MAP[q.status]} label={QUOTE_STATUS_LABELS[q.status]} />
                       </td>
                       <td className="px-4 py-2 text-text-muted">
-                        {q.net_value ? `£${Number(q.net_value).toLocaleString('en-GB')}` : '—'}
+                        {q.value ? `£${Number(q.value).toLocaleString('en-GB')}` : '—'}
                       </td>
                     </tr>
                   ))}

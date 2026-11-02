@@ -67,8 +67,6 @@ const COLUMNS: TableColumn<QuoteWithRelations>[] = [
   money('value', 'Value'),
   money('vat', 'VAT'),
   money('total', 'Total'),
-  money('rebate', 'Rebate'),
-  money('net_value', 'Net value', false),
   {
     key: 'status',
     label: 'Status',
@@ -88,7 +86,7 @@ function getSearchText(q: QuoteWithRelations) {
     q.opportunity?.name,
     q.client?.name,
     q.end_client?.name,
-    q.net_value,
+    q.value,
     QUOTE_STATUS_LABELS[q.status],
   ]
     .filter((v) => v !== null && v !== undefined)

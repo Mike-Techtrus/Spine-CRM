@@ -28,6 +28,7 @@ import InvoiceSettings from './pages/staff/admin/InvoiceSettings'
 import RateCardsAdmin from './pages/staff/admin/RateCardsAdmin'
 import ActivityAdmin from './pages/staff/admin/ActivityAdmin'
 import DataChecks from './pages/staff/admin/DataChecks'
+import RebateReport from './pages/staff/reports/RebateReport'
 import PersonProfile from './pages/staff/PersonProfile'
 import FindPeople from './pages/staff/FindPeople'
 import ExpiringList from './pages/staff/ExpiringList'
@@ -160,6 +161,10 @@ const router = createBrowserRouter(
         <Route path="/staff/invoices/new" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
         <Route path="/staff/invoices/contractor-costs" element={<Staff area="invoices"><ContractorCosts /></Staff>} />
         <Route path="/staff/invoices/:id" element={<Staff area="invoices"><InvoiceForm /></Staff>} />
+
+        {/* Staff: reports */}
+        <Route path="/staff/reports" element={<Navigate to="/staff/reports/rebate" replace />} />
+        <Route path="/staff/reports/rebate" element={<Staff area="reports"><RebateReport /></Staff>} />
 
         {/* Staff: administration */}
         <Route path="/staff/admin" element={<AdminHome />} />

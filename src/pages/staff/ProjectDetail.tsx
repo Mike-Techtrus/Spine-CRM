@@ -286,7 +286,7 @@ function MarginCard({
       <h2 className="mb-1 text-sm font-semibold text-text">Margin</h2>
       <p className="mb-4 text-xs text-text-muted">
         Quoted day rate minus each person&apos;s cost rate (set per person below; it starts as their Day / Cost rate from
-        User Accounts). Ex VAT, before any rebate.
+        User Accounts). Ex VAT.
       </p>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <MarginBlock title="Planned · allocated days" figures={planned} />
