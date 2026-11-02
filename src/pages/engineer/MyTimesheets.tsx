@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getMyFieldEngineer, listMyTimesheets } from '../../lib/api'
 import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEntryWithRelations } from '../../lib/types'
 import { Button, Card, StatusBadge } from '../../components/ui'
 import WeeklyTimesheet from '../../components/WeeklyTimesheet'
-import TimesheetTabs from '../../components/TimesheetTabs'
+import TimesheetTabs, { type LayoutContext } from '../../components/TimesheetTabs'
 import TimesheetGuide from '../../components/TimesheetGuide'
 
 export default function MyTimesheets() {
   const { session } = useAuth()
   const navigate = useNavigate()
+  const { refreshActionCounts } = useOutletContext<LayoutContext>()
   const [timesheets, setTimesheets] = useState<TimesheetEntryWithRelations[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [noEngineerRecord, setNoEngineerRecord] = useState(false)
@@ -62,7 +63,10 @@ export default function MyTimesheets() {
 
       {engineerId && <TimesheetGuide isStaff={isStaff} />}
 
-      {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} autoApproved={isStaff} onChanged={() => loadList(engineerId)} />}
+      {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} autoApproved={isStaff} onChanged={() => {
+            loadList(engineerId)
+            refreshActionCounts() // a resubmitted rejected day clears the badge
+          }} />}
 
       <h2 className="mb-3 text-sm font-semibold text-text">All my entries</h2>
 

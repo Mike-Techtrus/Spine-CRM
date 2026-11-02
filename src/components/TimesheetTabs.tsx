@@ -1,24 +1,34 @@
 import { useOutletContext } from 'react-router-dom'
-import SectionTabs from './SectionTabs'
+import SectionTabs, { type SectionTab } from './SectionTabs'
 import { canAccess } from '../lib/permissions'
 import type { Profile } from '../lib/types'
+import type { ActionCounts } from '../lib/api'
 
 // The one Timesheets tab covers two pages:
 //   My timesheets   — your own week (contractors, and staff linked to a staff profile)
 //   Team timesheets — everyone's, to review and approve (staff with the "timesheets" area)
 // Sub-tabs only show when someone can open both.
-export interface TimesheetSection {
-  label: string
-  path: string
-}
+export type TimesheetSection = SectionTab
 
 export const MY_TIMESHEETS_PATH = '/my/timesheets'
 export const TEAM_TIMESHEETS_PATH = '/staff/timesheets'
 
-export function timesheetSections(profile: Profile | null, hasOwnProfile: boolean): TimesheetSection[] {
+export function timesheetSections(profile: Profile | null, hasOwnProfile: boolean, counts: ActionCounts): TimesheetSection[] {
   const sections: TimesheetSection[] = []
-  if (profile?.role === 'field_engineer' || hasOwnProfile) sections.push({ label: 'My timesheets', path: MY_TIMESHEETS_PATH })
-  if (canAccess(profile, 'timesheets')) sections.push({ label: 'Team timesheets', path: TEAM_TIMESHEETS_PATH })
+  if (profile?.role === 'field_engineer' || hasOwnProfile)
+    sections.push({
+      label: 'My timesheets',
+      path: MY_TIMESHEETS_PATH,
+      badge: counts.my_rejected_timesheets,
+      badgeTitle: 'Rejected — needs changing and resubmitting',
+    })
+  if (canAccess(profile, 'timesheets'))
+    sections.push({
+      label: 'Team timesheets',
+      path: TEAM_TIMESHEETS_PATH,
+      badge: counts.timesheets_to_approve,
+      badgeTitle: 'Waiting for your approval',
+    })
   return sections
 }
 
@@ -26,9 +36,11 @@ export function isTimesheetPath(pathname: string) {
   return pathname.startsWith(MY_TIMESHEETS_PATH) || pathname.startsWith(TEAM_TIMESHEETS_PATH)
 }
 
-// Layout passes the list down through <Outlet context>, so it's only worked out once.
+// Layout passes these down through <Outlet context>, so they're only worked out once.
 export interface LayoutContext {
   timesheetSections: TimesheetSection[]
+  actionCounts: ActionCounts
+  refreshActionCounts: () => void // call after approving/rejecting something without leaving the page
 }
 
 export default function TimesheetTabs() {

@@ -245,3 +245,17 @@ export function StatTile({
 export function DottedRule({ className = '' }: { className?: string }) {
   return <div className={`dotted-rule ${className}`} />
 }
+
+// Small count on a tab, e.g. "Timesheets 3" — things waiting on you. Hidden at 0.
+export function CountBadge({ count, title }: { count: number; title?: string }) {
+  if (!count) return null
+  return (
+    <span
+      title={title}
+      aria-label={title ?? `${count} waiting`}
+      className="ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-5 text-accent-contrast"
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}

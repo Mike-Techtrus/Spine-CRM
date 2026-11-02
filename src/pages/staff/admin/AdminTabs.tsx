@@ -1,4 +1,6 @@
-import SectionTabs from '../../../components/SectionTabs'
+import { useOutletContext } from 'react-router-dom'
+import SectionTabs, { type SectionTab } from '../../../components/SectionTabs'
+import type { LayoutContext } from '../../../components/TimesheetTabs'
 import { useAuth } from '../../../contexts/AuthContext'
 import { canAccess } from '../../../lib/permissions'
 import type { AppArea } from '../../../lib/types'
@@ -17,5 +19,11 @@ const SECTIONS: { label: string; path: string; area: AppArea }[] = [
 
 export default function AdminTabs() {
   const { profile } = useAuth()
-  return <SectionTabs sections={SECTIONS.filter((s) => canAccess(profile, s.area))} />
+  const { actionCounts } = useOutletContext<LayoutContext>()
+  const tabs: SectionTab[] = SECTIONS.filter((s) => canAccess(profile, s.area)).map((s) =>
+    s.path === '/staff/admin/skills'
+      ? { ...s, badge: actionCounts.skill_requests, badgeTitle: 'Skill requests waiting for approval' }
+      : s,
+  )
+  return <SectionTabs sections={tabs} />
 }

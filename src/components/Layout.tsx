@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { getMyFieldEngineer } from '../lib/api'
+import { getMyActionCounts, getMyFieldEngineer, NO_ACTION_COUNTS, type ActionCounts } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
-import { DottedRule } from './ui'
+import { CountBadge, DottedRule } from './ui'
 import SpineMark from './icons/SpineMark'
 import { isTimesheetPath, timesheetSections, type LayoutContext } from './TimesheetTabs'
 import { adminHomePath, canAccess } from '../lib/permissions'
@@ -29,12 +29,37 @@ export default function Layout() {
       .then((record) => setHasStaffProfile(record !== null))
       .catch(() => setHasStaffProfile(false))
   }, [profile?.id, profile?.role])
-  const sections = timesheetSections(profile, hasStaffProfile)
-  const outletContext: LayoutContext = { timesheetSections: sections }
+  // Badges: what's waiting on this person (0037). Re-checked on every page
+  // change, when the window regains focus and once a minute.
+  const [counts, setCounts] = useState<ActionCounts>(NO_ACTION_COUNTS)
+  const refreshActionCounts = useCallback(() => {
+    if (!profile) return
+    getMyActionCounts()
+      .then(setCounts)
+      .catch(() => {}) // badges are a nicety — never break the page over them
+  }, [profile?.id])
+  useEffect(refreshActionCounts, [refreshActionCounts, pathname])
+  useEffect(() => {
+    const timer = window.setInterval(refreshActionCounts, 60_000)
+    window.addEventListener('focus', refreshActionCounts)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshActionCounts)
+    }
+  }, [refreshActionCounts])
+
+  const sections = timesheetSections(profile, hasStaffProfile, counts)
+  const outletContext: LayoutContext = { timesheetSections: sections, actionCounts: counts, refreshActionCounts }
+  const timesheetCount = sections.reduce((n, s) => n + (s.badge ?? 0), 0)
 
   const timesheetsTab = sections.length > 0 && (
-    <NavLink key="timesheets" to={sections[0].path} className={() => navLinkClass({ isActive: isTimesheetPath(pathname) })}>
+    <NavLink
+      key="timesheets"
+      to={sections[0].path}
+      className={() => `${navLinkClass({ isActive: isTimesheetPath(pathname) })} inline-flex items-center`}
+    >
       Timesheets
+      <CountBadge count={timesheetCount} title={sections.map((s) => (s.badge ? `${s.label}: ${s.badge}` : '')).filter(Boolean).join(' · ')} />
     </NavLink>
   )
 
@@ -87,8 +112,12 @@ export default function Layout() {
               )}
               {/* One Admin tab for everything under /staff/admin, whichever sections they can open */}
               {adminPath && (
-                <NavLink to={adminPath} className={() => navLinkClass({ isActive: pathname.startsWith(ADMIN_BASE_PATH) })}>
+                <NavLink
+                  to={adminPath}
+                  className={() => `${navLinkClass({ isActive: pathname.startsWith(ADMIN_BASE_PATH) })} inline-flex items-center`}
+                >
                   Admin
+                  <CountBadge count={counts.skill_requests} title={`Skill requests: ${counts.skill_requests}`} />
                 </NavLink>
               )}
               {myProfileTab}

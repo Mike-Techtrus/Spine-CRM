@@ -14,6 +14,8 @@ import {
 } from '../../../lib/api'
 import type { Skill, SkillCategory } from '../../../lib/types'
 import { Button, Card, ErrorText, Input, Label, SearchInput, Select } from '../../../components/ui'
+import { useOutletContext } from 'react-router-dom'
+import type { LayoutContext } from '../../../components/TimesheetTabs'
 import AdminTabs from './AdminTabs'
 import SkillRequestsPanel from './SkillRequestsPanel'
 
@@ -28,6 +30,7 @@ function friendlyError(err: unknown, fallback: string) {
 const emptySkill = { category_id: '', name: '', description: '' }
 
 export default function SkillsAdmin() {
+  const { refreshActionCounts } = useOutletContext<LayoutContext>()
   const [categories, setCategories] = useState<SkillCategory[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
   const [usage, setUsage] = useState<Record<string, number>>({})
@@ -51,6 +54,7 @@ export default function SkillsAdmin() {
     setSkills(s)
     setUsage(u)
     setRequests(r)
+    refreshActionCounts() // keep the Admin / Skills badges in step after approving or declining
   }
 
   useEffect(() => {
