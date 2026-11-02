@@ -54,10 +54,19 @@ const key = (assignmentId: string, date: string) => `${assignmentId}:${date}`
 /**
  * Timesheets → My timesheets → weekly grid: one row per project line I'm assigned to,
  * Mon–Sun cells (Full / AM / PM). Save keeps drafts; Submit week sends the
- * week's drafts for approval. The database blocks anything that would take an
+ * week's drafts for approval — or, for staff, approves them straight away
+ * (migration 0033). The database blocks anything that would take an
  * allocation past its days, or put more than a day on one date.
  */
-export default function WeeklyTimesheet({ fieldEngineerId, onChanged }: { fieldEngineerId: string; onChanged: () => void }) {
+export default function WeeklyTimesheet({
+  fieldEngineerId,
+  autoApproved,
+  onChanged,
+}: {
+  fieldEngineerId: string
+  autoApproved: boolean // staff: submitted time is approved automatically
+  onChanged: () => void
+}) {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()))
   const [assignments, setAssignments] = useState<MyAssignment[]>([])
   const [entries, setEntries] = useState<TimesheetEntry[]>([])
@@ -201,7 +210,8 @@ export default function WeeklyTimesheet({ fieldEngineerId, onChanged }: { fieldE
         setMessage('Nothing to submit this week.')
       } else {
         await submitTimesheets(drafts)
-        setMessage(`Submitted ${days(draftDays)} day${draftDays === 1 ? '' : 's'} for approval.`)
+        const dayCount = `${days(draftDays)} day${draftDays === 1 ? '' : 's'}`
+        setMessage(autoApproved ? `Submitted and approved ${dayCount}.` : `Submitted ${dayCount} for approval.`)
       }
       await load()
       onChanged()
@@ -341,6 +351,7 @@ export default function WeeklyTimesheet({ fieldEngineerId, onChanged }: { fieldE
             Pick Full, AM or PM for each day worked. Grey cells are saved drafts; amber are submitted, green approved; a red
             border means rejected (hover for the reason) — change it and submit again. Submitting is blocked if it would
             take you over the days allocated to you.
+            {autoApproved && ' As a staff member, your time is approved as soon as you submit it.'}
           </p>
 
           <ErrorText>{error}</ErrorText>

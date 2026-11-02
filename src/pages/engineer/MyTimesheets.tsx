@@ -14,6 +14,7 @@ export default function MyTimesheets() {
   const [error, setError] = useState<string | null>(null)
   const [noEngineerRecord, setNoEngineerRecord] = useState(false)
   const [engineerId, setEngineerId] = useState<string | null>(null)
+  const [isStaff, setIsStaff] = useState(false)
 
   async function loadList(id: string) {
     setTimesheets(await listMyTimesheets(id))
@@ -29,6 +30,7 @@ export default function MyTimesheets() {
           return
         }
         setEngineerId(engineer.id)
+        setIsStaff(engineer.kind === 'staff')
         await loadList(engineer.id)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load timesheets.')
@@ -57,7 +59,7 @@ export default function MyTimesheets() {
       </div>
       <TimesheetTabs />
 
-      {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} onChanged={() => loadList(engineerId)} />}
+      {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} autoApproved={isStaff} onChanged={() => loadList(engineerId)} />}
 
       <h2 className="mb-3 text-sm font-semibold text-text">All my entries</h2>
 

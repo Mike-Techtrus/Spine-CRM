@@ -55,8 +55,9 @@ export default function TimesheetDetail() {
   if (error && !ts) return <p className="text-sm text-danger">{error}</p>
   if (!ts) return <p className="text-sm text-text-muted">Loading…</p>
 
-  // Staff can log their own time (0015), but not sign it off. Project
-  // timesheets are approved by the project owner or an admin (0023 enforces it).
+  // Staff time is approved automatically when submitted (0033). Contractors'
+  // project timesheets are approved by the project owner or an admin (0023
+  // enforces it), and nobody signs off their own.
   const isOwn = ts.field_engineer.user_id === profile?.id
   const project = ts.assignment?.project_line.project ?? null
   const canApprove = !isOwn && (!project || project.owner_id === profile?.id || canAccess(profile, 'admin'))
@@ -90,6 +91,10 @@ export default function TimesheetDetail() {
 
         {ts.status === 'approved' && ts.approver && (
           <Field label="Approved by" value={`${ts.approver.full_name} on ${new Date(ts.approved_on!).toLocaleString('en-GB')}`} />
+        )}
+        {/* Staff time is approved automatically when submitted (migration 0033) */}
+        {ts.status === 'approved' && !ts.approver && ts.field_engineer.kind === 'staff' && ts.approved_on && (
+          <Field label="Approved" value={`Automatically (staff time) on ${new Date(ts.approved_on).toLocaleString('en-GB')}`} />
         )}
         {ts.status === 'rejected' && (
           <>

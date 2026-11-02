@@ -228,7 +228,8 @@ export default function TimesheetForm() {
                 Save draft
               </Button>
               <Button type="button" onClick={(e) => handleSave(e, true)} disabled={saving}>
-                {saving ? 'Submitting…' : 'Submit for approval'}
+                {/* Staff time is approved automatically on submit (migration 0033) */}
+                {saving ? 'Submitting…' : engineer.kind === 'staff' ? 'Submit' : 'Submit for approval'}
               </Button>
             </div>
           )}
