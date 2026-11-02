@@ -128,6 +128,26 @@ export interface FieldEngineer {
   cv_path: string | null // object path in the private "contractor-cvs" storage bucket
   cv_file_name: string | null
   cv_uploaded_at: string | null
+  photo_path: string | null // object path in the private "profile-photos" storage bucket (0036)
+  photo_uploaded_at: string | null
+}
+
+// Driving licence / passport copies (0036). Only the person and admins can see them.
+export type PersonDocumentType = 'driving_licence' | 'passport'
+
+export const PERSON_DOCUMENT_LABELS: Record<PersonDocumentType, string> = {
+  driving_licence: 'Driving licence',
+  passport: 'Passport',
+}
+
+export interface PersonDocument {
+  id: string
+  field_engineer_id: string
+  doc_type: PersonDocumentType
+  path: string
+  file_name: string
+  expires_on: string | null
+  uploaded_at: string
 }
 
 // A login that a contractor or staff record can be linked to.
@@ -175,6 +195,36 @@ export interface ContractorSkill {
   obtained_on: string | null
   expires_on: string | null
   notes: string | null
+  created_at: string
+}
+
+// A skill someone asked for that isn't in the database yet (0036).
+export type SkillRequestStatus = 'pending' | 'approved' | 'declined'
+
+export const SKILL_REQUEST_STATUS_LABELS: Record<SkillRequestStatus, string> = {
+  pending: 'Waiting for admin',
+  approved: 'Approved',
+  declined: 'Declined',
+}
+
+// For StatusBadge colours.
+export const SKILL_REQUEST_STATUS_BADGE: Record<SkillRequestStatus, string> = {
+  pending: 'submitted',
+  approved: 'approved',
+  declined: 'rejected',
+}
+
+export interface SkillRequest {
+  id: string
+  field_engineer_id: string
+  category_id: string | null
+  name: string
+  details: string | null
+  status: SkillRequestStatus
+  skill_id: string | null
+  response: string | null
+  decided_by: string | null
+  decided_at: string | null
   created_at: string
 }
 

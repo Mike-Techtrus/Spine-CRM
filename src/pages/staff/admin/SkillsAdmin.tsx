@@ -5,14 +5,17 @@ import {
   createSkillCategory,
   deleteSkill,
   deleteSkillCategory,
+  listPendingSkillRequests,
   listSkillCategories,
   listSkills,
   updateSkill,
   updateSkillCategory,
+  type PendingSkillRequest,
 } from '../../../lib/api'
 import type { Skill, SkillCategory } from '../../../lib/types'
 import { Button, Card, ErrorText, Input, Label, SearchInput, Select } from '../../../components/ui'
 import AdminTabs from './AdminTabs'
+import SkillRequestsPanel from './SkillRequestsPanel'
 
 function friendlyError(err: unknown, fallback: string) {
   const message = err instanceof Error ? err.message : fallback
@@ -28,6 +31,7 @@ export default function SkillsAdmin() {
   const [categories, setCategories] = useState<SkillCategory[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
   const [usage, setUsage] = useState<Record<string, number>>({})
+  const [requests, setRequests] = useState<PendingSkillRequest[]>([])
   const [error, setError] = useState<string | null>(null)
   const [newCategory, setNewCategory] = useState('')
   const [newSkill, setNewSkill] = useState(emptySkill)
@@ -37,10 +41,16 @@ export default function SkillsAdmin() {
   const [showInactive, setShowInactive] = useState(false)
 
   async function refresh() {
-    const [c, s, u] = await Promise.all([listSkillCategories(), listSkills(), countSkillUsage()])
+    const [c, s, u, r] = await Promise.all([
+      listSkillCategories(),
+      listSkills(),
+      countSkillUsage(),
+      listPendingSkillRequests(),
+    ])
     setCategories(c)
     setSkills(s)
     setUsage(u)
+    setRequests(r)
   }
 
   useEffect(() => {
@@ -137,11 +147,13 @@ export default function SkillsAdmin() {
       <AdminTabs />
 
       <p className="mb-6 text-sm text-text-muted">
-        The master list of skills, soft skills and certifications. Add them to a contractor from their
-        profile (Contractors → click a name).
+        The master list of skills, soft skills and certifications. Contractors and staff add these to their own
+        profile from My Profile (or you can, from User Accounts → click a name).
       </p>
 
       <ErrorText>{error}</ErrorText>
+
+      <SkillRequestsPanel requests={requests} categories={categories} onChanged={refresh} onError={setError} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Categories */}

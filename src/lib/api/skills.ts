@@ -108,29 +108,33 @@ export async function uploadContractorCv(engineer: FieldEngineer, file: File): P
     .upload(path, file, { contentType: file.type || undefined })
   if (uploadError) throw new Error(uploadError.message)
 
-  const updated = unwrap<FieldEngineer>(
-    await supabase
-      .from('field_engineers')
-      .update({ cv_path: path, cv_file_name: file.name, cv_uploaded_at: new Date().toISOString() })
-      .eq('id', engineer.id)
-      .select()
-      .single(),
-  )
+  const updated = await setProfileFile(engineer.id, 'cv', path, file.name)
   if (engineer.cv_path) await supabase.storage.from(CV_BUCKET).remove([engineer.cv_path])
   return updated
 }
 
 export async function removeContractorCv(engineer: FieldEngineer): Promise<FieldEngineer> {
-  const updated = unwrap<FieldEngineer>(
-    await supabase
-      .from('field_engineers')
-      .update({ cv_path: null, cv_file_name: null, cv_uploaded_at: null })
-      .eq('id', engineer.id)
-      .select()
-      .single(),
-  )
+  const updated = await setProfileFile(engineer.id, 'cv', null, null)
   if (engineer.cv_path) await supabase.storage.from(CV_BUCKET).remove([engineer.cv_path])
   return updated
+}
+
+// Points the record at an uploaded CV or photo, or clears it (0036). Works for
+// staff and for the person themselves (contractors can't update the record directly).
+export async function setProfileFile(
+  fieldEngineerId: string,
+  kind: 'cv' | 'photo',
+  path: string | null,
+  fileName: string | null,
+): Promise<FieldEngineer> {
+  return unwrap<FieldEngineer>(
+    await supabase.rpc('set_profile_file', {
+      p_field_engineer_id: fieldEngineerId,
+      p_kind: kind,
+      p_path: path,
+      p_file_name: fileName,
+    }),
+  )
 }
 
 // A short-lived link to download the CV (the bucket is private).

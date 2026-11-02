@@ -8,6 +8,8 @@ import { isTimesheetPath, timesheetSections, type LayoutContext } from './Timesh
 import { adminHomePath, canAccess } from '../lib/permissions'
 import { ADMIN_BASE_PATH, APP_AREAS } from '../lib/types'
 
+const MY_PROFILE_PATH = '/my/profile'
+
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
     isActive ? 'bg-surface-raised text-accent' : 'text-text-muted hover:text-text'
@@ -33,6 +35,13 @@ export default function Layout() {
   const timesheetsTab = sections.length > 0 && (
     <NavLink key="timesheets" to={sections[0].path} className={() => navLinkClass({ isActive: isTimesheetPath(pathname) })}>
       Timesheets
+    </NavLink>
+  )
+
+  // My Profile: contractors, and staff linked to a staff profile.
+  const myProfileTab = (profile?.role === 'field_engineer' || hasStaffProfile) && (
+    <NavLink to={MY_PROFILE_PATH} className={navLinkClass}>
+      My Profile
     </NavLink>
   )
 
@@ -82,9 +91,13 @@ export default function Layout() {
                   Admin
                 </NavLink>
               )}
+              {myProfileTab}
             </>
           ) : (
-            timesheetsTab
+            <>
+              {timesheetsTab}
+              {myProfileTab}
+            </>
           )}
         </nav>
         <DottedRule />

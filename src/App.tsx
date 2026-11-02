@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import MyTimesheets from './pages/engineer/MyTimesheets'
 import TimesheetForm from './pages/engineer/TimesheetForm'
+import MyProfile from './pages/engineer/MyProfile'
 import AllTimesheets from './pages/staff/AllTimesheets'
 import TimesheetDetail from './pages/staff/TimesheetDetail'
 import PeopleList from './pages/staff/PeopleList'
@@ -104,6 +105,16 @@ const router = createBrowserRouter(
           element={
             <ProtectedRoute allowedRoles={['field_engineer', 'staff']}>
               <TimesheetForm />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* My Profile: contractors, and staff linked to a staff profile */}
+        <Route
+          path="/my/profile"
+          element={
+            <ProtectedRoute allowedRoles={['field_engineer', 'staff']}>
+              <MyProfile />
             </ProtectedRoute>
           }
         />
