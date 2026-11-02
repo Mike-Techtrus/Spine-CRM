@@ -260,9 +260,12 @@ export default function SalesOrderForm() {
     )
   }
 
-  // Invoicing status + balance still to invoice (net value − invoiced to date).
+  // Invoicing status + balance still to invoice, ex VAT (order value ex VAT − invoiced to date, 0038).
   const invoicing = invoicingStatus({
-    net_value: n(form.net_value),
+    total: n(form.total),
+    vat: n(form.vat),
+    po_value: n(form.po_value),
+    quote_value: n(form.quote_value),
     invoiced_to_date: n(form.invoiced_to_date),
     closed_at: closed.at,
   })
@@ -278,8 +281,8 @@ export default function SalesOrderForm() {
           <p className="text-sm text-text">
             {invoicing.status === 'fully_invoiced' && 'Fully invoiced.'}
             {(invoicing.status === 'not_invoiced' || invoicing.status === 'part_invoiced') &&
-              `${money(invoicing.balance)} still to invoice.`}
-            {invoicing.status === 'over_invoiced' && `Invoiced ${money(-invoicing.balance)} more than the net value.`}
+              `${money(invoicing.balance)} still to invoice (ex VAT).`}
+            {invoicing.status === 'over_invoiced' && `Invoiced ${money(-invoicing.balance)} more than the order value (ex VAT).`}
             {invoicing.status === 'closed' &&
               (invoicing.balance > 0.05
                 ? `Closed with ${money(invoicing.balance)} not invoiced.`
@@ -305,7 +308,7 @@ export default function SalesOrderForm() {
         </p>
       )}
 
-      {/* Linked invoices. Invoiced to date counts the Net of Sent and Paid ones only. */}
+      {/* Linked invoices. Invoiced to date adds up the Value (ex VAT) of Sent and Paid ones only. */}
       <div className="mt-4 border-t border-hair pt-3">
         <p className="mb-2 text-xs font-mono-label text-text-muted">
           Invoices ({invoices.length})
@@ -349,8 +352,8 @@ export default function SalesOrderForm() {
               </tbody>
             </table>
             <p className="mt-2 text-xs text-text-faint">
-              Value is ex VAT, Total inc VAT. Invoiced to date counts Sent and Paid invoices only (not drafts or
-              cancelled).
+              Value is ex VAT, Total inc VAT. Invoiced to date adds up the Value of Sent and Paid invoices (not
+              drafts or cancelled).
             </p>
           </div>
         )}
@@ -524,10 +527,10 @@ export default function SalesOrderForm() {
               <Input type="number" step="0.01" value={form.net_value} onChange={(e) => setForm({ ...form, net_value: e.target.value })} />
             </div>
             <div>
-              <Label>Invoiced to date (£)</Label>
-              {/* Worked out by the database from this order's invoices (migration 0017), so not editable. */}
+              <Label>Invoiced to date, ex VAT (£)</Label>
+              {/* Worked out by the database from this order's invoices (migrations 0017, 0038), so not editable. */}
               <Input type="number" value={form.invoiced_to_date} readOnly disabled placeholder="No invoices yet" />
-              <p className="mt-1 text-xs text-text-faint">Net value of linked invoices, excluding cancelled.</p>
+              <p className="mt-1 text-xs text-text-faint">Value (ex VAT) of linked invoices, excluding drafts and cancelled.</p>
             </div>
           </div>
 

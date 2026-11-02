@@ -199,7 +199,7 @@ function Banner({ data, onPick }: { data: DashboardData; onPick: (k: SectionKey)
         onClick={() => onPick('invoices')}
       />
       <Tile
-        label="Still to invoice · net"
+        label="Still to invoice · ex VAT"
         value={gbpCompact(toInvoiceTotal)}
         sub={`${toInvoice.length} open sales orders`}
         onClick={() => onPick('sales_orders')}

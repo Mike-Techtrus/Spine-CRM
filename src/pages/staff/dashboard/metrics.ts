@@ -9,8 +9,8 @@ import type { Column } from './charts'
 
 // Figures for the Dashboard, worked out in the browser from the same lists the
 // list pages load. Money bases differ by record and are labelled on screen:
-// invoices and quotes use Value (ex VAT); sales-order balances use net value
-// (as invoiced to date does, 0017).
+// invoices, quotes and sales-order balances use Value (ex VAT) — invoiced to
+// date is ex VAT since 0038; "owed" uses Total inc VAT.
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MONTHS_LONG = [
@@ -132,7 +132,7 @@ export const AGE_BUCKETS = [
 
 export interface OpenOrder {
   order: SalesOrderWithRelations
-  balance: number // net still to invoice
+  balance: number // still to invoice, ex VAT
 }
 
 // Open orders with something left to invoice, biggest balance first.

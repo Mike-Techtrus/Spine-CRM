@@ -601,13 +601,24 @@ export const INVOICING_STATUS_BADGE: Record<InvoicingStatus, string> = {
 
 const INVOICING_TOLERANCE = 0.05
 
-export function invoicingStatus(so: Pick<SalesOrder, 'net_value' | 'invoiced_to_date' | 'closed_at'>): {
+// A sales order's value ex VAT: Total − VAT (= the PO value in practice), or
+// the PO / quote value when there's no Total yet.
+export function salesOrderValueExVat(so: Pick<SalesOrder, 'total' | 'vat' | 'po_value' | 'quote_value'>): number {
+  if (so.total != null) return Math.round((Number(so.total) - Number(so.vat ?? 0)) * 100) / 100
+  return Number(so.po_value ?? so.quote_value ?? 0)
+}
+
+// Invoiced to date is the invoices' Value ex VAT (0038), so the balance is
+// measured against the order's value ex VAT too.
+export function invoicingStatus(
+  so: Pick<SalesOrder, 'total' | 'vat' | 'po_value' | 'quote_value' | 'invoiced_to_date' | 'closed_at'>,
+): {
   status: InvoicingStatus
-  balance: number // still to invoice; negative when over-invoiced
+  balance: number // still to invoice, ex VAT; negative when over-invoiced
 } {
-  const net = Number(so.net_value ?? 0)
+  const value = salesOrderValueExVat(so)
   const invoiced = Number(so.invoiced_to_date ?? 0)
-  const balance = Math.round((net - invoiced) * 100) / 100
+  const balance = Math.round((value - invoiced) * 100) / 100
   if (so.closed_at) return { status: 'closed', balance }
   if (invoiced === 0) return { status: 'not_invoiced', balance }
   if (Math.abs(balance) <= INVOICING_TOLERANCE) return { status: 'fully_invoiced', balance: 0 }

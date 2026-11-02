@@ -16,6 +16,7 @@ import {
   OPPORTUNITY_STAGE_BADGE,
   OPPORTUNITY_STAGE_LABELS,
   invoicingStatus,
+  salesOrderValueExVat,
   quoteExpiresOn,
   timesheetProjectLabel,
   type InvoicingStatus,
@@ -217,7 +218,7 @@ export function SalesOrdersSection({ data }: { data: DashboardData }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Panel
-        title={`Still to invoice · net (${toInvoice.length} orders)`}
+        title={`Still to invoice · ex VAT (${toInvoice.length} orders)`}
         className="lg:col-span-2"
         action={{ label: 'Sales orders', onClick: () => navigate('/staff/sales-orders') }}
       >
@@ -232,7 +233,7 @@ export function SalesOrdersSection({ data }: { data: DashboardData }) {
               </>
             ),
             value: o.balance,
-            sub: `${gbp(Number(o.order.invoiced_to_date ?? 0))} of ${gbp(Number(o.order.net_value ?? 0))} invoiced`,
+            sub: `${gbp(Number(o.order.invoiced_to_date ?? 0))} of ${gbp(salesOrderValueExVat(o.order))} invoiced`,
             onClick: () => navigate(`/staff/sales-orders/${o.order.id}`),
           }))}
         />
@@ -269,7 +270,7 @@ export function SalesOrdersSection({ data }: { data: DashboardData }) {
                       {so.reference} <span className="text-text-muted">· {so.client?.name || '—'}</span>
                     </>
                   }
-                  right={gbp(Number(so.net_value ?? 0))}
+                  right={gbp(salesOrderValueExVat(so))}
                 />
               ))}
             </ul>

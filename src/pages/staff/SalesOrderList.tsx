@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listSalesOrders } from '../../lib/api'
 import type { SalesOrderWithRelations } from '../../lib/types'
-import { INVOICING_STATUS_BADGE, INVOICING_STATUS_LABELS, invoicingStatus } from '../../lib/types'
+import { INVOICING_STATUS_BADGE, INVOICING_STATUS_LABELS, invoicingStatus, salesOrderValueExVat } from '../../lib/types'
 import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
 import ColumnPicker from '../../components/ColumnPicker'
@@ -70,10 +70,17 @@ const COLUMNS: TableColumn<SalesOrderWithRelations>[] = [
   money('total', 'Total'),
   money('rebate', 'Rebate'),
   money('net_value', 'Net value', false),
-  money('invoiced_to_date', 'Invoiced to date', false),
+  {
+    key: 'value_ex_vat',
+    label: 'Value (ex VAT)',
+    value: (o) => salesOrderValueExVat(o),
+    render: (o) => formatMoney(salesOrderValueExVat(o)),
+    defaultHidden: true,
+  },
+  money('invoiced_to_date', 'Invoiced to date (ex VAT)', false),
   {
     key: 'balance',
-    label: 'Balance to invoice',
+    label: 'Balance to invoice (ex VAT)',
     value: (o) => invoicingStatus(o).balance,
     render: (o) => {
       const { status, balance } = invoicingStatus(o)
