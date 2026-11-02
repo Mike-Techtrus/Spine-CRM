@@ -261,3 +261,18 @@ export async function submitTimesheets(ids: string[]): Promise<void> {
     .in('id', ids)
   if (error) throw new Error(error.message)
 }
+
+// Everyone's timesheet days in a date range (rejected left out), for Find & availability.
+export async function listTimesheetDaysBetween(
+  from: string,
+  to: string,
+): Promise<Pick<TimesheetEntry, 'field_engineer_id' | 'work_date' | 'day_type'>[]> {
+  return unwrap(
+    await supabase
+      .from('timesheet_entries')
+      .select('field_engineer_id, work_date, day_type')
+      .gte('work_date', from)
+      .lte('work_date', to)
+      .neq('status', 'rejected'),
+  )
+}

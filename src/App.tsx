@@ -27,6 +27,7 @@ import InvoiceSettings from './pages/staff/admin/InvoiceSettings'
 import RateCardsAdmin from './pages/staff/admin/RateCardsAdmin'
 import ActivityAdmin from './pages/staff/admin/ActivityAdmin'
 import PersonProfile from './pages/staff/PersonProfile'
+import FindPeople from './pages/staff/FindPeople'
 import SetPassword from './pages/SetPassword'
 import NoAccess from './pages/NoAccess'
 import { adminHomePath, homePath } from './lib/permissions'
@@ -164,6 +165,7 @@ const router = createBrowserRouter(
         <Route path="/staff/admin/user-accounts" element={<Navigate to={PERSON_KINDS.contractor.path} replace />} />
         <Route path="/staff/admin/user-accounts/contractors" element={<Staff area="engineers"><PeopleList key="contractor" kind="contractor" /></Staff>} />
         <Route path="/staff/admin/user-accounts/staff" element={<Staff area="engineers"><PeopleList key="staff" kind="staff" /></Staff>} />
+        <Route path="/staff/admin/user-accounts/availability" element={<Staff area="engineers"><FindPeople /></Staff>} />
         <Route path="/staff/admin/user-accounts/contractors/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
         <Route path="/staff/admin/user-accounts/staff/:id" element={<Staff area="engineers"><PersonProfile /></Staff>} />
         <Route path="/staff/admin/logins" element={<Staff area="admin"><UserAdmin /></Staff>} />

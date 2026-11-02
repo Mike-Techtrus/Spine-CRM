@@ -14,7 +14,7 @@ import { unwrap } from './_shared'
 const WITH_RELATIONS_SELECT = `
   *,
   sales_order:sales_orders(
-    id, reference, po_number,
+    id, reference, po_number, start_date, end_date,
     client:accounts!sales_orders_client_id_fkey(id, name),
     end_client:accounts!sales_orders_end_client_id_fkey(id, name)
   ),

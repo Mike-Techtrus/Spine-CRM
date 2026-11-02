@@ -420,7 +420,7 @@ export interface Project {
 }
 
 export interface ProjectWithRelations extends Project {
-  sales_order: Pick<SalesOrder, 'id' | 'reference' | 'po_number'> & {
+  sales_order: Pick<SalesOrder, 'id' | 'reference' | 'po_number' | 'start_date' | 'end_date'> & {
     client: Pick<Account, 'id' | 'name'> | null
     end_client: Pick<Account, 'id' | 'name'> | null
   }

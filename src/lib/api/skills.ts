@@ -146,3 +146,10 @@ export async function getContractorCvUrl(engineer: FieldEngineer): Promise<strin
   if (error) throw new Error(error.message)
   return data.signedUrl
 }
+
+// Everyone's skills, for Find & availability.
+export async function listAllContractorSkills(): Promise<
+  Pick<ContractorSkill, 'field_engineer_id' | 'skill_id' | 'level' | 'expires_on'>[]
+> {
+  return unwrap(await supabase.from('contractor_skills').select('field_engineer_id, skill_id, level, expires_on'))
+}

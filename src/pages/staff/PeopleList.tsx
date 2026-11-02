@@ -9,7 +9,11 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 
-const USER_TABS = (['contractor', 'staff'] as const).map((k) => ({ label: PERSON_KINDS[k].plural, path: PERSON_KINDS[k].path }))
+// Sub-tabs under Admin → User Accounts (also used by FindPeople).
+export const USER_TABS = [
+  ...(['contractor', 'staff'] as const).map((k) => ({ label: PERSON_KINDS[k].plural, path: PERSON_KINDS[k].path })),
+  { label: 'Find & availability', path: '/staff/admin/user-accounts/availability' },
+]
 
 const emptyForm = { name: '', email: '', phone: '', day_rate: '', user_id: '' }
 const STATUS_OPTIONS = [
