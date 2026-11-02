@@ -127,6 +127,20 @@ export async function rejectTimesheet(id: string, approverId: string, notes: str
   )
 }
 
+// Sends an approved timesheet back to Draft. The database clears the approval
+// details and checks who's allowed (0034): staff for their own time, the
+// project owner or an admin for anyone's. Invoiced days can't be.
+export async function unapproveTimesheet(id: string): Promise<TimesheetEntry> {
+  return unwrap(
+    await supabase
+      .from('timesheet_entries')
+      .update({ status: 'draft' as TimesheetStatus })
+      .eq('id', id)
+      .select()
+      .single(),
+  )
+}
+
 // ── Staff: field engineers ─────────────────────────────────────────────────
 
 // Pass a kind to get only contractors or only staff; timesheets use contractors.

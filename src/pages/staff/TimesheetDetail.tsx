@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { approveTimesheet, getTimesheet, rejectTimesheet } from '../../lib/api'
+import { approveTimesheet, getTimesheet, rejectTimesheet, unapproveTimesheet } from '../../lib/api'
 import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEntryWithRelations } from '../../lib/types'
 import { canAccess } from '../../lib/permissions'
 import { Button, Card, ErrorText, Label, StatusBadge, Textarea } from '../../components/ui'
@@ -38,6 +38,21 @@ export default function TimesheetDetail() {
     }
   }
 
+  async function handleUnapprove() {
+    if (!id) return
+    if (!window.confirm('Send this timesheet back to draft? It will need submitting again.')) return
+    setSaving(true)
+    setError(null)
+    try {
+      await unapproveTimesheet(id)
+      setTs(await getTimesheet(id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send the timesheet back to draft.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleReject() {
     if (!id || !profile || !rejectionNotes.trim()) return
     setSaving(true)
@@ -61,6 +76,9 @@ export default function TimesheetDetail() {
   const isOwn = ts.field_engineer.user_id === profile?.id
   const project = ts.assignment?.project_line.project ?? null
   const canApprove = !isOwn && (!project || project.owner_id === profile?.id || canAccess(profile, 'admin'))
+  // Back to draft (0034): your own staff time, or anyone's if you could approve it.
+  const canUnapprove =
+    ts.status === 'approved' && !ts.invoice_id && (isOwn ? ts.field_engineer.kind === 'staff' : canApprove)
 
   return (
     <div className="max-w-xl">
@@ -108,7 +126,18 @@ export default function TimesheetDetail() {
 
       <ErrorText>{error}</ErrorText>
 
-      {ts.status === 'submitted' && isOwn && (
+      {canUnapprove && (
+        <div className="mt-6">
+          <Button variant="secondary" onClick={handleUnapprove} disabled={saving}>
+            {saving ? 'Sending back…' : 'Un-approve (back to draft)'}
+          </Button>
+        </div>
+      )}
+      {ts.status === 'approved' && ts.invoice_id && (
+        <p className="mt-6 text-sm text-text-muted">This day has been invoiced, so it can&apos;t be un-approved.</p>
+      )}
+
+      {ts.status === 'submitted' && isOwn && ts.field_engineer.kind !== 'staff' && (
         <p className="mt-6 text-sm text-text-muted">This is your own timesheet — someone else needs to approve it.</p>
       )}
 

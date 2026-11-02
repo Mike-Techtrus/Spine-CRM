@@ -25,6 +25,8 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 
 ## Recent work (as of late Oct 2026)
 
+- **Un-approve timesheets** (migration 0034): approved → Draft clears approved_by/approved_on/submitted_on. Allowed for a staff member's own time, the project owner or an admin for anyone's project timesheet, any staff for non-project time; contractors can't (RLS); invoiced days stay locked (0025). "Un-approve (back to draft)" button on the staff timesheet page (`TimesheetDetail.tsx`) and on a staff member's own entry (`TimesheetForm.tsx`); `unapproveTimesheet()` in api/timesheets.ts.
+
 - **Staff timesheets auto-approve** (migration 0033): `timesheet_entries_check()` turns a staff member's (`field_engineers.kind = 'staff'`) Submitted timesheet into Approved on the spot (`approved_on` = now, `approved_by` null; detail page shows "Automatically (staff time)"). All other checks still apply; the own-approval block is skipped for these. Only contractors' timesheets wait for the project owner/admin. Staff see "Submit" (not "Submit for approval") and a note on the weekly grid.
 
 - **Payment terms per account** (migration 0032, run after 0031): `accounts.payment_terms_days` (default 30, Customer Accounts → Edit, Terms column). Invoice form sets Due date = invoice date + the client's terms when the invoice date or client changes (still editable); printed "Terms" shows "N Days" from the client (company_settings.payment_terms only when there's no client), and `{days}` in the Invoice settings terms wording is replaced with the client's days. `create_invoice_from_timesheets` sets the due date too. Existing due dates untouched.

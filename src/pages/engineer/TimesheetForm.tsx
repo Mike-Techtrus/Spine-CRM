@@ -7,6 +7,7 @@ import {
   getTimesheet,
   listAccounts,
   submitTimesheet,
+  unapproveTimesheet,
   updateTimesheet,
 } from '../../lib/api'
 import type { Account, DayType, FieldEngineer } from '../../lib/types'
@@ -39,6 +40,7 @@ export default function TimesheetForm() {
   const [rejectionNotes, setRejectionNotes] = useState<string | null>(null)
   // Set when this entry is project time (logged from the weekly grid).
   const [projectLabel, setProjectLabel] = useState<string | null>(null)
+  const [invoiced, setInvoiced] = useState(false)
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
   const isDirty = !loading && JSON.stringify(form) !== initialSnapshot
@@ -66,6 +68,7 @@ export default function TimesheetForm() {
           setStatus(ts.status)
           setRejectionNotes(ts.rejection_notes)
           setProjectLabel(timesheetProjectLabel(ts))
+          setInvoiced(Boolean(ts.invoice_id))
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load form.')
@@ -107,6 +110,25 @@ export default function TimesheetForm() {
       navigate('/my/timesheets')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save timesheet.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Staff can send their own approved (auto-approved) time back to draft to
+  // correct it (0034); contractors ask the project owner.
+  const canUnapprove = isEditing && status === 'approved' && !invoiced && engineer?.kind === 'staff'
+
+  async function handleUnapprove() {
+    if (!id) return
+    if (!window.confirm('Send this timesheet back to draft so you can change it? Submit it again when you’re done.')) return
+    setSaving(true)
+    setError(null)
+    try {
+      await unapproveTimesheet(id)
+      setStatus('draft')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send the timesheet back to draft.')
     } finally {
       setSaving(false)
     }
@@ -221,6 +243,17 @@ export default function TimesheetForm() {
           </div>
 
           <ErrorText>{error}</ErrorText>
+
+          {canUnapprove && (
+            <div className="pt-2">
+              <Button type="button" variant="secondary" onClick={handleUnapprove} disabled={saving}>
+                {saving ? 'Sending back…' : 'Un-approve (back to draft)'}
+              </Button>
+            </div>
+          )}
+          {status === 'approved' && invoiced && (
+            <p className="pt-2 text-xs text-text-faint">This day has been invoiced, so it can&apos;t be changed.</p>
+          )}
 
           {!readOnly && (
             <div className="flex gap-3 pt-2">

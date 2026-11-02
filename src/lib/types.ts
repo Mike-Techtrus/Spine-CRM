@@ -196,6 +196,7 @@ export interface TimesheetEntry {
   approved_on: string | null
   rejection_notes: string | null
   project_assignment_id: string | null // the project allocation this day draws down (0022)
+  invoice_id: string | null // set once billed (0025) — locked from then on
   created_at: string
   updated_at: string
 }
