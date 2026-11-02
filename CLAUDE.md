@@ -23,6 +23,10 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 - `.github/workflows/build.yml` now runs `npm run build` on every push/PR via GitHub Actions, so a broken build shows up as a red X on the commit.
 - Branch protection / PR-based workflow was deliberately **not** set up — Mike works solo on this for now, and Vercel already refuses to put a failed build live (confirmed in practice: a broken build just left the previous working version live, nothing broken reached real users). Revisit if other developers join.
 
+## In progress
+
+- **Email reminders** — branch `email-reminders`. Checklist and status in **`docs/EMAIL-SETUP.md`** (start there). Resend account connected (Resend MCP connector); domain `spine.techtrus.co.uk` added in Resend (eu-west-1, sending only, no tracking) but **not verified yet** — waiting on Mike to get Cloudflare access and add the DNS records, then create a sending-only key and add it himself as Supabase Edge Function secret `RESEND_API_KEY` (never handle the key). Also found general email-security gaps on techtrus.com/techtrus.co.uk (broken SPF include, no DKIM, no DMARC) — listed in Part B of that file.
+
 ## Recent work (as of late Oct 2026)
 
 - **Timesheet reminders, in-app** (migration 0044): `my_action_counts()` gained `my_unsubmitted` (own draft days dated before this Monday); the My timesheets badge = rejected + unsubmitted. `MyTimesheets.tsx` shows a "Needs your attention" card: past weeks with drafts, rejected days (with the reason), and "no time logged last week" when they're on an active project; each links to the week — `WeeklyTimesheet` takes a `jumpTo` prop. Email reminders are still to do (need an email service + API key added by Mike).
