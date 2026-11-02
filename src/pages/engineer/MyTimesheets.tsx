@@ -6,6 +6,7 @@ import { DAY_TYPE_LABELS, STATUS_LABELS, timesheetProjectLabel, type TimesheetEn
 import { Button, Card, StatusBadge } from '../../components/ui'
 import WeeklyTimesheet from '../../components/WeeklyTimesheet'
 import TimesheetTabs from '../../components/TimesheetTabs'
+import TimesheetGuide from '../../components/TimesheetGuide'
 
 export default function MyTimesheets() {
   const { session } = useAuth()
@@ -58,6 +59,8 @@ export default function MyTimesheets() {
         </Link>
       </div>
       <TimesheetTabs />
+
+      {engineerId && <TimesheetGuide isStaff={isStaff} />}
 
       {engineerId && <WeeklyTimesheet fieldEngineerId={engineerId} autoApproved={isStaff} onChanged={() => loadList(engineerId)} />}
 

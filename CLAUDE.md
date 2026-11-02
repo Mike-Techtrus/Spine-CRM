@@ -25,6 +25,8 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 
 ## Recent work (as of late Oct 2026)
 
+- **Timesheet how-to guide** (no migration): `components/TimesheetGuide.tsx`, a collapsible panel at the top of Timesheets → My timesheets. Wording differs for staff (auto-approve, own un-approve) and contractors (project owner approves). Open on first visit; open/closed is remembered per browser. Keep it in step if the timesheet rules change.
+
 - **Un-approve timesheets** (migration 0034): approved → Draft clears approved_by/approved_on/submitted_on. Allowed for a staff member's own time, the project owner or an admin for anyone's project timesheet, any staff for non-project time; contractors can't (RLS); invoiced days stay locked (0025). "Un-approve (back to draft)" button on the staff timesheet page (`TimesheetDetail.tsx`) and on a staff member's own entry (`TimesheetForm.tsx`); `unapproveTimesheet()` in api/timesheets.ts.
 
 - **Staff timesheets auto-approve** (migration 0033): `timesheet_entries_check()` turns a staff member's (`field_engineers.kind = 'staff'`) Submitted timesheet into Approved on the spot (`approved_on` = now, `approved_by` null; detail page shows "Automatically (staff time)"). All other checks still apply; the own-approval block is skipped for these. Only contractors' timesheets wait for the project owner/admin. Staff see "Submit" (not "Submit for approval") and a note on the weekly grid.
