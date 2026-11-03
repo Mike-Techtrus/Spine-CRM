@@ -33,6 +33,7 @@ import {
   type SkillCategory,
   type SkillLevel,
 } from '../../lib/types'
+import { hasTouchCamera, ID_PHOTO_SHRINK, PROFILE_PHOTO_SHRINK, shrinkPhoto } from '../../lib/photo'
 import { Button, Card, Input, Label, Select, Textarea } from '../ui'
 
 // Cards shared by the admin profile page (Admin → User Accounts → a person)
@@ -109,23 +110,27 @@ export function PhotoCard({
   onError: (message: string | null) => void
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const camera = useMemo(hasTouchCamera, [])
 
-  async function handleFile(file: File | undefined) {
-    if (!file) return
-    if (file.size > PHOTO_MAX_BYTES) {
-      onError('That photo is over 5 MB — please choose a smaller one.')
-      return
-    }
+  async function handleFile(picked: File | undefined) {
+    if (fileInput.current) fileInput.current.value = ''
+    if (cameraInput.current) cameraInput.current.value = ''
+    if (!picked) return
     setBusy(true)
     onError(null)
     try {
+      const file = await shrinkPhoto(picked, PROFILE_PHOTO_SHRINK)
+      if (file.size > PHOTO_MAX_BYTES) {
+        onError('That photo is over 5 MB — please choose a smaller one.')
+        return
+      }
       onChanged(await uploadProfilePhoto(engineer, file))
     } catch (err) {
       onError(errorMessage(err, 'Failed to upload photo.'))
     } finally {
       setBusy(false)
-      if (fileInput.current) fileInput.current.value = ''
     }
   }
 
@@ -148,6 +153,11 @@ export function PhotoCard({
       <div className="flex items-center gap-4">
         <ProfilePhoto engineer={engineer} className="h-20 w-20 text-lg" />
         <div className="flex flex-wrap gap-2">
+          {camera && (
+            <Button disabled={busy} onClick={() => cameraInput.current?.click()}>
+              Take photo
+            </Button>
+          )}
           <Button variant="secondary" disabled={busy} onClick={() => fileInput.current?.click()}>
             {busy ? 'Working…' : engineer.photo_path ? 'Change photo' : 'Upload photo'}
           </Button>
@@ -165,7 +175,18 @@ export function PhotoCard({
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
-      <p className="mt-3 text-xs text-text-faint">JPG, PNG or WebP, up to 5 MB. A clear head-and-shoulders photo works best.</p>
+      {/* capture="user" opens the front (selfie) camera straight away on phones. */}
+      <input
+        ref={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
+      <p className="mt-3 text-xs text-text-faint">
+        JPG, PNG or WebP. Large photos are shrunk automatically. A clear head-and-shoulders photo works best.
+      </p>
     </Card>
   )
 }
@@ -557,7 +578,10 @@ export function IdentityDocumentsCard({
           ))}
         </div>
       )}
-      <p className="mt-4 text-xs text-text-faint">PDF or a photo (JPG, PNG, WebP), up to 10 MB each.</p>
+      <p className="mt-4 text-xs text-text-faint">
+        PDF or a photo (JPG, PNG, WebP), up to 10 MB each. Taking a photo? Lay the document flat in good light, with all
+        four corners showing and no glare.
+      </p>
     </Card>
   )
 }
@@ -580,8 +604,10 @@ function DocumentRow({
   onError: (message: string | null) => void
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [expires, setExpires] = useState(existing?.expires_on ?? '')
+  const camera = useMemo(hasTouchCamera, [])
 
   useEffect(() => setExpires(existing?.expires_on ?? ''), [existing?.expires_on])
 
@@ -598,14 +624,15 @@ function DocumentRow({
     }
   }
 
-  function handleFile(file: File | undefined) {
+  function handleFile(picked: File | undefined) {
     if (fileInput.current) fileInput.current.value = ''
-    if (!file) return
-    if (file.size > ID_DOCUMENT_MAX_BYTES) {
-      onError('That file is over 10 MB — please upload a smaller copy.')
-      return
-    }
-    run(() => uploadPersonDocument(engineer.id, type, file, expires || null, existing), `Failed to upload ${label.toLowerCase()}.`)
+    if (cameraInput.current) cameraInput.current.value = ''
+    if (!picked) return
+    run(async () => {
+      const file = await shrinkPhoto(picked, ID_PHOTO_SHRINK)
+      if (file.size > ID_DOCUMENT_MAX_BYTES) throw new Error('That file is over 10 MB — please upload a smaller copy.')
+      await uploadPersonDocument(engineer.id, type, file, expires || null, existing)
+    }, `Failed to upload ${label.toLowerCase()}.`)
   }
 
   async function handleDownload() {
@@ -649,7 +676,21 @@ function DocumentRow({
         <Input type="date" value={expires} disabled={busy} onChange={(e) => setExpires(e.target.value)} />
       </div>
       <input ref={fileInput} type="file" accept={ID_DOCUMENT_ACCEPT} className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+      {/* capture="environment" opens the back camera straight away on phones. */}
+      <input
+        ref={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
       <div className="flex flex-wrap gap-2">
+        {camera && (
+          <Button disabled={busy} onClick={() => cameraInput.current?.click()}>
+            Take photo
+          </Button>
+        )}
         <Button variant="secondary" disabled={busy} onClick={() => fileInput.current?.click()}>
           {busy ? 'Working…' : existing ? 'Replace' : 'Upload'}
         </Button>
