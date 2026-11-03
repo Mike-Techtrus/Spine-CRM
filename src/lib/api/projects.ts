@@ -21,6 +21,8 @@ const WITH_RELATIONS_SELECT = `
   owner:profiles(id, full_name)
 `
 
+const LINE_SELECT = `*, sales_order:sales_orders(id, reference, po_number, start_date, end_date)`
+
 export async function listProjects(): Promise<ProjectWithRelations[]> {
   return unwrap(await supabase.from('projects').select(WITH_RELATIONS_SELECT).order('created_at', { ascending: false }))
 }
@@ -29,10 +31,36 @@ export async function getProject(id: string): Promise<ProjectWithRelations> {
   return unwrap(await supabase.from('projects').select(WITH_RELATIONS_SELECT).eq('id', id).single())
 }
 
+// The project a sales order is on — the one it started, or one it was added to (0050).
 export async function getProjectForSalesOrder(salesOrderId: string): Promise<Project | null> {
-  const { data, error } = await supabase.from('projects').select('*').eq('sales_order_id', salesOrderId).maybeSingle()
+  const { data: projectId, error } = await supabase.rpc('project_for_sales_order', { p_sales_order_id: salesOrderId })
   if (error) throw new Error(error.message)
-  return data
+  if (!projectId) return null
+  return unwrap(await supabase.from('projects').select('*').eq('id', projectId as string).single())
+}
+
+export interface ProjectCandidate {
+  id: string
+  reference: string
+  name: string
+  same_opportunity: boolean
+}
+
+// Active projects for the same client, same-opportunity ones first.
+export async function listProjectCandidates(salesOrderId: string): Promise<ProjectCandidate[]> {
+  const { data, error } = await supabase.rpc('project_candidates_for_sales_order', { p_sales_order_id: salesOrderId })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as ProjectCandidate[]
+}
+
+// Copies the order's timesheet-billed quote lines onto an existing project. Returns how many lines were added.
+export async function addSalesOrderToProject(projectId: string, salesOrderId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('add_sales_order_to_project', {
+    p_project_id: projectId,
+    p_sales_order_id: salesOrderId,
+  })
+  if (error) throw new Error(error.message)
+  return data as number
 }
 
 // Copies the accepted quote's timesheet-billed lines (create_project_from_sales_order, 0022).
@@ -51,7 +79,7 @@ export async function updateProject(
 
 export async function listProjectLines(projectId: string): Promise<ProjectLine[]> {
   return unwrap(
-    await supabase.from('project_lines').select('*').eq('project_id', projectId).order('sort_order').order('created_at'),
+    await supabase.from('project_lines').select(LINE_SELECT).eq('project_id', projectId).order('sort_order').order('created_at'),
   )
 }
 
@@ -112,16 +140,22 @@ export const PROJECT_STATUSES: ProjectStatus[] = ['active', 'complete']
 
 // All project lines, for totals on the Projects list.
 export async function listAllProjectLines(): Promise<ProjectLine[]> {
-  return unwrap(await supabase.from('project_lines').select('*'))
+  return unwrap(await supabase.from('project_lines').select(LINE_SELECT))
 }
 
 // Draft invoice from the project's approved, not-yet-invoiced timesheet days
-// in a period (create_invoice_from_timesheets, 0025). Returns the invoice id.
-export async function createInvoiceFromTimesheets(projectId: string, from: string, to: string): Promise<string> {
+// in a period, for one of its sales orders (create_invoice_from_timesheets, 0025/0050). Returns the invoice id.
+export async function createInvoiceFromTimesheets(
+  projectId: string,
+  salesOrderId: string,
+  from: string,
+  to: string,
+): Promise<string> {
   const { data, error } = await supabase.rpc('create_invoice_from_timesheets', {
     p_project_id: projectId,
     p_from: from,
     p_to: to,
+    p_sales_order_id: salesOrderId,
   })
   if (error) throw new Error(error.message)
   return data as string

@@ -112,12 +112,18 @@ export default function ProjectDetail() {
     setLines(l)
     setAssignments(a)
     setUsage(u)
+    const lineOf = new Map(a.map((x) => [x.id, x.project_line_id]))
+    const orderOfLine = new Map(l.map((line) => [line.id, line.sales_order_id]))
     const approved = entries.filter((e) => e.status === 'approved')
     const invoiceIds = [...new Set(approved.map((e) => e.invoice_id).filter((x): x is string => Boolean(x)))]
     setBilling({
       uninvoiced: approved
         .filter((e) => !e.invoice_id)
-        .map((e) => ({ date: e.work_date, days: DAY_TYPE_DAYS[e.day_type] })),
+        .map((e) => ({
+          date: e.work_date,
+          days: DAY_TYPE_DAYS[e.day_type],
+          salesOrderId: orderOfLine.get(lineOf.get(e.project_assignment_id) ?? '') ?? '',
+        })),
       invoicedDays: approved.filter((e) => e.invoice_id).reduce((s, e) => s + DAY_TYPE_DAYS[e.day_type], 0),
       invoices: await listInvoicesByIds(invoiceIds),
     })
@@ -182,6 +188,8 @@ export default function ProjectDetail() {
   }
 
   const so = project.sales_order
+  const orders = projectOrders(so, lines)
+  const extraOrders = orders.filter((o) => o.id !== so.id)
 
   return (
     <div>
@@ -199,6 +207,20 @@ export default function ProjectDetail() {
           {so.end_client?.name && ` → ${so.end_client.name}`}
           {so.po_number && ` · PO ${so.po_number}`}
         </p>
+        {extraOrders.length > 0 && (
+          <p className="text-sm text-text-muted">
+            Extra days on{' '}
+            {extraOrders.map((o, i) => (
+              <span key={o.id}>
+                {i > 0 && ', '}
+                <Link to={`/staff/sales-orders/${o.id}`} className="font-mono-label text-accent hover:underline">
+                  {o.reference}
+                </Link>
+                {o.po_number && ` (PO ${o.po_number})`}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
 
       <ErrorText>{error}</ErrorText>
@@ -240,7 +262,7 @@ export default function ProjectDetail() {
 
       {lines.length > 0 && <MarginCard planned={margin.planned} delivered={margin.delivered} unallocated={totals.quoted - totals.allocated} />}
 
-      {lines.length > 0 && <InvoicingCard projectId={project.id} billing={billing} onError={setError} />}
+      {lines.length > 0 && <InvoicingCard projectId={project.id} orders={orders} billing={billing} onError={setError} />}
 
       {lines.length === 0 ? (
         <Card>
@@ -255,6 +277,7 @@ export default function ProjectDetail() {
             <LineCard
               key={line.id}
               line={line}
+              order={orders.length > 1 ? orders.find((o) => o.id === line.sales_order_id) : undefined}
               assignments={assignments.filter((a) => a.project_line_id === line.id)}
               people={people}
               personById={personById}
@@ -325,18 +348,35 @@ function MarginBlock({ title, figures }: { title: string; figures: MarginSummary
 
 // ── Invoicing (phase 3) ──────────────────────────────────────────────────────
 
+interface Order {
+  id: string
+  reference: string
+  po_number: string | null
+}
+
+// The project's sales orders: the one it was created from, then any added for extra days (0050).
+function projectOrders(original: Order, lines: ProjectLine[]): Order[] {
+  const orders: Order[] = [original]
+  for (const l of lines) {
+    if (l.sales_order && !orders.some((o) => o.id === l.sales_order_id)) orders.push(l.sales_order)
+  }
+  return orders
+}
+
 interface Billing {
-  uninvoiced: { date: string; days: number }[] // approved days not yet on an invoice
+  uninvoiced: { date: string; days: number; salesOrderId: string }[] // approved days not yet on an invoice
   invoicedDays: number
   invoices: { id: string; invoice_number: string; status: string; invoice_date: string | null; value: number | null }[]
 }
 
 function InvoicingCard({
   projectId,
+  orders,
   billing,
   onError,
 }: {
   projectId: string
+  orders: Order[]
   billing: Billing
   onError: (m: string | null) => void
 }) {
@@ -355,14 +395,20 @@ function InvoicingCard({
   }, [dates.length])
 
   const uninvoicedDays = billing.uninvoiced.reduce((s, u) => s + u.days, 0)
-  const inPeriod = billing.uninvoiced.filter((u) => from && to && u.date >= from && u.date <= to).reduce((s, u) => s + u.days, 0)
+  const inPeriod = (orderId: string) =>
+    billing.uninvoiced
+      .filter((u) => u.salesOrderId === orderId && from && to && u.date >= from && u.date <= to)
+      .reduce((s, u) => s + u.days, 0)
+  const several = orders.length > 1
 
-  async function handleCreate() {
-    if (!window.confirm(`Create a draft invoice for ${days(inPeriod)} approved day(s) from ${from} to ${to}?`)) return
+  async function handleCreate(order: Order) {
+    const n = inPeriod(order.id)
+    const onOrder = several ? ` on ${order.reference}${order.po_number ? ` (PO ${order.po_number})` : ''}` : ''
+    if (!window.confirm(`Create a draft invoice for ${days(n)} approved day(s)${onOrder} from ${from} to ${to}?`)) return
     setCreating(true)
     onError(null)
     try {
-      const invoiceId = await createInvoiceFromTimesheets(projectId, from, to)
+      const invoiceId = await createInvoiceFromTimesheets(projectId, order.id, from, to)
       navigate(`/staff/invoices/${invoiceId}`)
     } catch (err) {
       onError(errorMessage(err, 'Failed to create invoice.'))
@@ -376,6 +422,7 @@ function InvoicingCard({
       <p className="mb-4 text-xs text-text-muted">
         Builds a <strong>draft</strong> invoice from approved timesheet days in the period — one line per project line, at
         the quoted day rate. Add expenses and other manual lines on the invoice before sending. Invoiced days are locked.
+        {several && ' Each sales order is invoiced separately, against its own PO.'}
       </p>
       <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat
@@ -394,9 +441,20 @@ function InvoicingCard({
           <Label>To</Label>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
-        <Button type="button" onClick={handleCreate} disabled={creating || inPeriod === 0 || !from || !to}>
-          {creating ? 'Creating…' : `Create draft invoice (${days(inPeriod)} day${inPeriod === 1 ? '' : 's'})`}
-        </Button>
+        {orders.map((order) => {
+          const n = inPeriod(order.id)
+          if (several && n === 0) return null
+          return (
+            <Button key={order.id} type="button" onClick={() => handleCreate(order)} disabled={creating || n === 0 || !from || !to}>
+              {creating
+                ? 'Creating…'
+                : `Create draft invoice${several ? ` for ${order.reference}` : ''} (${days(n)} day${n === 1 ? '' : 's'})`}
+            </Button>
+          )
+        })}
+        {several && orders.every((o) => inPeriod(o.id) === 0) && (
+          <p className="text-sm text-text-muted">No approved, uninvoiced days in this period.</p>
+        )}
       </div>
       {billing.invoices.length > 0 && (
         <ul className="mt-4 space-y-1 text-sm">
@@ -522,6 +580,7 @@ function DetailsCard({
 
 function LineCard({
   line,
+  order,
   assignments,
   people,
   personById,
@@ -529,6 +588,7 @@ function LineCard({
   run,
 }: {
   line: ProjectLine
+  order?: Order
   assignments: ProjectAssignment[]
   people: FieldEngineer[]
   personById: Map<string, FieldEngineer>
@@ -575,6 +635,12 @@ function LineCard({
           <h3 className="text-sm font-semibold text-text">
             {line.part_code || line.line_type}
             <span className="ml-2 text-xs font-normal text-text-faint">{line.line_type}</span>
+            {order && (
+              <span className="ml-2 rounded bg-sunken px-1.5 py-0.5 font-mono-label text-xs font-normal text-text-muted">
+                {order.reference}
+                {order.po_number && ` · PO ${order.po_number}`}
+              </span>
+            )}
           </h3>
           {line.description && <p className="text-xs text-text-muted">{line.description}</p>}
         </div>

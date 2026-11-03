@@ -132,6 +132,15 @@ export default function WeeklyTimesheet({
       ),
     )
 
+  // A line's name; when someone has the same role twice on a project (extra days on another
+  // sales order, 0050), the sales order tells the rows apart.
+  const baseName = (a: MyAssignment) => a.project_line.part_code || a.project_line.line_type
+  const lineName = (a: MyAssignment) =>
+    a.project_line.sales_order &&
+    rows.some((b) => b.id !== a.id && b.project_line.project.id === a.project_line.project.id && baseName(b) === baseName(a))
+      ? `${baseName(a)} · ${a.project_line.sales_order.reference}`
+      : baseName(a)
+
   // Days per allocation: submitted + approved anywhere, plus drafts outside
   // this week; this week's cells are added on top as "planned".
   function rowNumbers(a: MyAssignment) {
@@ -267,7 +276,7 @@ export default function WeeklyTimesheet({
                   <p key={a.id} className="flex justify-between gap-3 py-0.5">
                     <span className="min-w-0 truncate">
                       <span className="font-mono-label">{a.project_line.project.reference}</span> ·{' '}
-                      {a.project_line.part_code || a.project_line.line_type}
+                      {lineName(a)}
                     </span>
                     <span className={`shrink-0 ${n.left < 0 ? 'font-semibold text-danger' : ''}`}>
                       {days(n.left)} of {days(n.allocated)} left
@@ -305,7 +314,7 @@ export default function WeeklyTimesheet({
                       const e = entryAt(a.id, date)
                       const label = (
                         <p className="mb-1 text-xs text-text-muted">
-                          <span className="font-mono-label">{p.reference}</span> · {a.project_line.part_code || a.project_line.line_type}
+                          <span className="font-mono-label">{p.reference}</span> · {lineName(a)}
                         </p>
                       )
                       if (e && (e.status === 'submitted' || e.status === 'approved')) {
@@ -394,7 +403,7 @@ export default function WeeklyTimesheet({
                       <td className="px-3 py-2">
                         <p className="text-text">
                           <span className="font-mono-label text-text-muted">{p.reference}</span> ·{' '}
-                          {a.project_line.part_code || a.project_line.line_type}
+                          {lineName(a)}
                         </p>
                         <p className="text-xs text-text-faint">
                           {p.name}

@@ -1,6 +1,7 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  addSalesOrderToProject,
   createProjectFromSalesOrder,
   createSalesOrder,
   getProjectForSalesOrder,
@@ -8,7 +9,9 @@ import {
   getSalesOrder,
   listAccounts,
   listInvoicesForSalesOrder,
+  listProjectCandidates,
   updateSalesOrder,
+  type ProjectCandidate,
   type SalesOrderInvoice,
 } from '../../lib/api'
 import type { Account, Project } from '../../lib/types'
@@ -70,6 +73,7 @@ export default function SalesOrderForm() {
   const [closing, setClosing] = useState(false)
   const [project, setProject] = useState<Project | null>(null)
   const [creatingProject, setCreatingProject] = useState(false)
+  const [showAddToProject, setShowAddToProject] = useState(false)
   const [invoices, setInvoices] = useState<SalesOrderInvoice[]>([])
 
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify(emptyForm))
@@ -381,9 +385,14 @@ export default function SalesOrderForm() {
               </Button>
             ) : (
               !closed.at && (
-                <Button variant="secondary" onClick={handleCreateProject} disabled={creatingProject}>
-                  {creatingProject ? 'Creating…' : 'Create project'}
-                </Button>
+                <>
+                  <Button variant="secondary" onClick={handleCreateProject} disabled={creatingProject}>
+                    {creatingProject ? 'Creating…' : 'Create project'}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setShowAddToProject((v) => !v)}>
+                    Add to existing project
+                  </Button>
+                </>
               )
             )}
             {!closed.at && (
@@ -394,6 +403,18 @@ export default function SalesOrderForm() {
           </div>
         )}
       </div>
+
+      {isEditing && id && showAddToProject && !project && (
+        <AddToProjectPanel
+          salesOrderId={id}
+          isDirty={isDirty}
+          onCancel={() => setShowAddToProject(false)}
+          onAdded={(projectId) => {
+            allowNextNavigation()
+            navigate(`/staff/projects/${projectId}`)
+          }}
+        />
+      )}
 
       {isEditing && id && invoicingPanel}
 
@@ -546,5 +567,85 @@ export default function SalesOrderForm() {
       </Card>
       <HistoryCard table="sales_orders" recordId={id} />
     </div>
+  )
+}
+
+// Extra days on a project: this order's day-rate lines go onto an existing project (0050).
+function AddToProjectPanel({
+  salesOrderId,
+  isDirty,
+  onCancel,
+  onAdded,
+}: {
+  salesOrderId: string
+  isDirty: boolean
+  onCancel: () => void
+  onAdded: (projectId: string) => void
+}) {
+  const [candidates, setCandidates] = useState<ProjectCandidate[] | null>(null)
+  const [projectId, setProjectId] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    listProjectCandidates(salesOrderId)
+      .then((list) => {
+        setCandidates(list)
+        setProjectId(list[0]?.id ?? '')
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load projects.'))
+  }, [salesOrderId])
+
+  async function handleAdd() {
+    const chosen = candidates?.find((c) => c.id === projectId)
+    if (!chosen) return
+    if (isDirty && !window.confirm('You have unsaved changes on this sales order. Add it to the project anyway?')) return
+    if (!window.confirm(`Add this sales order's day-rate lines to ${chosen.reference}?`)) return
+    setAdding(true)
+    setError(null)
+    try {
+      await addSalesOrderToProject(chosen.id, salesOrderId)
+      onAdded(chosen.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add to the project.')
+      setAdding(false)
+    }
+  }
+
+  return (
+    <Card className="mb-6">
+      <h2 className="mb-1 text-sm font-semibold text-text">Add to an existing project</h2>
+      <p className="mb-4 text-xs text-text-muted">
+        For extra days on work that already has a project. This order&apos;s day-rate lines are added to the project as new
+        lines, marked with this sales order and PO, so they&apos;re invoiced against this PO. Then assign people their days on
+        the project page.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      {!candidates && !error && <p className="text-sm text-text-muted">Loading…</p>}
+      {candidates && candidates.length === 0 && (
+        <p className="text-sm text-text-muted">There are no active projects for this client.</p>
+      )}
+      {candidates && candidates.length > 0 && (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-64 flex-1">
+            <Label>Project</Label>
+            <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              {candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.reference} · {c.name}
+                  {c.same_opportunity ? ' (same opportunity)' : ''}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Button type="button" onClick={handleAdd} disabled={adding || !projectId}>
+            {adding ? 'Adding…' : 'Add lines to project'}
+          </Button>
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      )}
+    </Card>
   )
 }

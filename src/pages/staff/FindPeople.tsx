@@ -94,9 +94,9 @@ export default function FindPeople() {
         ])
         const entries = await listAssignmentTimesheets(assignments.map((a) => a.id))
 
-        // Allocations on active projects, with the sales order's dates.
+        // Allocations on active projects, with the dates of the sales order the line was quoted on.
         const projectById = new Map(projects.map((p) => [p.id, p]))
-        const lineProject = new Map(lines.map((l) => [l.id, l.project_id]))
+        const lineById = new Map(lines.map((l) => [l.id, l]))
         const loggedOn = new Map<string, number>()
         for (const e of entries) {
           if (e.status === 'rejected') continue
@@ -104,14 +104,16 @@ export default function FindPeople() {
         }
         const plans: AllocationPlan[] = []
         for (const a of assignments) {
-          const project = projectById.get(lineProject.get(a.project_line_id) ?? '')
+          const line = lineById.get(a.project_line_id)
+          const project = projectById.get(line?.project_id ?? '')
           if (!project || project.status !== 'active') continue
+          const order = line?.sales_order ?? project.sales_order
           plans.push({
             fieldEngineerId: a.field_engineer_id,
             allocatedDays: Number(a.allocated_days),
             loggedDays: loggedOn.get(a.id) ?? 0,
-            start: project.sales_order.start_date,
-            end: project.sales_order.end_date,
+            start: order.start_date,
+            end: order.end_date,
           })
         }
 

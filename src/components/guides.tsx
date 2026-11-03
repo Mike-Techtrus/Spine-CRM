@@ -78,7 +78,8 @@ export function SalesOrdersGuide() {
         </GuideStep>
         <GuideStep n={2} title="Day-rate work? Create a project">
           Press <strong>Create project</strong> to set up the timesheet lines from the quote, so people can be assigned and
-          log their days against it.
+          log their days against it. Extra days for a project that already exists? Use{' '}
+          <strong>Add to existing project</strong> instead.
         </GuideStep>
         <GuideStep n={3} title="Invoice against it">
           Press <strong>Create Invoice from this Sales Order</strong> for fixed-price or one-off invoices. For day-rate
@@ -183,7 +184,11 @@ export function ProjectsGuide() {
       </GuideSteps>
       <GuideTips>
         <li>The Margin card compares sell rate with cost rate — planned (allocated days) and delivered (approved days).</li>
-        <li>Need more days than were quoted? Raise the allocation, and check the sales order covers it.</li>
+        <li>
+          Days running out? Raise a new quote on the same opportunity. When the PO comes in, on its sales order press{' '}
+          <strong>Add to existing project</strong> — the extra days join this project as new lines, invoiced against the new
+          PO.
+        </li>
         <li>Set the status to Complete at the end — no more time can be submitted against it.</li>
       </GuideTips>
     </HowToGuide>

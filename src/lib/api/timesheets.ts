@@ -197,6 +197,7 @@ export interface MyAssignment {
     line_type: string
     description: string | null
     project: { id: string; reference: string; name: string; status: 'active' | 'complete' }
+    sales_order: { reference: string } | null
   }
 }
 
@@ -204,7 +205,7 @@ export async function listMyAssignments(fieldEngineerId: string): Promise<MyAssi
   return unwrap(
     await supabase
       .from('project_assignments')
-      .select('id, allocated_days, project_line:project_lines(id, part_code, line_type, description, project:projects(id, reference, name, status))')
+      .select('id, allocated_days, project_line:project_lines(id, part_code, line_type, description, project:projects(id, reference, name, status), sales_order:sales_orders(reference))')
       .eq('field_engineer_id', fieldEngineerId),
   ) as unknown as MyAssignment[]
 }

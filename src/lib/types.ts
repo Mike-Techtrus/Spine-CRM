@@ -434,6 +434,8 @@ export interface ProjectWithRelations extends Project {
 export interface ProjectLine {
   id: string
   project_id: string
+  sales_order_id: string // the order (and PO) this line was quoted on; extra orders can be added to a project (0050)
+  sales_order?: Pick<SalesOrder, 'id' | 'reference' | 'po_number' | 'start_date' | 'end_date'> | null
   quote_line_id: string | null
   line_item_id: string | null
   line_type: string
