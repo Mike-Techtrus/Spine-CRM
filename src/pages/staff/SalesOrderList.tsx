@@ -17,6 +17,7 @@ import {
   yesNo,
   type TableColumn,
 } from '../../lib/useColumnPrefs'
+import { SalesOrdersGuide } from '../../components/guides'
 
 type MoneyKey = 'quote_value' | 'po_value' | 'difference' | 'vat' | 'total' | 'rebate' | 'net_value' | 'invoiced_to_date'
 
@@ -135,6 +136,7 @@ export default function SalesOrderList() {
         <h1 className="text-xl font-semibold text-text">Sales Orders</h1>
         <p className="text-xs text-text-faint">Created from an accepted quote — open a quote to create one.</p>
       </div>
+      <SalesOrdersGuide />
 
       {orders && orders.length > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3">

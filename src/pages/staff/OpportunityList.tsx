@@ -15,6 +15,7 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
+import { OpportunitiesGuide } from '../../components/guides'
 
 const STAGE_OPTIONS = CURRENT_OPPORTUNITY_STAGES.map((s) => ({ value: OPPORTUNITY_STAGE_LABELS[s], label: OPPORTUNITY_STAGE_LABELS[s] }))
 const SOURCE_OPTIONS = Object.entries(OPPORTUNITY_SOURCE_LABELS).map(([, label]) => ({ value: label, label }))
@@ -103,6 +104,7 @@ export default function OpportunityList() {
           <Button>New opportunity</Button>
         </Link>
       </div>
+      <OpportunitiesGuide />
 
       {opportunities && opportunities.length > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3">

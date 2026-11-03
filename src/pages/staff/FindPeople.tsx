@@ -35,6 +35,7 @@ import {
 import { Card, ErrorText, Label, Select } from '../../components/ui'
 import AdminTabs from './admin/AdminTabs'
 import UserAccountsTabs from './UserAccountsTabs'
+import { FindPeopleGuide } from '../../components/guides'
 
 // Admin → User Accounts → Find & availability: who has these skills, and
 // who's free over the next 8 weeks (lib/availability.ts explains the sums).
@@ -153,6 +154,7 @@ export default function FindPeople() {
       <h1 className="mb-4 text-xl font-semibold text-text">Admin · User Accounts · Find &amp; availability</h1>
       <AdminTabs />
       <UserAccountsTabs />
+      <FindPeopleGuide />
 
       <ErrorText>{error}</ErrorText>
 

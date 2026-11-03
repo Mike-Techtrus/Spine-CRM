@@ -7,6 +7,7 @@ import { Card, SearchInput, Select, StatusBadge, Th } from '../../components/ui'
 import TimesheetTabs from '../../components/TimesheetTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
+import { TeamTimesheetsGuide } from '../../components/guides'
 
 function getSearchText(ts: TimesheetEntryWithRelations) {
   return [
@@ -82,6 +83,7 @@ export default function AllTimesheets() {
     <div>
       <h1 className="mb-4 text-xl font-semibold text-text">Timesheets</h1>
       <TimesheetTabs />
+      <TeamTimesheetsGuide />
 
       <SearchInput value={query} onChange={setQuery} placeholder="Search timesheets…" className="mb-4 max-w-sm" />
 

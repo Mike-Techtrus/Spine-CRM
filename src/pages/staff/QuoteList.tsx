@@ -10,6 +10,7 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
+import { QuotesGuide } from '../../components/guides'
 
 const STATUS_BADGE_MAP: Record<string, string> = {
   draft: 'draft',
@@ -120,6 +121,7 @@ export default function QuoteList() {
         <h1 className="text-xl font-semibold text-text">Quotes</h1>
         <p className="text-xs text-text-faint">Created from an opportunity — open an opportunity to create one.</p>
       </div>
+      <QuotesGuide />
 
       {quotes && quotes.length > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3">

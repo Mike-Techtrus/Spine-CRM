@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { dismissDataChecks, listDataChecks, updateSalesOrder, type DataCheckRow } from '../../../lib/api'
 import { Card, ErrorText } from '../../../components/ui'
 import AdminTabs from './AdminTabs'
+import { DataChecksGuide } from '../../../components/guides'
 
 // Admin → Data checks (migration 0045): records that look wrong or stuck,
 // grouped by check, each with what to do about it. Fixing the record makes it
@@ -115,6 +116,7 @@ export default function DataChecks() {
     <div>
       <h1 className="mb-4 text-xl font-semibold text-text">Admin · Data checks</h1>
       <AdminTabs />
+      <DataChecksGuide />
 
       <p className="mb-4 text-sm text-text-muted">
         Records that look wrong or stuck. Fix the record and it drops off this list; if something&apos;s actually fine,

@@ -6,6 +6,7 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import AdminTabs from './admin/AdminTabs'
+import { CustomerAccountsGuide } from '../../components/guides'
 
 const emptyForm = {
   name: '',
@@ -246,6 +247,7 @@ export default function Accounts() {
         </Button>
       </div>
       <AdminTabs />
+      <CustomerAccountsGuide />
 
       {editing && (
         <Card className="mb-6">

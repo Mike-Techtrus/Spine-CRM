@@ -8,6 +8,7 @@ import AdminTabs from './admin/AdminTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
+import { PeopleGuide } from '../../components/guides'
 
 
 const emptyForm = { name: '', email: '', phone: '', day_rate: '', user_id: '' }
@@ -170,6 +171,7 @@ export default function PeopleList({ kind }: { kind: PersonKind }) {
       <h1 className="mb-4 text-xl font-semibold text-text">Admin · User Accounts · {meta.plural}</h1>
       <AdminTabs />
       <UserAccountsTabs />
+      <PeopleGuide staff={kind === 'staff'} />
 
       <Card className="mb-6">
         <form onSubmit={handleAdd} className="grid grid-cols-4 items-end gap-4">

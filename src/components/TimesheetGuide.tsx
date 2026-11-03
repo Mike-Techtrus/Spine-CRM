@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Card } from './ui'
+import { GuideStep as Step } from './HowToGuide'
 
 const STORAGE_KEY = 'spine.timesheetGuide.open'
 
@@ -10,20 +11,6 @@ function initialOpen() {
   } catch {
     return true
   }
-}
-
-function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
-  return (
-    <li className="flex gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent">
-        {n}
-      </span>
-      <div>
-        <p className="font-medium text-text">{title}</p>
-        <div className="mt-0.5 text-text-muted">{children}</div>
-      </div>
-    </li>
-  )
 }
 
 function Swatch({ className, label }: { className: string; label: string }) {

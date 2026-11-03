@@ -15,6 +15,7 @@ import { downloadXlsx } from '../../../lib/xlsx'
 import { Button, Card, ErrorText, Input, Label, Select, StatTile } from '../../../components/ui'
 import PrintDocument, { printWithTitle } from '../../../components/PrintDocument'
 import ReportTabs from './ReportTabs'
+import { RebateReportGuide } from '../../../components/guides'
 
 // Reports → Rebate: the rebate due on invoices, worked out fresh from their
 // lines under the conditions chosen here (lib/rebateReport.ts). The stored
@@ -279,6 +280,7 @@ export default function RebateReport() {
       <div className="print:hidden">
         <h1 className="mb-4 text-xl font-semibold text-text">Reports</h1>
         <ReportTabs />
+        <RebateReportGuide />
         <ErrorText>{error}</ErrorText>
 
         <Card className="mb-6">

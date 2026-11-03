@@ -23,6 +23,7 @@ import {
   type SkillRequest,
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
+import { MyProfileGuide } from '../../components/guides'
 import {
   CvCard,
   errorMessage,
@@ -105,6 +106,8 @@ export default function MyProfile() {
       </div>
 
       <ErrorText>{error}</ErrorText>
+
+      <MyProfileGuide />
 
       <ExpiryReminder
         items={[

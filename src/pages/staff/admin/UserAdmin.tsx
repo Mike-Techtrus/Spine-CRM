@@ -13,6 +13,7 @@ import { Button, Card, ErrorText, Input, Label, SearchInput, Select, Th } from '
 import { useSort } from '../../../lib/useSort'
 import { useSearch } from '../../../lib/useSearch'
 import AdminTabs from './AdminTabs'
+import { LoginsGuide } from '../../../components/guides'
 
 // New staff get everything except admin by default — tick it deliberately.
 const DEFAULT_STAFF_AREAS: AppArea[] = APP_AREAS.filter((a) => a.key !== 'admin').map((a) => a.key)
@@ -419,6 +420,7 @@ export default function UserAdmin() {
         </Button>
       </div>
       <AdminTabs />
+      <LoginsGuide />
 
       {showAdd && <AddUserForm onAdded={refresh} />}
 

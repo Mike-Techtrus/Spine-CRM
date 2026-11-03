@@ -11,6 +11,7 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
+import { InvoicesGuide } from '../../components/guides'
 
 const STATUS_OPTIONS = Object.entries(INVOICE_STATUS_LABELS).map(([, label]) => ({ value: label, label }))
 
@@ -110,6 +111,7 @@ export default function InvoiceList() {
         <p className="text-xs text-text-faint">Created from a sales order — open a sales order to create one.</p>
       </div>
       <InvoiceTabs />
+      <InvoicesGuide />
 
       {invoices && invoices.length > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3">

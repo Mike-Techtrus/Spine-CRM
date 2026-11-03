@@ -18,6 +18,7 @@ import { round2 } from '../../lib/money'
 import { Button, Card, ErrorText, Input, Label, StatTile, StatusBadge } from '../../components/ui'
 import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
 import InvoiceTabs from './InvoiceTabs'
+import { ContractorCostsGuide } from '../../components/guides'
 
 // Invoices → Contractor costs (migration 0043): each contractor's approved
 // days in a month at their cost rate. "Record statement" fixes the amount and
@@ -213,6 +214,7 @@ export default function ContractorCosts() {
       </div>
       <div className="print:hidden">
         <InvoiceTabs />
+        <ContractorCostsGuide />
 
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>

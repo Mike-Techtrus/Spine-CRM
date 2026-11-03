@@ -10,6 +10,7 @@ import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
 import { formatPercent, labourDayRate, summariseMargin, type MarginItem, type MarginSummary } from '../../lib/margin'
+import { ProjectsGuide } from '../../components/guides'
 
 // A project with its day totals worked out from lines, assignments and timesheets.
 type ProjectRow = ProjectWithRelations & { quoted: number; allocated: number; used: number; margin: MarginSummary }
@@ -136,6 +137,7 @@ export default function ProjectList() {
         <h1 className="text-xl font-semibold text-text">Projects</h1>
         <p className="text-xs text-text-faint">Created from a sales order — open a sales order and use "Create project".</p>
       </div>
+      <ProjectsGuide />
 
       {rows && rows.length > 0 && (
         <div className="mb-4 flex items-center justify-between gap-3">

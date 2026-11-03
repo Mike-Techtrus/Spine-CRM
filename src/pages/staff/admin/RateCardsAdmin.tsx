@@ -18,6 +18,7 @@ import type { Account, LineItem, RateCard, RateCardPrice } from '../../../lib/ty
 import { LINE_TYPE_BILLING_LABELS, type LineType, type LineTypeBilling } from '../../../lib/types'
 import { Button, Card, ErrorText, Input, Label, SearchInput, Select } from '../../../components/ui'
 import AdminTabs from './AdminTabs'
+import { RateCardsGuide } from '../../../components/guides'
 
 function friendlyError(err: unknown, fallback: string) {
   const message = err instanceof Error ? err.message : fallback
@@ -169,6 +170,7 @@ export default function RateCardsAdmin() {
     <div>
       <h1 className="mb-4 text-xl font-semibold text-text">Admin · Rate cards</h1>
       <AdminTabs />
+      <RateCardsGuide />
 
       <p className="mb-6 text-sm text-text-muted">
         Prices used when adding lines to a quote. Every account uses the <strong>Default</strong> card unless it's
