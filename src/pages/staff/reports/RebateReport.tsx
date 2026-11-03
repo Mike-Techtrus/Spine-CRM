@@ -82,6 +82,7 @@ export default function RebateReport() {
   const [statuses, setStatuses] = useState<InvoiceStatus[]>(['sent', 'paid'])
   const [eligibleTypes, setEligibleTypes] = useState<string[]>([])
   const [includeOther, setIncludeOther] = useState(true)
+  const [excludeBundled, setExcludeBundled] = useState(true)
   const [noLines, setNoLines] = useState<NoLinesRule>('quote_share')
   const [ratePercent, setRatePercent] = useState('7.5')
 
@@ -140,7 +141,11 @@ export default function RebateReport() {
       const linesByInvoice = new Map<string, ReportLine[]>()
       for (const l of invoiceLines) {
         const list = linesByInvoice.get(l.invoice_id) ?? []
-        list.push({ line_type: l.line_type, amount: round2(Number(l.qty) * Number(l.unit_price)) })
+        list.push({
+          line_type: l.line_type,
+          amount: round2(Number(l.qty) * Number(l.unit_price)),
+          expenses: round2(Number(l.qty) * Number(l.expenses_included ?? 0)),
+        })
         linesByInvoice.set(l.invoice_id, list)
       }
       const quoteIds = [...new Set(chosen.filter((i) => !linesByInvoice.has(i.id) && i.quote_id).map((i) => i.quote_id!))]
@@ -148,7 +153,11 @@ export default function RebateReport() {
       const linesByQuote = new Map<string, ReportLine[]>()
       for (const l of quoteLines) {
         const list = linesByQuote.get(l.quote_id) ?? []
-        list.push({ line_type: l.line_type, amount: Number(l.line_total ?? Number(l.qty ?? 0) * Number(l.unit_cost ?? 0)) })
+        list.push({
+          line_type: l.line_type,
+          amount: Number(l.line_total ?? Number(l.qty ?? 0) * Number(l.unit_cost ?? 0)),
+          expenses: Number(l.qty ?? 0) * Number(l.expenses_included ?? 0),
+        })
         linesByQuote.set(l.quote_id, list)
       }
 
@@ -156,6 +165,7 @@ export default function RebateReport() {
         eligibleTypes,
         knownTypes: lineTypes.map((t) => t.name),
         includeOther,
+        excludeBundled,
         noLines,
         rate: (Number(ratePercent) || 0) / 100,
       }
@@ -191,6 +201,7 @@ export default function RebateReport() {
       `status ${statuses.map((s) => INVOICE_STATUS_LABELS[s]).join('/')}`,
       `${ratePercent}% on ${[...eligibleTypes, ...(includeOther ? ['no/other line type'] : [])].join(', ') || 'nothing'}`,
       `invoices without lines: ${NO_LINES_OPTIONS.find((o) => o.value === noLines)?.label.toLowerCase()}`,
+      excludeBundled ? 'bundled expenses left out' : 'bundled expenses included',
     ]
     return parts.filter(Boolean).join(' · ')
   }
@@ -217,7 +228,7 @@ export default function RebateReport() {
     downloadXlsx(
       `Rebate report ${from} to ${to}`,
       'Rebate',
-      ['Invoice', 'Invoice date', 'Client', 'End client', 'Sales order', 'Status', 'Value ex VAT', 'Earns rebate', 'Worked out from', 'Rebate'],
+      ['Invoice', 'Invoice date', 'Client', 'End client', 'Sales order', 'Status', 'Value ex VAT', 'Bundled expenses left out', 'Earns rebate', 'Worked out from', 'Rebate'],
       results.map(({ invoice: i, row }) => [
         i.invoice_number,
         i.invoice_date,
@@ -226,6 +237,7 @@ export default function RebateReport() {
         i.sales_order?.reference ?? '',
         INVOICE_STATUS_LABELS[i.status],
         row.value,
+        row.expensesExcluded,
         row.eligible,
         BASIS_LABELS[row.basis] + (row.share !== null ? ` (${Math.round(row.share * 100)}%)` : ''),
         row.rebate,
@@ -323,6 +335,10 @@ export default function RebateReport() {
                   No / other line type
                 </label>
               </div>
+              <label className="mt-2 flex items-center gap-1.5 text-sm text-text-muted">
+                <input type="checkbox" checked={excludeBundled} onChange={(e) => setExcludeBundled(e.target.checked)} />
+                Leave out expenses bundled into day rates
+              </label>
             </div>
 
             <div>
@@ -365,7 +381,10 @@ export default function RebateReport() {
             <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               <StatTile label="Invoices" value={totals.invoices.toLocaleString('en-GB')} />
               <StatTile label="Invoiced, ex VAT" value={money(totals.value)} />
-              <StatTile label="Earns rebate" value={money(totals.eligible)} />
+              <StatTile
+                label={totals.expensesExcluded > 0 ? `Earns rebate (${money(totals.expensesExcluded)} expenses left out)` : 'Earns rebate'}
+                value={money(totals.eligible)}
+              />
               <StatTile label="Rebate" value={money(totals.rebate)} accent />
             </div>
 
@@ -438,7 +457,12 @@ export default function RebateReport() {
                         </td>
                         <td className="px-3 py-2 text-text-muted">{INVOICE_STATUS_LABELS[i.status]}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-right text-text-muted">{money(row.value)}</td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right text-text-muted">{money(row.eligible)}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right text-text-muted">
+                          {money(row.eligible)}
+                          {row.expensesExcluded > 0 && (
+                            <span className="block text-xs text-text-faint">{money(row.expensesExcluded)} expenses out</span>
+                          )}
+                        </td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-text-faint">
                           {BASIS_LABELS[row.basis]}
                           {row.share !== null && ` (${Math.round(row.share * 100)}%)`}

@@ -395,6 +395,7 @@ export interface QuoteLine {
   unit_cost: number // copied from the rate card when added, then the quote's own — rate card changes never alter it
   line_total: number // = qty * unit_cost, calculated by the database
   line_item_id: string | null // the rate-card line item it was added from, if any
+  expenses_included: number | null // per unit: how much of unit_cost is bundled expenses — no rebate on it, not shown to the customer (0047)
   created_at: string
   updated_at: string
 }
@@ -440,6 +441,7 @@ export interface ProjectLine {
   description: string | null
   quoted_days: number
   day_rate: number
+  expenses_included: number | null // per day: bundled expenses inside day_rate, from the quote (0047)
   sort_order: number
   created_at: string
 }
@@ -674,6 +676,7 @@ export interface InvoiceLine {
   line_type: string | null // decides whether the line earns rebate; null = not given (earns it)
   qty: number
   unit_price: number
+  expenses_included: number | null // per unit: bundled expenses inside unit_price (0047)
   created_at: string
 }
 

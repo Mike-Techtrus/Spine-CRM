@@ -63,10 +63,11 @@ interface LocalLine {
   line_type: string // '' = not given
   qty: string
   unit_price: string
+  expenses_included: string // per unit: bundled expenses inside the price ('' = none) — 0047
 }
 
 function emptyLine(): LocalLine {
-  return { key: crypto.randomUUID(), description: '', line_type: '', qty: '1', unit_price: '' }
+  return { key: crypto.randomUUID(), description: '', line_type: '', qty: '1', unit_price: '', expenses_included: '' }
 }
 
 function lineTotal(line: LocalLine): number {
@@ -79,12 +80,15 @@ function toLineInput(line: LocalLine): InvoiceLineInput {
     line_type: line.line_type || null,
     qty: Number(line.qty) || 0,
     unit_price: Number(line.unit_price) || 0,
+    expenses_included: Number(line.expenses_included) > 0 ? Number(line.expenses_included) : null,
   }
 }
 
 // Lines compared by content only, for the unsaved-changes check.
 function linesSnapshot(lines: LocalLine[]) {
-  return JSON.stringify(lines.map(({ description, line_type, qty, unit_price }) => [description, line_type, qty, unit_price]))
+  return JSON.stringify(
+    lines.map(({ description, line_type, qty, unit_price, expenses_included }) => [description, line_type, qty, unit_price, expenses_included]),
+  )
 }
 
 function money(v: string | number | null): string {
@@ -178,6 +182,7 @@ export default function InvoiceForm() {
             line_type: l.line_type ?? '',
             qty: l.qty.toString(),
             unit_price: l.unit_price.toString(),
+            expenses_included: l.expenses_included?.toString() ?? '',
           }))
           setLines(loadedLines)
           setInitialLines(linesSnapshot(loadedLines))
@@ -309,7 +314,9 @@ export default function InvoiceForm() {
 
   function totalsFromLines(forLines: LocalLine[], clientId: string) {
     const sum = round2(forLines.reduce((acc, l) => acc + lineTotal(l), 0))
-    const eligible = forLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
+    const eligible = forLines
+      .filter((l) => isRebateEligible(l.line_type, lineTypes))
+      .reduce((acc, l) => acc + lineTotal(l) - (Number(l.qty) || 0) * (Number(l.expenses_included) || 0), 0)
     return deriveFinancials(sum, eligible, clientRebateRate(clientId))
   }
 
@@ -611,6 +618,9 @@ export default function InvoiceForm() {
                       <th className="w-44 px-2 py-2">Line type</th>
                       <th className="w-24 px-2 py-2">Quantity</th>
                       <th className="w-32 px-2 py-2">Price (£)</th>
+                      <th className="w-32 px-2 py-2" title="If the price has expenses bundled into it, the expenses part per unit. Not printed; no rebate on it.">
+                        Incl. expenses (£)
+                      </th>
                       <th className="w-28 px-2 py-2 text-right">Amount</th>
                       <th className="w-8 px-2 py-2"></th>
                     </tr>
@@ -672,6 +682,21 @@ export default function InvoiceForm() {
                             onChange={(e) =>
                               applyLines(
                                 lines.map((l) => (l.key === line.key ? { ...l, unit_price: e.target.value } : l)),
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Input
+                            aria-label="Expenses included per unit"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="—"
+                            value={line.expenses_included}
+                            onChange={(e) =>
+                              applyLines(
+                                lines.map((l) => (l.key === line.key ? { ...l, expenses_included: e.target.value } : l)),
                               )
                             }
                           />

@@ -23,7 +23,7 @@ import {
   type InvoicingStatus,
 } from '../../../lib/types'
 import { StatusBadge } from '../../../components/ui'
-import { formatPercent, summariseMargin, type MarginItem, type MarginSummary } from '../../../lib/margin'
+import { formatPercent, labourDayRate, summariseMargin, type MarginItem, type MarginSummary } from '../../../lib/margin'
 import { BarList, ColumnChart, Meter, Panel, Tile, gbp, gbpCompact, pct } from './charts'
 import {
   AGE_BUCKETS,
@@ -519,7 +519,7 @@ export function ProjectsSection() {
           const s = line && summaries.get(line.project_id)
           if (!s || !line) continue
           s.allocated += Number(a.allocated_days)
-          s.planned.push({ days: Number(a.allocated_days), sellRate: Number(line.day_rate), costRate: costOf(a) })
+          s.planned.push({ days: Number(a.allocated_days), sellRate: labourDayRate(line), costRate: costOf(a) })
         }
         const now = new Date()
         const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -535,7 +535,7 @@ export function ProjectsSection() {
           const d = DAY_TYPE_DAYS[e.day_type]
           if (e.status === 'submitted' || e.status === 'approved') s.used += d
           if (e.status === 'approved' && a) {
-            const item = { days: d, sellRate: Number(line.day_rate), costRate: costOf(a) }
+            const item = { days: d, sellRate: labourDayRate(line), costRate: costOf(a) }
             const month = e.work_date.slice(0, 7)
             if (month === thisMonth) byPeriod.thisMonth.push(item)
             if (month === lastMonth) byPeriod.lastMonth.push(item)

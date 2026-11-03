@@ -8,6 +8,7 @@ import { round2 } from './money'
 export interface ReportLine {
   line_type: string | null
   amount: number // ex VAT
+  expenses?: number // bundled expenses inside amount (qty × expenses per unit, 0047)
 }
 
 export interface ReportInvoice {
@@ -24,6 +25,7 @@ export interface RebateConditions {
   eligibleTypes: string[] // line type names that earn rebate (any case)
   knownTypes: string[] // every line type in the list, so "other" can be told apart
   includeOther: boolean // lines with no line type, or one not in the list
+  excludeBundled?: boolean // take bundled expenses out of the amount that earns rebate (default true)
   noLines: NoLinesRule
   rate: number // as a fraction, 7.5% → 0.075
 }
@@ -37,6 +39,7 @@ export interface RebateRow {
   rebate: number
   basis: Basis
   share: number | null // eligible ÷ value, for the quote-share basis
+  expensesExcluded: number // bundled expenses left out of the amount that earns rebate
 }
 
 const norm = (t: string | null) => (t ?? '').trim().toLowerCase()
@@ -50,21 +53,32 @@ export function lineEarns(lineType: string | null, c: RebateConditions): boolean
 
 const sum = (lines: ReportLine[]) => lines.reduce((s, l) => s + l.amount, 0)
 
+// The part of earning lines that earns rebate, and the bundled expenses taken out of it.
+function earning(lines: ReportLine[], c: RebateConditions) {
+  const earn = lines.filter((l) => lineEarns(l.line_type, c))
+  const expenses = c.excludeBundled === false ? 0 : earn.reduce((s, l) => s + (l.expenses ?? 0), 0)
+  return { amount: sum(earn) - expenses, expenses }
+}
+
 export function rebateRow(inv: ReportInvoice, c: RebateConditions): RebateRow {
   if (inv.lines.length > 0) {
-    const eligible = round2(sum(inv.lines.filter((l) => lineEarns(l.line_type, c))))
-    return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'lines', share: null }
+    const e = earning(inv.lines, c)
+    const eligible = round2(e.amount)
+    return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'lines', share: null, expensesExcluded: round2(e.expenses) }
   }
-  if (c.noLines === 'exclude') return { id: inv.id, value: inv.value, eligible: 0, rebate: 0, basis: 'excluded', share: null }
+  if (c.noLines === 'exclude')
+    return { id: inv.id, value: inv.value, eligible: 0, rebate: 0, basis: 'excluded', share: null, expensesExcluded: 0 }
   if (c.noLines === 'quote_share' && inv.quoteLines.length > 0) {
     const total = sum(inv.quoteLines)
-    const share = total > 0 ? sum(inv.quoteLines.filter((l) => lineEarns(l.line_type, c))) / total : 0
+    const e = earning(inv.quoteLines, c)
+    const share = total > 0 ? e.amount / total : 0
     const eligible = round2(inv.value * share)
-    return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'quote_share', share }
+    const expensesExcluded = total > 0 ? round2((inv.value * e.expenses) / total) : 0
+    return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'quote_share', share, expensesExcluded }
   }
   // Whole value — chosen, or no quote lines to work a share out from.
   const eligible = round2(inv.value)
-  return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'whole_value', share: null }
+  return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'whole_value', share: null, expensesExcluded: 0 }
 }
 
 export function rebateTotals(rows: RebateRow[]) {
@@ -72,6 +86,7 @@ export function rebateTotals(rows: RebateRow[]) {
     invoices: rows.filter((r) => r.basis !== 'excluded').length,
     value: round2(rows.reduce((s, r) => s + r.value, 0)),
     eligible: round2(rows.reduce((s, r) => s + r.eligible, 0)),
+    expensesExcluded: round2(rows.reduce((s, r) => s + r.expensesExcluded, 0)),
     rebate: round2(rows.reduce((s, r) => s + r.rebate, 0)),
   }
 }

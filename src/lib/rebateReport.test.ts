@@ -37,7 +37,7 @@ describe('rebateRow', () => {
       },
       standard,
     )
-    expect(row).toEqual({ id: 'a', value: 1250, eligible: 1000, rebate: 75, basis: 'lines', share: null })
+    expect(row).toEqual({ id: 'a', value: 1250, eligible: 1000, rebate: 75, basis: 'lines', share: null, expensesExcluded: 0 })
   })
 
   it('uses the quote’s mix of lines for invoices with none', () => {
@@ -94,6 +94,38 @@ describe('rebateTotals', () => {
       rebateRow({ id: 'a', value: 1000, lines: [{ line_type: 'Resource', amount: 1000 }], quoteLines: [] }, standard),
       rebateRow({ id: 'b', value: 500, lines: [], quoteLines: [] }, { ...standard, noLines: 'exclude' }),
     ]
-    expect(rebateTotals(rows)).toEqual({ invoices: 1, value: 1500, eligible: 1000, rebate: 75 })
+    expect(rebateTotals(rows)).toEqual({ invoices: 1, value: 1500, eligible: 1000, expensesExcluded: 0, rebate: 75 })
+  })
+})
+
+describe('bundled expenses (0047)', () => {
+  // T11427-style BHFT line: 55 days of L2 at £506.16, of which £181.16/day is expenses.
+  const bhftLine = { line_type: 'Outsource Resource', amount: 55 * 506.16, expenses: 55 * 181.16 }
+
+  it('gives rebate on the labour part only', () => {
+    const row = rebateRow({ id: 'x', value: 27838.8, lines: [bhftLine], quoteLines: [] }, standard)
+    expect(row).toMatchObject({ eligible: 17875, expensesExcluded: 9963.8, rebate: 1340.63 }) // 55 × £325 × 7.5%
+  })
+
+  it('can be switched off', () => {
+    const row = rebateRow({ id: 'x', value: 27838.8, lines: [bhftLine], quoteLines: [] }, { ...standard, excludeBundled: false })
+    expect(row).toMatchObject({ eligible: 27838.8, expensesExcluded: 0 })
+  })
+
+  it('takes the expenses out of the quote mix for invoices without lines', () => {
+    // quote: one day at £506.16 of which £181.16 expenses → 64.2% of the invoice earns rebate
+    const row = rebateRow(
+      { id: 'y', value: 1012.32, lines: [], quoteLines: [{ line_type: 'Resource', amount: 506.16, expenses: 181.16 }] },
+      standard,
+    )
+    expect(row).toMatchObject({ basis: 'quote_share', eligible: 650, expensesExcluded: 362.32, rebate: 48.75 })
+  })
+
+  it('ignores expenses on lines that don’t earn rebate anyway', () => {
+    const row = rebateRow(
+      { id: 'z', value: 100, lines: [{ line_type: 'Expenses', amount: 100, expenses: 100 }], quoteLines: [] },
+      standard,
+    )
+    expect(row).toMatchObject({ eligible: 0, expensesExcluded: 0 })
   })
 })

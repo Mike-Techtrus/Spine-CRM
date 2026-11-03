@@ -44,3 +44,8 @@ export function summariseMargin(items: MarginItem[]): MarginSummary {
 export function formatPercent(percent: number | null): string {
   return percent === null ? '—' : `${percent.toLocaleString('en-GB', { maximumFractionDigits: 1 })}%`
 }
+
+// What a day earns for margin: the day rate less any expenses bundled into it (0047).
+export function labourDayRate(line: { day_rate: number; expenses_included?: number | null }): number {
+  return round2(Number(line.day_rate) - Number(line.expenses_included ?? 0))
+}

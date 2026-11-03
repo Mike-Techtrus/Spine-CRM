@@ -9,7 +9,7 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
-import { formatPercent, summariseMargin, type MarginItem, type MarginSummary } from '../../lib/margin'
+import { formatPercent, labourDayRate, summariseMargin, type MarginItem, type MarginSummary } from '../../lib/margin'
 
 // A project with its day totals worked out from lines, assignments and timesheets.
 type ProjectRow = ProjectWithRelations & { quoted: number; allocated: number; used: number; margin: MarginSummary }
@@ -100,7 +100,7 @@ export default function ProjectList() {
         const assignmentProject = new Map(assignments.map((a) => [a.id, lineProject.get(a.project_line_id)]))
         const totals = new Map<string, { quoted: number; allocated: number; used: number; margin: MarginItem[] }>()
         const get = (id: string) => totals.get(id) ?? totals.set(id, { quoted: 0, allocated: 0, used: 0, margin: [] }).get(id)!
-        const sellOf = new Map(lines.map((l) => [l.id, Number(l.day_rate)]))
+        const sellOf = new Map(lines.map((l) => [l.id, labourDayRate(l)]))
         for (const l of lines) get(l.project_id).quoted += Number(l.quoted_days)
         for (const a of assignments) {
           const pid = lineProject.get(a.project_line_id)

@@ -27,7 +27,7 @@ import {
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
 import HistoryCard from '../../components/HistoryCard'
-import { formatPercent, summariseMargin, type MarginSummary } from '../../lib/margin'
+import { formatPercent, labourDayRate, summariseMargin, type MarginSummary } from '../../lib/margin'
 
 // Timesheeted days per allocation, split by timesheet status. Rejected days
 // don't count.
@@ -160,7 +160,7 @@ export default function ProjectDetail() {
 
   // Margin (0041): planned = allocated days, delivered = approved timesheet days.
   const margin = useMemo(() => {
-    const sellOf = new Map(lines.map((l) => [l.id, Number(l.day_rate)]))
+    const sellOf = new Map(lines.map((l) => [l.id, labourDayRate(l)]))
     const item = (a: ProjectAssignment, d: number) => ({
       days: d,
       sellRate: sellOf.get(a.project_line_id) ?? 0,
@@ -285,7 +285,7 @@ function MarginCard({
     <Card className="mb-6">
       <h2 className="mb-1 text-sm font-semibold text-text">Margin</h2>
       <p className="mb-4 text-xs text-text-muted">
-        Quoted day rate minus each person&apos;s cost rate (set per person below; it starts as their Day / Cost rate from
+        Quoted day rate (less any expenses bundled into it) minus each person&apos;s cost rate (set per person below; it starts as their Day / Cost rate from
         User Accounts). Ex VAT.
       </p>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -566,7 +566,7 @@ function LineCard({
   }
 
   const unallocated = quoted - allocated
-  const sell = Number(line.day_rate)
+  const sell = labourDayRate(line)
 
   return (
     <Card>
@@ -581,6 +581,9 @@ function LineCard({
         <div className="text-right text-xs text-text-muted">
           <p>
             {days(quoted)} days quoted @ {money(Number(line.day_rate))} = {money(quoted * Number(line.day_rate))}
+            {Number(line.expenses_included) > 0 && (
+              <span className="block">includes {money(Number(line.expenses_included))}/day expenses — margin uses {money(sell)}</span>
+            )}
           </p>
           <p className={unallocated < 0 ? 'text-danger' : ''}>
             {days(allocated)} allocated

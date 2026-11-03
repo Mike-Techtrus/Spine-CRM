@@ -17,11 +17,12 @@ export interface InvoiceLineAmount {
   line_type: string | null
   qty: number
   unit_price: number
+  expenses_included: number | null
 }
 
 export async function listInvoiceLinesFor(invoiceIds: string[]): Promise<InvoiceLineAmount[]> {
   return inBatches(invoiceIds, async (batch) =>
-    unwrap(await supabase.from('invoice_lines').select('invoice_id, line_type, qty, unit_price').in('invoice_id', batch)),
+    unwrap(await supabase.from('invoice_lines').select('invoice_id, line_type, qty, unit_price, expenses_included').in('invoice_id', batch)),
   )
 }
 
@@ -31,10 +32,11 @@ export interface QuoteLineAmount {
   qty: number | null
   unit_cost: number | null
   line_total: number | null
+  expenses_included: number | null
 }
 
 export async function listQuoteLinesFor(quoteIds: string[]): Promise<QuoteLineAmount[]> {
   return inBatches(quoteIds, async (batch) =>
-    unwrap(await supabase.from('quote_lines').select('quote_id, line_type, qty, unit_cost, line_total').in('quote_id', batch)),
+    unwrap(await supabase.from('quote_lines').select('quote_id, line_type, qty, unit_cost, line_total, expenses_included').in('quote_id', batch)),
   )
 }

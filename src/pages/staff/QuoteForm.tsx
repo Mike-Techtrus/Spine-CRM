@@ -42,6 +42,7 @@ type LocalLine = {
   qty: string
   unit_cost: string
   line_item_id: string // rate-card line item it came from ('' = typed in by hand)
+  expenses_included: string // per unit: bundled expenses inside unit_cost ('' = none) — 0047
 }
 
 function newLineKey(): string {
@@ -59,6 +60,7 @@ function emptyLine(): LocalLine {
     qty: '1',
     unit_cost: '0',
     line_item_id: '',
+    expenses_included: '',
   }
 }
 
@@ -157,6 +159,7 @@ export default function QuoteForm() {
             qty: l.qty.toString(),
             unit_cost: l.unit_cost.toString(),
             line_item_id: l.line_item_id ?? '',
+            expenses_included: l.expenses_included?.toString() ?? '',
           }))
           setForm(loaded)
           setLines(linesForForm)
@@ -215,7 +218,9 @@ export default function QuoteForm() {
   }
 
   function rebateEligibleValue(forLines: LocalLine[]): number {
-    return forLines.filter((l) => isRebateEligible(l.line_type, lineTypes)).reduce((acc, l) => acc + lineTotal(l), 0)
+    return forLines
+      .filter((l) => isRebateEligible(l.line_type, lineTypes))
+      .reduce((acc, l) => acc + lineTotal(l) - (Number(l.qty) || 0) * (Number(l.expenses_included) || 0), 0)
   }
 
   // A different client can mean a different rebate rate: redo Rebate and Net
@@ -315,6 +320,7 @@ export default function QuoteForm() {
       qty: Number(line.qty) || 0,
       unit_cost: Number(line.unit_cost) || 0,
       line_item_id: line.line_item_id || null,
+      expenses_included: Number(line.expenses_included) > 0 ? Number(line.expenses_included) : null,
     }
   }
 
@@ -614,7 +620,7 @@ export default function QuoteForm() {
               </p>
             ) : (
               <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full min-w-[920px] text-sm">
+                <table className="w-full min-w-[1020px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-sunken text-left text-xs font-mono-label text-text-dim">
                       <th className="px-2 py-2">Line type</th>
@@ -624,6 +630,9 @@ export default function QuoteForm() {
                       <th className="px-2 py-2">Vendor</th>
                       <th className="px-2 py-2 text-right">Qty</th>
                       <th className="px-2 py-2 text-right">Unit cost (£)</th>
+                      <th className="px-2 py-2 text-right" title="If the day rate has expenses bundled into it, the expenses part per day. Not shown to the customer; no rebate on it.">
+                        Incl. expenses (£)
+                      </th>
                       <th className="px-2 py-2 text-right">Total (£)</th>
                       <th className="px-2 py-2" />
                     </tr>
@@ -686,6 +695,35 @@ export default function QuoteForm() {
                             className="w-24 rounded border border-border bg-sunken px-2 py-1 text-right text-sm text-text focus:border-accent focus:outline-none"
                           />
                         </td>
+                        <td className="px-2 py-1.5 align-top">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            aria-label="Expenses included per unit"
+                            placeholder="—"
+                            value={line.expenses_included}
+                            onChange={(e) => updateLine(line.key, { expenses_included: e.target.value })}
+                            className="w-24 rounded border border-border bg-sunken px-2 py-1 text-right text-sm text-text focus:border-accent focus:outline-none"
+                          />
+                          {Number(line.expenses_included) > 0 && (
+                            <span className="mt-0.5 block text-right text-[11px] text-text-faint">
+                              labour £{((Number(line.unit_cost) || 0) - Number(line.expenses_included)).toFixed(2)} ·{' '}
+                              <button
+                                type="button"
+                                title="Add the expenses on top of the current unit cost (e.g. after picking a rate-card rate)"
+                                onClick={() =>
+                                  updateLine(line.key, {
+                                    unit_cost: ((Number(line.unit_cost) || 0) + Number(line.expenses_included)).toFixed(2),
+                                  })
+                                }
+                                className="text-accent hover:underline"
+                              >
+                                add to rate
+                              </button>
+                            </span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5 text-right text-text-muted">{lineTotal(line).toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-right">
                           <button
@@ -702,7 +740,7 @@ export default function QuoteForm() {
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan={7} className="px-2 py-2 text-right text-xs font-mono-label text-text-dim">
+                      <td colSpan={8} className="px-2 py-2 text-right text-xs font-mono-label text-text-dim">
                         Lines total
                       </td>
                       <td className="px-2 py-2 text-right text-sm font-semibold text-text">£{linesTotal.toFixed(2)}</td>
