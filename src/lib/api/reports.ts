@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import { unwrap } from './_shared'
+import { fetchAllRows, unwrap } from './_shared'
 
 // Data for Reports (Reports area). Lines are fetched in batches of ids so a
 // year of invoices doesn't make one enormous request.
@@ -39,4 +39,19 @@ export async function listQuoteLinesFor(quoteIds: string[]): Promise<QuoteLineAm
   return inBatches(quoteIds, async (batch) =>
     unwrap(await supabase.from('quote_lines').select('quote_id, line_type, qty, unit_cost, line_total, expenses_included').in('quote_id', batch)),
   )
+}
+
+// When each invoice was paid: the latest recorded payment date (rebate quarters
+// go by payment received).
+export async function listPaymentDates(): Promise<Map<string, string>> {
+  const rows = await fetchAllRows<{ invoice_id: string; payment_date: string | null }>((from, to) =>
+    supabase.from('payments').select('invoice_id, payment_date').order('id').range(from, to),
+  )
+  const paid = new Map<string, string>()
+  for (const r of rows) {
+    if (!r.payment_date) continue
+    const current = paid.get(r.invoice_id)
+    if (!current || r.payment_date > current) paid.set(r.invoice_id, r.payment_date)
+  }
+  return paid
 }

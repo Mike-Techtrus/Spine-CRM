@@ -5,6 +5,7 @@ import {
   listInvoiceLinesFor,
   listInvoices,
   listLineTypes,
+  listPaymentDates,
   listQuoteLinesFor,
 } from '../../../lib/api'
 import { INVOICE_STATUS_LABELS, type Account, type InvoiceStatus, type InvoiceWithRelations, type LineType } from '../../../lib/types'
@@ -65,16 +66,22 @@ function shortDate(d: string | null) {
 interface Result {
   invoice: InvoiceWithRelations
   row: RebateRow
+  paidOn: string | null
 }
+
+// CDW's rebate quarters go by when the payment was received (credit note CN78).
+type DateBasis = 'payment' | 'invoice'
 
 export default function RebateReport() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [lineTypes, setLineTypes] = useState<LineType[]>([])
   const [invoices, setInvoices] = useState<InvoiceWithRelations[] | null>(null)
+  const [paidOn, setPaidOn] = useState<Map<string, string>>(new Map())
   const [error, setError] = useState<string | null>(null)
 
   // Conditions
   const lastQuarter = periods()[3]
+  const [dateBasis, setDateBasis] = useState<DateBasis>('payment')
   const [clientId, setClientId] = useState('')
   const [endClientId, setEndClientId] = useState('')
   const [from, setFrom] = useState(lastQuarter.from)
@@ -94,7 +101,8 @@ export default function RebateReport() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [acc, types, inv] = await Promise.all([listAccounts(), listLineTypes(), listInvoices()])
+        const [acc, types, inv, paid] = await Promise.all([listAccounts(), listLineTypes(), listInvoices(), listPaymentDates()])
+        setPaidOn(paid)
         setAccounts(acc)
         setLineTypes(types)
         setInvoices(inv)
@@ -118,6 +126,18 @@ export default function RebateReport() {
   }
 
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? ''
+  const paidWithoutDate = useMemo(
+    () =>
+      (invoices ?? []).filter(
+        (i) =>
+          i.status === 'paid' &&
+          !paidOn.has(i.id) &&
+          (!clientId || i.client_id === clientId) &&
+          (!endClientId || i.end_client_id === endClientId) &&
+          (i.invoice_date ?? '') >= '2026-01-01',
+      ).length,
+    [invoices, paidOn, clientId, endClientId],
+  )
   const usedAsEndClient = useMemo(() => {
     const ids = new Set((invoices ?? []).filter((i) => !clientId || i.client_id === clientId).map((i) => i.end_client_id))
     return accounts.filter((a) => ids.has(a.id))
@@ -128,15 +148,20 @@ export default function RebateReport() {
     setRunning(true)
     setError(null)
     try {
-      const chosen = invoices.filter(
-        (i) =>
+      // Payment basis: invoices whose payment was received in the period (any status).
+      // Invoice basis: invoice date in the period, with the chosen statuses.
+      const dateOf = (i: InvoiceWithRelations) => (dateBasis === 'payment' ? (paidOn.get(i.id) ?? null) : i.invoice_date)
+      const chosen = invoices.filter((i) => {
+        const d = dateOf(i)
+        return (
           (!clientId || i.client_id === clientId) &&
           (!endClientId || i.end_client_id === endClientId) &&
-          statuses.includes(i.status) &&
-          i.invoice_date !== null &&
-          i.invoice_date >= from &&
-          i.invoice_date <= to,
-      )
+          (dateBasis === 'payment' || statuses.includes(i.status)) &&
+          d !== null &&
+          d >= from &&
+          d <= to
+        )
+      })
       const invoiceLines = await listInvoiceLinesFor(chosen.map((i) => i.id))
       const linesByInvoice = new Map<string, ReportLine[]>()
       for (const l of invoiceLines) {
@@ -173,6 +198,7 @@ export default function RebateReport() {
         chosen
           .map((invoice) => ({
             invoice,
+            paidOn: paidOn.get(invoice.id) ?? null,
             row: rebateRow(
               {
                 id: invoice.id,
@@ -183,7 +209,7 @@ export default function RebateReport() {
               conditions,
             ),
           }))
-          .sort((a, b) => (a.invoice.invoice_date ?? '').localeCompare(b.invoice.invoice_date ?? '') || a.invoice.invoice_number.localeCompare(b.invoice.invoice_number)),
+          .sort((a, b) => a.invoice.invoice_number.localeCompare(b.invoice.invoice_number)),
       )
       setRanWith(describeConditions())
     } catch (err) {
@@ -197,8 +223,8 @@ export default function RebateReport() {
     const parts = [
       clientId ? accountName(clientId) : 'All clients',
       endClientId ? `end client ${accountName(endClientId)}` : null,
-      `invoice dates ${shortDate(from)} – ${shortDate(to)}`,
-      `status ${statuses.map((s) => INVOICE_STATUS_LABELS[s]).join('/')}`,
+      `${dateBasis === 'payment' ? 'payment received' : 'invoice dates'} ${shortDate(from)} – ${shortDate(to)}`,
+      dateBasis === 'invoice' ? `status ${statuses.map((s) => INVOICE_STATUS_LABELS[s]).join('/')}` : null,
       `${ratePercent}% on ${[...eligibleTypes, ...(includeOther ? ['no/other line type'] : [])].join(', ') || 'nothing'}`,
       `invoices without lines: ${NO_LINES_OPTIONS.find((o) => o.value === noLines)?.label.toLowerCase()}`,
       excludeBundled ? 'bundled expenses left out' : 'bundled expenses included',
@@ -212,7 +238,7 @@ export default function RebateReport() {
     const map = new Map<string, { value: number; eligible: number; rebate: number; count: number }>()
     for (const r of results ?? []) {
       if (r.row.basis === 'excluded') continue
-      const k = (r.invoice.invoice_date ?? '').slice(0, 7)
+      const k = ((dateBasis === 'payment' ? r.paidOn : r.invoice.invoice_date) ?? '').slice(0, 7)
       const m = map.get(k) ?? { value: 0, eligible: 0, rebate: 0, count: 0 }
       m.value += r.row.value
       m.eligible += r.row.eligible
@@ -221,17 +247,18 @@ export default function RebateReport() {
       map.set(k, m)
     }
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
-  }, [results])
+  }, [results, dateBasis])
 
   function exportExcel() {
     if (!results) return
     downloadXlsx(
       `Rebate report ${from} to ${to}`,
       'Rebate',
-      ['Invoice', 'Invoice date', 'Client', 'End client', 'Sales order', 'Status', 'Value ex VAT', 'Bundled expenses left out', 'Earns rebate', 'Worked out from', 'Rebate'],
-      results.map(({ invoice: i, row }) => [
+      ['Invoice', 'Invoice date', 'Payment received', 'Client', 'End client', 'Sales order', 'Status', 'Value ex VAT', 'Bundled expenses left out', 'Earns rebate', 'Worked out from', 'Rebate'],
+      results.map(({ invoice: i, row, paidOn: paid }) => [
         i.invoice_number,
         i.invoice_date,
+        paid,
         i.client?.name ?? '',
         i.end_client?.name ?? '',
         i.sales_order?.reference ?? '',
@@ -286,7 +313,17 @@ export default function RebateReport() {
             </div>
 
             <div className="md:col-span-3">
-              <Label>Invoice dates</Label>
+              <div className="mb-1 flex flex-wrap items-center gap-4 text-sm text-text-muted">
+                <span className="text-xs font-mono-label text-text-dim">Period is by</span>
+                <label className="flex items-center gap-1.5">
+                  <input type="radio" name="basis" checked={dateBasis === 'payment'} onChange={() => setDateBasis('payment')} />
+                  Payment received (how CDW credit notes work)
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input type="radio" name="basis" checked={dateBasis === 'invoice'} onChange={() => setDateBasis('invoice')} />
+                  Invoice date
+                </label>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-auto" />
                 <span className="text-text-muted">to</span>
@@ -309,8 +346,8 @@ export default function RebateReport() {
               </div>
             </div>
 
-            <div>
-              <Label>Invoice status</Label>
+            <div className={dateBasis === 'payment' ? 'opacity-50' : ''}>
+              <Label>Invoice status{dateBasis === 'payment' ? ' (not used — every paid invoice counts)' : ''}</Label>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                 {STATUSES.map((s) => (
                   <label key={s} className="flex items-center gap-1.5">
@@ -368,6 +405,13 @@ export default function RebateReport() {
               </>
             )}
           </div>
+          {dateBasis === 'payment' && paidWithoutDate > 0 && (
+            <p className="mt-3 text-xs text-warning">
+              {paidWithoutDate} invoice{paidWithoutDate === 1 ? ' is' : 's are'} marked Paid (since January 2026) with no payment date
+              recorded, so {paidWithoutDate === 1 ? 'it' : 'they'} can&apos;t be placed in a period. Record the payment on the invoice
+              (Payments → date received) and {paidWithoutDate === 1 ? 'it' : 'they'}&apos;ll be picked up.
+            </p>
+          )}
           <p className="mt-3 text-xs text-text-faint">
             Rebate is worked out afresh for each invoice: the rate × the value of its lines whose line type earns rebate.
             Older invoices with no lines of their own can take the same share as their quote&apos;s lines. Amounts are ex
@@ -425,7 +469,8 @@ export default function RebateReport() {
                 <thead className="bg-surface-raised text-left text-xs font-mono-label text-text-muted">
                   <tr>
                     <th className="px-3 py-2">Invoice</th>
-                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Invoice date</th>
+                    <th className="px-3 py-2">Paid</th>
                     <th className="px-3 py-2">Client / end client</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2 text-right">Value ex VAT</th>
@@ -437,12 +482,12 @@ export default function RebateReport() {
                 <tbody>
                   {results.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-6 text-center text-text-muted">
+                      <td colSpan={9} className="px-4 py-6 text-center text-text-muted">
                         No invoices match these conditions.
                       </td>
                     </tr>
                   ) : (
-                    results.map(({ invoice: i, row }) => (
+                    results.map(({ invoice: i, row, paidOn: paid }) => (
                       <tr key={i.id} className={`border-t border-border ${row.basis === 'excluded' ? 'opacity-50' : ''}`}>
                         <td className="whitespace-nowrap px-3 py-2">
                           <Link to={`/staff/invoices/${i.id}`} className="font-mono-label text-accent hover:underline">
@@ -451,6 +496,7 @@ export default function RebateReport() {
                           {i.sales_order && <span className="block text-xs text-text-faint">{i.sales_order.reference}</span>}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-text-muted">{shortDate(i.invoice_date)}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-text-muted">{shortDate(paid)}</td>
                         <td className="px-3 py-2 text-text-muted">
                           {i.client?.name ?? '—'}
                           {i.end_client && <span className="block text-xs text-text-faint">{i.end_client.name}</span>}

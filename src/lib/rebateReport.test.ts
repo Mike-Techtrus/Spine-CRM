@@ -37,7 +37,7 @@ describe('rebateRow', () => {
       },
       standard,
     )
-    expect(row).toEqual({ id: 'a', value: 1250, eligible: 1000, rebate: 75, basis: 'lines', share: null, expensesExcluded: 0 })
+    expect(row).toEqual({ id: 'a', value: 1250, eligible: 1000, rebate: 75, rebateExact: 75, basis: 'lines', share: null, expensesExcluded: 0 })
   })
 
   it('uses the quote’s mix of lines for invoices with none', () => {
@@ -127,5 +127,22 @@ describe('bundled expenses (0047)', () => {
       standard,
     )
     expect(row).toMatchObject({ eligible: 0, expensesExcluded: 0 })
+  })
+})
+
+describe('rounding like the CDW credit note', () => {
+  it('rounds the total once, not invoice by invoice', () => {
+    // three invoices each £0.15 × 7.5% = 1.125p → 1p each shown, but 3.375p → 3p in total
+    const rows = [1, 2, 3].map((n) =>
+      rebateRow({ id: String(n), value: 0.15, lines: [{ line_type: 'Resource', amount: 0.15 }], quoteLines: [] }, standard),
+    )
+    expect(rows.map((r) => r.rebate)).toEqual([0.01, 0.01, 0.01])
+    expect(rebateTotals(rows).rebate).toBe(0.03)
+    // and a case where the two differ: 4 × £0.10 → 0.75p each (1p shown), 3p in total
+    const four = [1, 2, 3, 4].map((n) =>
+      rebateRow({ id: String(n), value: 0.1, lines: [{ line_type: 'Resource', amount: 0.1 }], quoteLines: [] }, standard),
+    )
+    expect(four.reduce((s, r) => s + r.rebate, 0)).toBeCloseTo(0.04)
+    expect(rebateTotals(four).rebate).toBe(0.03)
   })
 })

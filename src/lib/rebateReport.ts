@@ -36,7 +36,8 @@ export interface RebateRow {
   id: string
   value: number
   eligible: number
-  rebate: number
+  rebate: number // to the penny, for showing per invoice
+  rebateExact: number // unrounded, so the total is rounded once at the end (as CDW's credit notes are)
   basis: Basis
   share: number | null // eligible ÷ value, for the quote-share basis
   expensesExcluded: number // bundled expenses left out of the amount that earns rebate
@@ -64,21 +65,21 @@ export function rebateRow(inv: ReportInvoice, c: RebateConditions): RebateRow {
   if (inv.lines.length > 0) {
     const e = earning(inv.lines, c)
     const eligible = round2(e.amount)
-    return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'lines', share: null, expensesExcluded: round2(e.expenses) }
+    return { id: inv.id, value: inv.value, eligible, rebate: round2(e.amount * c.rate), rebateExact: e.amount * c.rate, basis: 'lines', share: null, expensesExcluded: round2(e.expenses) }
   }
   if (c.noLines === 'exclude')
-    return { id: inv.id, value: inv.value, eligible: 0, rebate: 0, basis: 'excluded', share: null, expensesExcluded: 0 }
+    return { id: inv.id, value: inv.value, eligible: 0, rebate: 0, rebateExact: 0, basis: 'excluded', share: null, expensesExcluded: 0 }
   if (c.noLines === 'quote_share' && inv.quoteLines.length > 0) {
     const total = sum(inv.quoteLines)
     const e = earning(inv.quoteLines, c)
     const share = total > 0 ? e.amount / total : 0
     const eligible = round2(inv.value * share)
     const expensesExcluded = total > 0 ? round2((inv.value * e.expenses) / total) : 0
-    return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'quote_share', share, expensesExcluded }
+    return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), rebateExact: eligible * c.rate, basis: 'quote_share', share, expensesExcluded }
   }
   // Whole value — chosen, or no quote lines to work a share out from.
   const eligible = round2(inv.value)
-  return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), basis: 'whole_value', share: null, expensesExcluded: 0 }
+  return { id: inv.id, value: inv.value, eligible, rebate: round2(eligible * c.rate), rebateExact: eligible * c.rate, basis: 'whole_value', share: null, expensesExcluded: 0 }
 }
 
 export function rebateTotals(rows: RebateRow[]) {
@@ -87,6 +88,6 @@ export function rebateTotals(rows: RebateRow[]) {
     value: round2(rows.reduce((s, r) => s + r.value, 0)),
     eligible: round2(rows.reduce((s, r) => s + r.eligible, 0)),
     expensesExcluded: round2(rows.reduce((s, r) => s + r.expensesExcluded, 0)),
-    rebate: round2(rows.reduce((s, r) => s + r.rebate, 0)),
+    rebate: round2(rows.reduce((s, r) => s + r.rebateExact, 0)),
   }
 }
