@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
+  addPoNumberToInvoices,
   addSalesOrderToProject,
   createProjectFromSalesOrder,
   createSalesOrder,
@@ -28,7 +29,9 @@ import {
   INVOICE_STATUS_LABELS,
   INVOICING_STATUS_BADGE,
   INVOICING_STATUS_LABELS,
+  hasRealPoNumber,
   invoicingStatus,
+  poStatus,
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
@@ -200,6 +203,21 @@ export default function SalesOrderForm() {
       let savedId = id
       if (isEditing && id) {
         await updateSalesOrder(id, input)
+        const po = form.po_number.trim()
+        const missing = invoices.filter((i) => !hasRealPoNumber(i.po_number) && (i.status === 'draft' || i.status === 'sent'))
+        if (
+          hasRealPoNumber(po) &&
+          missing.length > 0 &&
+          window.confirm(
+            `Add PO ${po} to ${missing.length === 1 ? 'invoice' : 'invoices'} ${missing.map((i) => i.invoice_number).join(', ')}? ` +
+              `${missing.length === 1 ? 'It was' : 'They were'} raised before the PO number was on this order.`,
+          )
+        ) {
+          await addPoNumberToInvoices(
+            missing.map((i) => i.id),
+            po,
+          )
+        }
       } else {
         const created = await createSalesOrder(input)
         savedId = created.id
@@ -437,7 +455,12 @@ export default function SalesOrderForm() {
           total={n(form.total)}
           onUseFigures={(r) => {
             const figs = figuresFromReading(r, n(form.quote_value))
-            setForm((f) => ({ ...f, ...figs, advanced_without_po: figs.po_number ? false : f.advanced_without_po }))
+            // Leaves "Proceeding without a PO" as it is — it records that the order went ahead early.
+            setForm((f) => ({
+              ...f,
+              ...figs,
+              po_received_date: f.po_received_date || (figs.po_number ? new Date().toISOString().slice(0, 10) : ''),
+            }))
           }}
         />
       )}
@@ -478,7 +501,7 @@ export default function SalesOrderForm() {
               <Input
                 value={form.po_number}
                 onChange={(e) => setForm({ ...form, po_number: e.target.value })}
-                disabled={form.advanced_without_po}
+                placeholder={form.advanced_without_po ? 'Enter it when the PO arrives' : undefined}
               />
             </div>
             <div>
@@ -487,7 +510,6 @@ export default function SalesOrderForm() {
                 type="date"
                 value={form.po_received_date}
                 onChange={(e) => setForm({ ...form, po_received_date: e.target.value })}
-                disabled={form.advanced_without_po}
               />
             </div>
           </div>
@@ -497,17 +519,19 @@ export default function SalesOrderForm() {
               <input
                 type="checkbox"
                 checked={form.advanced_without_po}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    advanced_without_po: e.target.checked,
-                    po_number: e.target.checked ? '' : form.po_number,
-                    po_received_date: e.target.checked ? '' : form.po_received_date,
-                  })
-                }
+                onChange={(e) => setForm({ ...form, advanced_without_po: e.target.checked })}
               />
               Proceeding without a PO
             </label>
+            {form.advanced_without_po && (
+              <p
+                className={`mt-2 text-sm ${poStatus(form) === 'outstanding' ? 'text-warning' : 'text-text-muted'}`}
+              >
+                {poStatus(form) === 'outstanding'
+                  ? 'PO outstanding. When it arrives, enter the PO number and received date above (and attach it under PO copy). Leave this box ticked — it keeps the record that the work went ahead first.'
+                  : `Went ahead without a PO; PO received${form.po_received_date ? ' ' + new Date(form.po_received_date).toLocaleDateString('en-GB') : ''}.`}
+              </p>
+            )}
             {form.advanced_without_po && (
               <div className="mt-2">
                 <Label>Exception notes (who approved proceeding without a PO, and why)</Label>
@@ -924,7 +948,7 @@ function PoReadingPanel({
         </Button>
         <span className="text-xs text-text-faint">
           {used
-            ? 'PO number, PO value, difference and "Quote matches PO" are filled in below — check them, then save.'
+            ? 'PO number, PO value, difference, "Quote matches PO" and (if blank) the received date are filled in below — check them, then save.'
             : `Read by AI${file.ai_read_at ? ' ' + new Date(file.ai_read_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''} — always check against the PO itself.`}
         </span>
       </div>

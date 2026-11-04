@@ -29,6 +29,10 @@ const CHECKS: Record<string, { title: string; fix: string; canClose?: boolean }>
     canClose: true,
   },
   so_no_quote: { title: 'Sales orders not linked to a quote', fix: 'Link the order to its quote, or dismiss if there wasn’t one.' },
+  so_po_outstanding: {
+    title: 'Sales orders that went ahead without a PO — PO still outstanding',
+    fix: 'Chase the customer for the PO. When it arrives, enter the PO number and received date on the order and attach it under PO copy (leave "Proceeding without a PO" ticked). Spine offers to add the PO number to any invoices already raised.',
+  },
   inv_no_sales_order: {
     title: 'Invoices not linked to a sales order',
     fix: 'Link each to its sales order so invoiced-to-date is right. Very old ones (2018–19) may predate sales orders — dismiss those.',

@@ -79,16 +79,22 @@ export function SalesOrdersGuide() {
           the PO value, total, PO number and quote reference match — <strong>Use these figures</strong> fills them in for you to
           check and save.
         </GuideStep>
-        <GuideStep n={2} title="Day-rate work? Create a project">
+        <GuideStep n={2} title="Went ahead without a PO?">
+          Tick <strong>Proceeding without a PO</strong> and note who approved it. The order shows{' '}
+          <strong>PO: Outstanding</strong> and appears in Admin → Data checks until the PO arrives. When it does, enter the PO
+          number and received date (or attach it and use <strong>Check with AI</strong>) and save — leave the box ticked so the
+          record stays. Spine offers to add the PO number to any draft or sent invoices already raised.
+        </GuideStep>
+        <GuideStep n={3} title="Day-rate work? Create a project">
           Press <strong>Create project</strong> to set up the timesheet lines from the quote, so people can be assigned and
           log their days against it. Extra days for a project that already exists? Use{' '}
           <strong>Add to existing project</strong> instead.
         </GuideStep>
-        <GuideStep n={3} title="Invoice against it">
+        <GuideStep n={4} title="Invoice against it">
           Press <strong>Create Invoice from this Sales Order</strong> for fixed-price or one-off invoices. For day-rate
           work, invoice from the project instead (approved timesheet days).
         </GuideStep>
-        <GuideStep n={4} title="Close it when finished">
+        <GuideStep n={5} title="Close it when finished">
           The <em>Invoicing</em> panel shows how much is left to invoice (ex VAT). When nothing more will be invoiced, use{' '}
           <strong>Close sales order</strong> with a reason — <strong>Reopen</strong> undoes it.
         </GuideStep>

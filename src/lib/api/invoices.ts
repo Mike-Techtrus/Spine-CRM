@@ -27,18 +27,30 @@ export async function getInvoice(id: string): Promise<InvoiceWithRelations> {
 // A sales order's invoices, oldest first — for the list on the Sales Order page.
 export type SalesOrderInvoice = Pick<
   Invoice,
-  'id' | 'invoice_number' | 'invoice_date' | 'due_date' | 'status' | 'value' | 'total'
+  'id' | 'invoice_number' | 'invoice_date' | 'due_date' | 'status' | 'value' | 'total' | 'po_number'
 >
 
 export async function listInvoicesForSalesOrder(salesOrderId: string): Promise<SalesOrderInvoice[]> {
   return unwrap(
     await supabase
       .from('invoices')
-      .select('id, invoice_number, invoice_date, due_date, status, value, total')
+      .select('id, invoice_number, invoice_date, due_date, status, value, total, po_number')
       .eq('sales_order_id', salesOrderId)
       .order('invoice_date', { ascending: true, nullsFirst: false })
       .order('invoice_number'),
   )
+}
+
+// A PO that arrived after invoicing started goes onto the order's earlier
+// invoices that have no PO number (drafts and sent ones — not paid or cancelled).
+export async function addPoNumberToInvoices(invoiceIds: string[], poNumber: string): Promise<void> {
+  if (invoiceIds.length === 0) return
+  const { error } = await supabase
+    .from('invoices')
+    .update({ po_number: poNumber })
+    .in('id', invoiceIds)
+    .in('status', ['draft', 'sent'])
+  if (error) throw new Error(error.message)
 }
 
 export type InvoiceInput = Omit<Invoice, 'id' | 'invoice_number' | 'created_at' | 'updated_at'>

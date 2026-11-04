@@ -607,6 +607,36 @@ export const INVOICING_STATUS_BADGE: Record<InvoicingStatus, string> = {
 
 const INVOICING_TOLERANCE = 0.05
 
+// Where a sales order's PO stands (0053). Going ahead without a PO stays
+// recorded after the PO arrives, so "received late" is its own state.
+export type PoStatus = 'received' | 'received_late' | 'outstanding' | 'missing'
+
+export const PO_STATUS_LABELS: Record<PoStatus, string> = {
+  received: 'Received',
+  received_late: 'Received late',
+  outstanding: 'Outstanding',
+  missing: 'No PO',
+}
+
+export const PO_STATUS_BADGE: Record<PoStatus, string> = {
+  received: 'approved',
+  received_late: 'approved',
+  outstanding: 'submitted',
+  missing: 'rejected',
+}
+
+// Blank, or a stand-in like "TBC" typed while waiting for the PO.
+export function hasRealPoNumber(po: string | null | undefined): boolean {
+  const v = (po ?? '').trim()
+  return v !== '' && !/^(tbc|tba|tbd|n\/?a|none|pending|-+)$/i.test(v)
+}
+
+export function poStatus(so: Pick<SalesOrder, 'po_number' | 'advanced_without_po'>): PoStatus {
+  const hasPo = hasRealPoNumber(so.po_number)
+  if (so.advanced_without_po) return hasPo ? 'received_late' : 'outstanding'
+  return hasPo ? 'received' : 'missing'
+}
+
 // A sales order's value ex VAT: Total − VAT (= the PO value in practice), or
 // the PO / quote value when there's no Total yet.
 export function salesOrderValueExVat(so: Pick<SalesOrder, 'total' | 'vat' | 'po_value' | 'quote_value'>): number {

@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listSalesOrders } from '../../lib/api'
 import type { SalesOrderWithRelations } from '../../lib/types'
-import { INVOICING_STATUS_BADGE, INVOICING_STATUS_LABELS, invoicingStatus, salesOrderValueExVat } from '../../lib/types'
+import {
+  INVOICING_STATUS_BADGE,
+  INVOICING_STATUS_LABELS,
+  invoicingStatus,
+  PO_STATUS_BADGE,
+  PO_STATUS_LABELS,
+  poStatus,
+  salesOrderValueExVat,
+} from '../../lib/types'
 import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
 import ColumnPicker from '../../components/ColumnPicker'
@@ -47,6 +55,16 @@ const COLUMNS: TableColumn<SalesOrderWithRelations>[] = [
   { key: 'client', label: 'Client', value: (o) => o.client?.name ?? '', cellClassName: 'text-text' },
   { key: 'end_client', label: 'End client', value: (o) => o.end_client?.name ?? '' },
   { key: 'po_number', label: 'PO number', value: (o) => o.po_number ?? '' },
+  {
+    key: 'po_status',
+    label: 'PO',
+    value: (o) => PO_STATUS_LABELS[poStatus(o)],
+    render: (o) => {
+      const s = poStatus(o)
+      return <StatusBadge status={PO_STATUS_BADGE[s]} label={PO_STATUS_LABELS[s]} />
+    },
+    filterOptions: Object.values(PO_STATUS_LABELS).map((label) => ({ value: label, label })),
+  },
   date('po_received_date', 'PO received'),
   {
     key: 'advanced_without_po',

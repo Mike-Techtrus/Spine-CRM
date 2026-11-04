@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkPo, figuresFromReading, poValueExVat, sameReference, type PoReading } from './poCheck'
+import { hasRealPoNumber, poStatus } from './types'
 
 const reading = (over: Partial<PoReading> = {}): PoReading => ({
   is_purchase_order: true,
@@ -67,4 +68,20 @@ describe('figuresFromReading', () => {
     }))
   it('leaves out what the PO does not show', () =>
     expect(figuresFromReading(reading({ po_number: null, value_ex_vat: null, vat: null }), 2675)).toEqual({}))
+})
+
+describe('poStatus', () => {
+  it('tells received, received late, outstanding and missing apart', () => {
+    expect(poStatus({ po_number: '123', advanced_without_po: false })).toBe('received')
+    expect(poStatus({ po_number: '123', advanced_without_po: true })).toBe('received_late')
+    expect(poStatus({ po_number: ' ', advanced_without_po: true })).toBe('outstanding')
+    expect(poStatus({ po_number: null, advanced_without_po: false })).toBe('missing')
+  })
+})
+
+describe('hasRealPoNumber', () => {
+  it('treats stand-ins as no PO yet', () => {
+    for (const v of ['TBC', ' tba ', 'N/A', 'na', '-', '', null]) expect(hasRealPoNumber(v)).toBe(false)
+    expect(hasRealPoNumber('4500123')).toBe(true)
+  })
 })
