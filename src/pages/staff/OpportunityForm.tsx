@@ -1,4 +1,5 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   createOpportunity,
@@ -122,6 +123,7 @@ export default function OpportunityForm() {
       } else {
         await createOpportunity(input)
       }
+      showToast(isEditing && opportunityNumber ? `Opportunity ${opportunityNumber} saved` : 'Opportunity created')
       allowNextNavigation()
       navigate('/staff/opportunities')
     } catch (err) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { showToast } from '../Toast'
 import {
   addContractorSkill,
   CV_ACCEPT,
@@ -370,6 +371,7 @@ export function SkillsCard({
     if (!editingId) return
     if (await run(() => updateContractorSkill(editingId, toInput(editForm)), 'Failed to save skill.')) {
       setEditingId(null)
+      showToast('Skill saved')
     }
   }
 

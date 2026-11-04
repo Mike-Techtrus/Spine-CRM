@@ -1,4 +1,5 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { PricedLineItem, QuoteLineInput } from '../../lib/api'
 import {
@@ -385,6 +386,7 @@ export default function QuoteForm() {
       if (savedId) {
         await replaceQuoteLines(savedId, lines.map(toLineInput))
       }
+      showToast(isEditing && quoteNumber ? `Quote ${quoteNumber} saved` : 'Quote created')
       allowNextNavigation()
       navigate('/staff/quotes')
     } catch (err) {

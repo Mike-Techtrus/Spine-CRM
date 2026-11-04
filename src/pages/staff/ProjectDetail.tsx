@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { showToast } from '../../components/Toast'
 import {
   addProjectAssignment,
   createInvoiceFromTimesheets,
@@ -528,6 +529,7 @@ function DetailsCard({
         notes: form.notes.trim() || null,
       })
       onSaved()
+      showToast('Project saved')
     } catch (err) {
       onError(errorMessage(err, 'Failed to save project.'))
     } finally {

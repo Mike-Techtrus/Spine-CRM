@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   createSkillRequest,
@@ -218,6 +219,7 @@ function MyDetailsCard({
       onSaved(updated)
       setForm(toForm(updated))
       setSaved(true)
+      showToast('Your details are saved')
     } catch (err) {
       onError(errorMessage(err, 'Failed to save your details.'))
     } finally {
@@ -317,6 +319,7 @@ function SkillRequestsCard({
         details: form.details.trim() || null,
       })
       setForm(emptyRequest)
+      showToast('Skill request sent')
       onChanged()
     } catch (err) {
       onError(errorMessage(err, 'Failed to send your request.'))

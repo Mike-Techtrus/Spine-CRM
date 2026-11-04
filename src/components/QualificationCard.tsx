@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { showToast } from './Toast'
 import { Link } from 'react-router-dom'
 import { getOpportunity, listIntakeForOpportunity, saveOpportunityQualification, type IntakeItem } from '../lib/api'
 import { JOB_TYPE_LABELS, qualificationProgress, type Qualification, type QualificationItem } from '../lib/intake'
@@ -84,6 +85,7 @@ export default function QualificationCard({ opportunityId }: { opportunityId: st
       await saveOpportunityQualification(opportunityId, next)
       setSheet(next)
       setEditing(null)
+      showToast('Qualification saved')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.')
     } finally {

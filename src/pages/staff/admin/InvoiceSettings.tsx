@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { showToast } from '../../../components/Toast'
 import { getCompanySettings, updateCompanySettings } from '../../../lib/api'
 import type { CompanySettings } from '../../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Textarea } from '../../../components/ui'
@@ -66,6 +67,7 @@ export default function InvoiceSettings() {
       setSaved(next)
       setForm(next)
       setJustSaved(true)
+      showToast('Invoice settings saved')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.')
     } finally {

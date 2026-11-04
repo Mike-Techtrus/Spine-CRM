@@ -1,4 +1,5 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -105,6 +106,7 @@ export default function TimesheetForm() {
       if (submit && savedId) {
         await submitTimesheet(savedId)
       }
+      showToast(submit ? 'Timesheet submitted' : 'Timesheet saved')
 
       allowNextNavigation()
       navigate('/my/timesheets')

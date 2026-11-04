@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { getFieldEngineer, listContractorSkills, listSkillCategories, listSkills, updateFieldEngineer } from '../../lib/api'
 import {
@@ -153,6 +154,7 @@ function DetailsCard({
         postcode: form.postcode.trim().toUpperCase() || null,
       })
       onSaved(saved)
+      showToast(`${saved.name} saved`)
       // Show what was stored (trimmed, postcode in capitals) so the form isn't left "unsaved".
       setForm(toDetailsForm(saved))
     } catch (err) {

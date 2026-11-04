@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { createAccount, listAccounts, listRateCards, updateAccount } from '../../lib/api'
 import type { Account, RateCard } from '../../lib/types'
 import { Button, Card, ErrorText, FilterCell, FilterSummary, Input, SearchInput, Select, Th } from '../../components/ui'
@@ -221,6 +222,7 @@ export default function Accounts() {
       await updateAccount(editing.id, toInput(editForm))
       setEditing(null)
       await refresh()
+      showToast(`${editForm.name.trim()} saved`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save account.')
     } finally {

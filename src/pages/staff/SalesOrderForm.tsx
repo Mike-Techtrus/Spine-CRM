@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   addPoNumberToInvoices,
@@ -222,6 +223,7 @@ export default function SalesOrderForm() {
         const created = await createSalesOrder(input)
         savedId = created.id
       }
+      showToast(isEditing && reference ? `Sales order ${reference} saved` : 'Sales order created')
       allowNextNavigation()
       navigate(`/staff/sales-orders/${savedId}`)
     } catch (err) {

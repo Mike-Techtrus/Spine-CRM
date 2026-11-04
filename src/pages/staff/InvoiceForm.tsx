@@ -1,4 +1,5 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
+import { showToast } from '../../components/Toast'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   createInvoice,
@@ -259,6 +260,7 @@ export default function InvoiceForm() {
       if (savedId) await replaceInvoiceLines(savedId, lines.map(toLineInput))
       setInitialSnapshot(JSON.stringify(form))
       setInitialLines(linesSnapshot(lines))
+      showToast(isEditing && invoiceNumber ? `Invoice ${invoiceNumber} saved` : 'Invoice created')
       allowNextNavigation()
       navigate(`/staff/invoices/${savedId}`)
     } catch (err) {

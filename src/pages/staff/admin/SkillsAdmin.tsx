@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { showToast } from '../../../components/Toast'
 import {
   countSkillUsage,
   createSkill,
@@ -121,6 +122,7 @@ export default function SkillsAdmin() {
       'Failed to save skill.',
     )
     if (ok) setEditing(null)
+    if (ok) showToast('Skill saved')
   }
 
   function removeSkill(s: Skill) {

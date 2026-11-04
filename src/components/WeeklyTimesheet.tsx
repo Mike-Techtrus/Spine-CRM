@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { showToast } from './Toast'
 import {
   createProjectTimesheet,
   deleteTimesheet,
@@ -204,6 +205,7 @@ export default function WeeklyTimesheet({
       await load()
       onChanged()
       setMessage('Saved as draft.')
+      showToast('Timesheet saved as draft')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.')
       await load()
@@ -228,6 +230,7 @@ export default function WeeklyTimesheet({
         await submitTimesheets(drafts)
         const dayCount = `${days(draftDays)} day${draftDays === 1 ? '' : 's'}`
         setMessage(autoApproved ? `Submitted and approved ${dayCount}.` : `Submitted ${dayCount} for approval.`)
+        showToast(autoApproved ? `Submitted and approved ${dayCount}` : `Submitted ${dayCount} for approval`)
       }
       await load()
       onChanged()

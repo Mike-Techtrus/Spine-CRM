@@ -25,6 +25,8 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
 
 ## Recent work (as of late Oct 2026)
 
+- **"Saved" notifications** (no migration): `components/Toast.tsx`. Call `showToast('Quote T… saved')` from anywhere. `<Toaster />` sits in `App.tsx` outside the router, so the message survives the page change after a save. It shows bottom-right (bottom-centre on phones), disappears after 3.5 s, and is hidden in print. Used on every main save: Opportunities, Quotes, Sales Orders, Invoices, Customer Accounts, Projects, person profiles and skills, My Profile and skill requests, Skills admin, Invoice settings, Qualification sheets, and timesheets (weekly save and submit, single-day form). Use it on new save buttons too.
+
 - **Quote print tidy-up** (no migration, Nov 2026):
   - **Header:** white-background logo `public/techtrus-logo-print.png` (cropped from the old Excel quotes; also used on the invoice print), the Customer Opp Name (`opportunities.name`) centred, and the quote number on the right.
   - **Details:** Client / End client / Customer Opp # on the left; Quote / Start / End date right-aligned.
