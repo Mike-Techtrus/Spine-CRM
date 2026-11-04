@@ -81,8 +81,9 @@ export function QuotesGuide() {
           what earns rebate and what becomes a project line.
         </GuideStep>
         <GuideStep n={3} title="Day rates with travel built in">
-          If the customer sees one day rate that includes travel/subsistence, put the expenses part in{' '}
-          <strong>Incl. expenses (£)</strong>. It isn&apos;t printed, but keeps rebate and margin on the labour part only.
+          Each line shows <strong>Rate</strong> (from the rate card, or typed in) <strong>+ Expenses</strong> (travel/subsistence
+          per day) <strong>= Price</strong>. Only the Price is printed; keeping expenses separate means rebate and margin are on
+          the rate only.
         </GuideStep>
         <GuideStep n={4} title="Send it">
           <strong>Print / Export PDF</strong> gives the customer copy. Set the status to <em>Sent</em>. Quotes are valid
