@@ -45,6 +45,15 @@ type LocalLine = {
   expenses_included: string // per unit: bundled expenses inside unit_cost ('' = none) — 0047
 }
 
+// Print formatting: £7,130.00 and 04/11/2026.
+function printMoney(v: string | number | null | undefined): string {
+  return `£${Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function printDate(iso: string): string {
+  return iso ? new Date(iso).toLocaleDateString('en-GB') : '—'
+}
+
 function newLineKey(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `line-${Date.now()}-${Math.random()}`
 }
@@ -443,10 +452,15 @@ export default function QuoteForm() {
             </p>
           }
         >
-          <div className="mb-8 flex items-start justify-between border-b border-gray-300 pb-4">
+          {/* Header: logo | Customer Opp Name (the opportunity's name) | quote number. */}
+          <div className="mb-8 grid grid-cols-[1fr_auto_1fr] items-start gap-6 border-b border-gray-300 pb-4">
             <div>
-              <img src="/techtrus-logo.png" alt="Techtrus" className="h-8 w-auto" />
-              <p className="mt-2 text-xs text-gray-500">techtrus.co.uk</p>
+              <img src="/techtrus-logo-print.png" alt="Techtrus" className="h-20 w-auto" />
+            </div>
+            <div className="max-w-sm pt-1 text-center">
+              {sourceOpportunity?.name && (
+                <p className="text-base font-semibold text-black">{sourceOpportunity.name}</p>
+              )}
             </div>
             <div className="text-right">
               <h1 className="text-2xl font-semibold text-black">Quote {quoteNumber}</h1>
@@ -454,34 +468,35 @@ export default function QuoteForm() {
             </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-2 gap-x-8 gap-y-3 text-sm text-black">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Client</p>
-              <p>{accountName(form.client_id)}</p>
+          {/* Who it's for on the left, dates on the right. */}
+          <div className="mb-6 flex justify-between gap-8 text-sm text-black">
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Client</p>
+                <p>{accountName(form.client_id)}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">End client</p>
+                <p>{accountName(form.end_client_id)}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Customer Opp #</p>
+                <p>{sourceOpportunity?.customer_opportunity_number || '—'}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">End client</p>
-              <p>{accountName(form.end_client_id)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Opportunity</p>
-              <p>{sourceOpportunity ? `${sourceOpportunity.opportunity_number} — ${sourceOpportunity.name}` : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Customer Opp #</p>
-              <p>{sourceOpportunity?.customer_opportunity_number || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Quote date</p>
-              <p>{form.quote_date || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Start date</p>
-              <p>{form.start_date || '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">End date</p>
-              <p>{form.end_date || '—'}</p>
+            <div className="space-y-3 text-right">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Quote date</p>
+                <p>{printDate(form.quote_date)}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Start date</p>
+                <p>{printDate(form.start_date)}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">End date</p>
+                <p>{printDate(form.end_date)}</p>
+              </div>
             </div>
           </div>
 
@@ -508,8 +523,8 @@ export default function QuoteForm() {
                     <td className="py-1.5 pr-2">{line.description_2}</td>
                     <td className="py-1.5 pr-2">{line.vendor}</td>
                     <td className="py-1.5 pr-2 text-right">{line.qty}</td>
-                    <td className="py-1.5 pr-2 text-right">{Number(line.unit_cost || 0).toFixed(2)}</td>
-                    <td className="py-1.5 pl-2 text-right">{lineTotal(line).toFixed(2)}</td>
+                    <td className="py-1.5 pr-2 text-right">{printMoney(line.unit_cost).slice(1)}</td>
+                    <td className="py-1.5 pl-2 text-right">{printMoney(lineTotal(line)).slice(1)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -519,15 +534,15 @@ export default function QuoteForm() {
           <div className="mb-8 ml-auto w-64 text-sm text-black">
             <div className="flex justify-between py-1">
               <span className="text-gray-600">Value</span>
-              <span>£{form.value || '0.00'}</span>
+              <span>{printMoney(form.value)}</span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-gray-600">VAT</span>
-              <span>£{form.vat || '0.00'}</span>
+              <span>{printMoney(form.vat)}</span>
             </div>
             <div className="flex justify-between border-t border-gray-300 py-1 font-semibold">
               <span>Total</span>
-              <span>£{form.total || '0.00'}</span>
+              <span>{printMoney(form.total)}</span>
             </div>
           </div>
 

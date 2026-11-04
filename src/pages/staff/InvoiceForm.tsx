@@ -438,7 +438,7 @@ export default function InvoiceForm() {
               invoice fits on one page in landscape as well as portrait. */}
           <div className="mb-6 flex items-start justify-between gap-8">
             <div className="space-y-5">
-              <img src="/techtrus-logo.png" alt="Techtrus" className="h-14 w-auto" />
+              <img src="/techtrus-logo-print.png" alt="Techtrus" className="h-20 w-auto" />
               <div>
                 <p className="font-semibold">Invoice To</p>
                 {invoiceTo.map((line, i) => (
