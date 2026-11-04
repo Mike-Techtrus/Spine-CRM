@@ -49,6 +49,9 @@ function newLineKey(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `line-${Date.now()}-${Math.random()}`
 }
 
+// Techtrus's vendor code with CDW; still editable per line.
+const DEFAULT_VENDOR = 'TEC410'
+
 function emptyLine(): LocalLine {
   return {
     key: newLineKey(),
@@ -56,7 +59,7 @@ function emptyLine(): LocalLine {
     part_code: '',
     description: '',
     description_2: '',
-    vendor: '',
+    vendor: DEFAULT_VENDOR,
     qty: '1',
     unit_cost: '0',
     line_item_id: '',
