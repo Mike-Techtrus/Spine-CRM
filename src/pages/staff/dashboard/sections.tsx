@@ -17,6 +17,7 @@ import {
   OPPORTUNITY_STAGE_BADGE,
   OPPORTUNITY_STAGE_LABELS,
   invoicingStatus,
+  poStatus,
   salesOrderValueExVat,
   quoteExpiresOn,
   timesheetProjectLabel,
@@ -213,9 +214,9 @@ export function SalesOrdersSection({ data }: { data: DashboardData }) {
     byStatus.set(s, (byStatus.get(s) ?? 0) + 1)
   }
   const statuses: InvoicingStatus[] = ['not_invoiced', 'part_invoiced', 'fully_invoiced', 'over_invoiced', 'closed']
-  const noPo = data.salesOrders.filter(
-    (so) => so.advanced_without_po && !so.po_number && !so.closed_at && invoicingStatus(so).status !== 'fully_invoiced',
-  )
+  // Same rule as the PO column and the so_po_outstanding data check (0053): the
+  // PO is still needed once everything is invoiced, so fully invoiced orders stay.
+  const noPo = data.salesOrders.filter((so) => poStatus(so) === 'outstanding' && !so.closed_at)
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -272,10 +273,23 @@ export function SalesOrdersSection({ data }: { data: DashboardData }) {
                       {so.reference} <span className="text-text-muted">· {so.client?.name || '—'}</span>
                     </>
                   }
-                  right={gbp(salesOrderValueExVat(so))}
+                  right={
+                    invoicingStatus(so).status === 'fully_invoiced' ? (
+                      <>
+                        {gbp(salesOrderValueExVat(so))} <span className="text-text-muted">· all invoiced</span>
+                      </>
+                    ) : (
+                      gbp(salesOrderValueExVat(so))
+                    )
+                  }
                 />
               ))}
             </ul>
+          )}
+          {noPo.length > 8 && (
+            <p className="mt-3 border-t border-hair pt-3 text-xs text-text-dim">
+              Showing 8 of {noPo.length} — the full list is in Admin → Data checks.
+            </p>
           )}
         </Panel>
       </div>
