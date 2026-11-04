@@ -1,17 +1,24 @@
-import { useEffect, useState, type SyntheticEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   addSalesOrderToProject,
   createProjectFromSalesOrder,
   createSalesOrder,
   getProjectForSalesOrder,
+  getSalesOrderFileUrl,
   getQuoteForConversion,
   getSalesOrder,
   listAccounts,
   listInvoicesForSalesOrder,
   listProjectCandidates,
+  listSalesOrderFiles,
+  PO_FILE_ACCEPT,
+  PO_FILE_MAX_BYTES,
+  removeSalesOrderFile,
   updateSalesOrder,
+  uploadSalesOrderFile,
   type ProjectCandidate,
+  type SalesOrderFile,
   type SalesOrderInvoice,
 } from '../../lib/api'
 import type { Account, Project } from '../../lib/types'
@@ -26,6 +33,7 @@ import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } 
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 import HistoryCard from '../../components/HistoryCard'
+import { hasTouchCamera, ID_PHOTO_SHRINK, shrinkPhoto } from '../../lib/photo'
 
 const emptyForm = {
   quote_id: '',
@@ -418,6 +426,8 @@ export default function SalesOrderForm() {
 
       {isEditing && id && invoicingPanel}
 
+      {isEditing && id && <PoFilesCard salesOrderId={id} poNumber={form.po_number} />}
+
       <Card>
         <form onSubmit={handleSave} onKeyDown={preventEnterSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -646,6 +656,127 @@ function AddToProjectPanel({
           </Button>
         </div>
       )}
+    </Card>
+  )
+}
+
+// The customer's PO (and any amended copies) attached to this order (0051).
+function PoFilesCard({ salesOrderId, poNumber }: { salesOrderId: string; poNumber: string }) {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
+  const camera = useMemo(hasTouchCamera, [])
+  const [files, setFiles] = useState<SalesOrderFile[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function load() {
+    try {
+      setFiles(await listSalesOrderFiles(salesOrderId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load PO copies.')
+    }
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salesOrderId])
+
+  async function run(action: () => Promise<unknown>, fallback: string) {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : fallback)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function handleFile(picked: File | undefined) {
+    if (fileInput.current) fileInput.current.value = ''
+    if (cameraInput.current) cameraInput.current.value = ''
+    if (!picked) return
+    run(async () => {
+      const file = await shrinkPhoto(picked, ID_PHOTO_SHRINK)
+      if (file.size > PO_FILE_MAX_BYTES) throw new Error('That file is over 10 MB — please upload a smaller copy.')
+      await uploadSalesOrderFile(salesOrderId, file)
+    }, 'Failed to upload the PO.')
+  }
+
+  async function handleOpen(file: SalesOrderFile) {
+    setError(null)
+    // Open the tab straight away (before the await) so pop-up blockers allow it.
+    const tab = window.open('', '_blank')
+    try {
+      const url = await getSalesOrderFileUrl(file)
+      if (tab) tab.location.href = url
+      else window.location.href = url
+    } catch (err) {
+      tab?.close()
+      setError(err instanceof Error ? err.message : 'Failed to open the file.')
+    }
+  }
+
+  function handleRemove(file: SalesOrderFile) {
+    if (!window.confirm(`Remove ${file.file_name}?`)) return
+    run(() => removeSalesOrderFile(file), 'Failed to remove the file.')
+  }
+
+  return (
+    <Card className="mb-6">
+      <h2 className="mb-1 text-sm font-semibold text-text">PO copy{poNumber ? ` · ${poNumber}` : ''}</h2>
+      <p className="mb-3 text-xs text-text-muted">
+        Attach the customer's purchase order as received (PDF or photo, up to 10 MB). Add amended POs too — the newest is listed first.
+      </p>
+      {files === null ? (
+        <p className="mb-3 text-sm text-text-muted">Loading…</p>
+      ) : files.length === 0 ? (
+        <p className="mb-3 text-sm text-text-muted">No PO attached yet.</p>
+      ) : (
+        <ul className="mb-3 divide-y divide-border">
+          {files.map((f) => (
+            <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div className="min-w-0">
+                <button onClick={() => handleOpen(f)} className="break-all text-left text-sm text-accent hover:underline">
+                  {f.file_name}
+                </button>
+                <p className="text-xs text-text-muted">
+                  Uploaded {new Date(f.uploaded_at).toLocaleDateString('en-GB')}
+                  {f.uploader?.full_name ? ` by ${f.uploader.full_name}` : ''}
+                  {f.size_bytes ? ` · ${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}
+                </p>
+              </div>
+              <Button variant="secondary" disabled={busy} onClick={() => handleRemove(f)}>
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <input ref={fileInput} type="file" accept={PO_FILE_ACCEPT} className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+      {/* capture="environment" opens the back camera straight away on phones. */}
+      <input
+        ref={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
+      <div className="flex flex-wrap gap-2">
+        {camera && (
+          <Button disabled={busy} onClick={() => cameraInput.current?.click()}>
+            Take photo
+          </Button>
+        )}
+        <Button variant="secondary" disabled={busy} onClick={() => fileInput.current?.click()}>
+          {busy ? 'Working…' : files?.length ? 'Upload another' : 'Upload PO'}
+        </Button>
+      </div>
+      <ErrorText>{error}</ErrorText>
     </Card>
   )
 }

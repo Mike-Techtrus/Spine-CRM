@@ -74,7 +74,8 @@ export function SalesOrdersGuide() {
       <GuideSteps>
         <GuideStep n={1} title="Create it from an accepted quote">
           On the quote, press <strong>Create Sales Order from this Quote</strong>. Add the customer&apos;s{' '}
-          <strong>PO number</strong>, PO received date and the start and end dates.
+          <strong>PO number</strong>, PO received date and the start and end dates, save, then attach the PO itself under{' '}
+          <strong>PO copy</strong> (PDF, or take a photo on a phone).
         </GuideStep>
         <GuideStep n={2} title="Day-rate work? Create a project">
           Press <strong>Create project</strong> to set up the timesheet lines from the quote, so people can be assigned and

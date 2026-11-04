@@ -60,3 +60,61 @@ export async function getQuoteForConversion(quoteId: string): Promise<QuoteForCo
       .single(),
   )
 }
+
+// ── PO copies (0051) ───────────────────────────────────────────────────────
+
+const PO_BUCKET = 'sales-order-files'
+export const PO_FILE_ACCEPT = '.pdf,image/jpeg,image/png,image/webp'
+export const PO_FILE_MAX_BYTES = 10 * 1024 * 1024 // matches the bucket's limit in 0051
+
+export interface SalesOrderFile {
+  id: string
+  sales_order_id: string
+  path: string
+  file_name: string
+  content_type: string | null
+  size_bytes: number | null
+  uploaded_by: string | null
+  uploaded_at: string
+  uploader?: { full_name: string | null } | null
+}
+
+export async function listSalesOrderFiles(salesOrderId: string): Promise<SalesOrderFile[]> {
+  return unwrap(
+    await supabase
+      .from('sales_order_files')
+      .select('*, uploader:profiles(full_name)')
+      .eq('sales_order_id', salesOrderId)
+      .order('uploaded_at', { ascending: false }),
+  )
+}
+
+export async function uploadSalesOrderFile(salesOrderId: string, file: File): Promise<void> {
+  const path = `${salesOrderId}/${Date.now()}-${file.name.replace(/[^A-Za-z0-9._-]+/g, '_')}`
+  const { error } = await supabase.storage.from(PO_BUCKET).upload(path, file, { contentType: file.type || undefined })
+  if (error) throw new Error(error.message)
+  const { error: rowError } = await supabase.from('sales_order_files').insert({
+    sales_order_id: salesOrderId,
+    path,
+    file_name: file.name,
+    content_type: file.type || null,
+    size_bytes: file.size,
+  })
+  if (rowError) {
+    await supabase.storage.from(PO_BUCKET).remove([path])
+    throw new Error(rowError.message)
+  }
+}
+
+export async function removeSalesOrderFile(file: SalesOrderFile): Promise<void> {
+  const { error } = await supabase.from('sales_order_files').delete().eq('id', file.id)
+  if (error) throw new Error(error.message)
+  await supabase.storage.from(PO_BUCKET).remove([file.path])
+}
+
+// Short-lived link that opens the file in the browser (PDF viewer / image).
+export async function getSalesOrderFileUrl(file: SalesOrderFile): Promise<string> {
+  const { data, error } = await supabase.storage.from(PO_BUCKET).createSignedUrl(file.path, 300)
+  if (error) throw new Error(error.message)
+  return data.signedUrl
+}
