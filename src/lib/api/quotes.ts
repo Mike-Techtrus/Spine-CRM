@@ -6,7 +6,7 @@ const WITH_RELATIONS_SELECT = `
   *,
   client:accounts!quotes_client_id_fkey(id, name),
   end_client:accounts!quotes_end_client_id_fkey(id, name),
-  opportunity:opportunities(id, name, opportunity_number)
+  opportunity:opportunities(id, name, opportunity_number, customer_opportunity_number)
 `
 
 export async function listQuotes(): Promise<QuoteWithRelations[]> {

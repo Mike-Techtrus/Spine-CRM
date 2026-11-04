@@ -532,7 +532,7 @@ export const QUOTE_LINE_PART_CODE_SUGGESTIONS = [
 export interface QuoteWithRelations extends Quote {
   client: Pick<Account, 'id' | 'name'> | null
   end_client: Pick<Account, 'id' | 'name'> | null
-  opportunity: Pick<Opportunity, 'id' | 'name' | 'opportunity_number'> | null
+  opportunity: Pick<Opportunity, 'id' | 'name' | 'opportunity_number' | 'customer_opportunity_number'> | null
 }
 
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {

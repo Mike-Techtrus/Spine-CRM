@@ -92,7 +92,7 @@ export default function QuoteForm() {
 
   const [accounts, setAccounts] = useState<Account[]>([])
   const [quoteNumber, setQuoteNumber] = useState<string | null>(null)
-  const [sourceOpportunity, setSourceOpportunity] = useState<{ opportunity_number: string; name: string } | null>(
+  const [sourceOpportunity, setSourceOpportunity] = useState<{ opportunity_number: string; name: string; customer_opportunity_number: string | null } | null>(
     null,
   )
   // Quotes can only be created from an Opportunity. Set when creating one
@@ -135,7 +135,11 @@ export default function QuoteForm() {
           const [q, loadedLines] = await Promise.all([getQuote(id), listQuoteLines(id)])
           setQuoteNumber(q.quote_number)
           if (q.opportunity) {
-            setSourceOpportunity({ opportunity_number: q.opportunity.opportunity_number, name: q.opportunity.name })
+            setSourceOpportunity({
+              opportunity_number: q.opportunity.opportunity_number,
+              name: q.opportunity.name,
+              customer_opportunity_number: q.opportunity.customer_opportunity_number,
+            })
           }
           const loaded = {
             opportunity_id: q.opportunity_id ?? '',
@@ -169,7 +173,11 @@ export default function QuoteForm() {
           setInitialSnapshot(JSON.stringify({ form: loaded, lines: linesForForm }))
         } else if (opportunityIdFromQuery) {
           const opp = await getOpportunity(opportunityIdFromQuery)
-          setSourceOpportunity({ opportunity_number: opp.opportunity_number, name: opp.name })
+          setSourceOpportunity({
+            opportunity_number: opp.opportunity_number,
+            name: opp.name,
+            customer_opportunity_number: opp.customer_opportunity_number,
+          })
           const loaded = {
             ...emptyForm,
             opportunity_id: opp.id,
@@ -458,6 +466,10 @@ export default function QuoteForm() {
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Opportunity</p>
               <p>{sourceOpportunity ? `${sourceOpportunity.opportunity_number} — ${sourceOpportunity.name}` : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Customer Opp #</p>
+              <p>{sourceOpportunity?.customer_opportunity_number || '—'}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Quote date</p>
