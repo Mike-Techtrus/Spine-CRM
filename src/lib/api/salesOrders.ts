@@ -1,5 +1,7 @@
 import { supabase } from '../supabaseClient'
 import type { SalesOrder, SalesOrderWithRelations } from '../types'
+import { FunctionsHttpError } from '@supabase/supabase-js'
+import type { PoReading } from '../poCheck'
 import { fetchAllRows, unwrap } from './_shared'
 
 const WITH_RELATIONS_SELECT = `
@@ -76,6 +78,9 @@ export interface SalesOrderFile {
   size_bytes: number | null
   uploaded_by: string | null
   uploaded_at: string
+  ai_reading: PoReading | null // 0052, filled by the read-po Edge Function
+  ai_read_at: string | null
+  ai_model: string | null
   uploader?: { full_name: string | null } | null
 }
 
@@ -117,4 +122,18 @@ export async function getSalesOrderFileUrl(file: SalesOrderFile): Promise<string
   const { data, error } = await supabase.storage.from(PO_BUCKET).createSignedUrl(file.path, 300)
   if (error) throw new Error(error.message)
   return data.signedUrl
+}
+
+// Has Claude read the PO (read-po Edge Function); the reading is saved on the file's row.
+export async function readPoWithAi(fileId: string): Promise<{ reading: PoReading; readAt: string; model: string }> {
+  const { data, error } = await supabase.functions.invoke('read-po', { body: { fileId } })
+  if (error) {
+    // The function returns { error: "..." } — show that, not "non-2xx status code".
+    if (error instanceof FunctionsHttpError) {
+      const payload = await error.context.json().catch(() => null)
+      if (payload?.error) throw new Error(payload.error)
+    }
+    throw new Error(error.message)
+  }
+  return data
 }

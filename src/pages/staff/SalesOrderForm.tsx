@@ -14,6 +14,7 @@ import {
   listSalesOrderFiles,
   PO_FILE_ACCEPT,
   PO_FILE_MAX_BYTES,
+  readPoWithAi,
   removeSalesOrderFile,
   updateSalesOrder,
   uploadSalesOrderFile,
@@ -34,6 +35,7 @@ import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 import HistoryCard from '../../components/HistoryCard'
 import { hasTouchCamera, ID_PHOTO_SHRINK, shrinkPhoto } from '../../lib/photo'
+import { checkPo, figuresFromReading, type CheckResult, type PoReading } from '../../lib/poCheck'
 
 const emptyForm = {
   quote_id: '',
@@ -426,7 +428,19 @@ export default function SalesOrderForm() {
 
       {isEditing && id && invoicingPanel}
 
-      {isEditing && id && <PoFilesCard salesOrderId={id} poNumber={form.po_number} />}
+      {isEditing && id && (
+        <PoFilesCard
+          salesOrderId={id}
+          poNumber={form.po_number}
+          quoteNumber={sourceQuoteNumber}
+          quoteValue={n(form.quote_value)}
+          total={n(form.total)}
+          onUseFigures={(r) => {
+            const figs = figuresFromReading(r, n(form.quote_value))
+            setForm((f) => ({ ...f, ...figs, advanced_without_po: figs.po_number ? false : f.advanced_without_po }))
+          }}
+        />
+      )}
 
       <Card>
         <form onSubmit={handleSave} onKeyDown={preventEnterSubmit} className="space-y-4">
@@ -661,13 +675,29 @@ function AddToProjectPanel({
 }
 
 // The customer's PO (and any amended copies) attached to this order (0051).
-function PoFilesCard({ salesOrderId, poNumber }: { salesOrderId: string; poNumber: string }) {
+function PoFilesCard({
+  salesOrderId,
+  poNumber,
+  quoteNumber,
+  quoteValue,
+  total,
+  onUseFigures,
+}: {
+  salesOrderId: string
+  poNumber: string
+  quoteNumber: string | null
+  quoteValue: number | null
+  total: number | null
+  onUseFigures: (reading: PoReading) => void
+}) {
   const fileInput = useRef<HTMLInputElement>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
   const camera = useMemo(hasTouchCamera, [])
   const [files, setFiles] = useState<SalesOrderFile[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [reading, setReading] = useState<string | null>(null) // file id the AI is reading
+  const [used, setUsed] = useState<string | null>(null)
 
   async function load() {
     try {
@@ -720,6 +750,19 @@ function PoFilesCard({ salesOrderId, poNumber }: { salesOrderId: string; poNumbe
     }
   }
 
+  async function handleRead(file: SalesOrderFile) {
+    setReading(file.id)
+    setError(null)
+    try {
+      await readPoWithAi(file.id)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to read the PO.')
+    } finally {
+      setReading(null)
+    }
+  }
+
   function handleRemove(file: SalesOrderFile) {
     if (!window.confirm(`Remove ${file.file_name}?`)) return
     run(() => removeSalesOrderFile(file), 'Failed to remove the file.')
@@ -729,7 +772,8 @@ function PoFilesCard({ salesOrderId, poNumber }: { salesOrderId: string; poNumbe
     <Card className="mb-6">
       <h2 className="mb-1 text-sm font-semibold text-text">PO copy{poNumber ? ` · ${poNumber}` : ''}</h2>
       <p className="mb-3 text-xs text-text-muted">
-        Attach the customer's purchase order as received (PDF or photo, up to 10 MB). Add amended POs too — the newest is listed first.
+        Attach the customer's purchase order as received (PDF or photo, up to 10 MB). Add amended POs too — the newest is listed first. <strong>Check with AI</strong> reads the PO and compares it with
+        the quote; nothing changes until you press Use these figures and save.
       </p>
       {files === null ? (
         <p className="mb-3 text-sm text-text-muted">Loading…</p>
@@ -749,9 +793,25 @@ function PoFilesCard({ salesOrderId, poNumber }: { salesOrderId: string; poNumbe
                   {f.size_bytes ? ` · ${Math.max(1, Math.round(f.size_bytes / 1024))} KB` : ''}
                 </p>
               </div>
-              <Button variant="secondary" disabled={busy} onClick={() => handleRemove(f)}>
-                Remove
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" disabled={busy || reading !== null} onClick={() => handleRead(f)}>
+                  {reading === f.id ? 'Reading…' : f.ai_reading ? 'Read again' : 'Check with AI'}
+                </Button>
+                <Button variant="secondary" disabled={busy || reading !== null} onClick={() => handleRemove(f)}>
+                  Remove
+                </Button>
+              </div>
+              {f.ai_reading && (
+                <PoReadingPanel
+                  file={f}
+                  checks={checkPo(f.ai_reading, { quoteValue, total, poNumber, quoteNumber })}
+                  used={used === f.id}
+                  onUse={() => {
+                    onUseFigures(f.ai_reading!)
+                    setUsed(f.id)
+                  }}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -778,5 +838,96 @@ function PoFilesCard({ salesOrderId, poNumber }: { salesOrderId: string; poNumbe
       </div>
       <ErrorText>{error}</ErrorText>
     </Card>
+  )
+}
+
+const RESULT_STYLE: Record<CheckResult, { mark: string; className: string }> = {
+  match: { mark: '✓', className: 'text-accent' },
+  differs: { mark: '✗', className: 'text-danger' },
+  unknown: { mark: '?', className: 'text-text-muted' },
+}
+
+function showValue(v: string | number | null) {
+  if (v == null || v === '') return '—'
+  return typeof v === 'number' ? `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : v
+}
+
+// What the AI read from one PO, checked against this sales order and its quote (0052).
+function PoReadingPanel({
+  file,
+  checks,
+  used,
+  onUse,
+}: {
+  file: SalesOrderFile
+  checks: ReturnType<typeof checkPo>
+  used: boolean
+  onUse: () => void
+}) {
+  const r = file.ai_reading!
+  const anyDiffers = checks.some((c) => c.result === 'differs')
+  const allMatch = checks.length > 0 && checks.every((c) => c.result === 'match')
+  const headline = !r.is_purchase_order
+    ? "This doesn't look like a purchase order — check the file."
+    : anyDiffers
+      ? "The PO doesn't match — check before going ahead."
+      : allMatch
+        ? 'The PO matches the quote.'
+        : "Read — some things couldn't be checked."
+  const headlineClass = !r.is_purchase_order || anyDiffers ? 'text-danger' : allMatch ? 'text-accent' : 'text-text'
+  return (
+    <div className="w-full rounded-lg border border-border p-3 text-sm">
+      <p className={`mb-2 font-medium ${headlineClass}`}>{headline}</p>
+      <div className="mb-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-text-muted sm:grid-cols-2">
+        <span>
+          PO number: <span className="text-text">{showValue(r.po_number)}</span>
+        </span>
+        <span>
+          PO date: <span className="text-text">{r.po_date ? new Date(r.po_date).toLocaleDateString('en-GB') : '—'}</span>
+        </span>
+        <span>
+          From: <span className="text-text">{showValue(r.buyer)}</span>
+        </span>
+        <span>
+          To: <span className="text-text">{showValue(r.supplier)}</span>
+        </span>
+      </div>
+      <table className="mb-2 w-full text-left text-xs">
+        <thead className="text-text-muted">
+          <tr>
+            <th className="py-1 pr-2 font-normal">Check</th>
+            <th className="py-1 pr-2 font-normal">On the PO</th>
+            <th className="py-1 pr-2 font-normal">In Spine</th>
+            <th className="py-1 font-normal">
+              <span className="sr-only">Result</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {checks.map((c) => (
+            <tr key={c.key} className="border-t border-border">
+              <td className="py-1 pr-2 text-text-muted">{c.label}</td>
+              <td className="py-1 pr-2 text-text">{showValue(c.po)}</td>
+              <td className="py-1 pr-2 text-text">{showValue(c.ours)}</td>
+              <td className={`py-1 font-semibold ${RESULT_STYLE[c.result].className}`}>{RESULT_STYLE[c.result].mark}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {r.currency && r.currency.toUpperCase() !== 'GBP' && (
+        <p className="mb-2 text-xs text-danger">Currency on the PO: {r.currency}</p>
+      )}
+      {r.notes && <p className="mb-2 text-xs text-text">Note: {r.notes}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="secondary" onClick={onUse} disabled={!r.is_purchase_order}>
+          Use these figures
+        </Button>
+        <span className="text-xs text-text-faint">
+          {used
+            ? 'PO number, PO value, difference and "Quote matches PO" are filled in below — check them, then save.'
+            : `Read by AI${file.ai_read_at ? ' ' + new Date(file.ai_read_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''} — always check against the PO itself.`}
+        </span>
+      </div>
+    </div>
   )
 }
