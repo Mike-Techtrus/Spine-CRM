@@ -23,7 +23,7 @@ import {
   QUOTE_VALIDITY_DAYS,
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
-import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
+import PrintDocument, { pdfFileName, printWithTitle } from '../../components/PrintDocument'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 import HistoryCard from '../../components/HistoryCard'
@@ -424,7 +424,15 @@ export default function QuoteForm() {
         </h1>
         {isEditing && id && (
           <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" onClick={() => printWithTitle(`Quote ${quoteNumber ?? ''}`)}>
+            <Button type="button" variant="secondary" onClick={() =>
+                printWithTitle(
+                  pdfFileName(
+                    `Quote ${quoteNumber ?? ''}`,
+                    accountName(form.end_client_id || form.client_id),
+                    sourceOpportunity?.name,
+                  ),
+                )
+              }>
               Print / Export PDF
             </Button>
             {form.status === 'accepted' ? (

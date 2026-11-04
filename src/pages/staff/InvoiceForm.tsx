@@ -19,7 +19,7 @@ import { accountRebateRate, isRebateEligible } from '../../lib/rebate'
 import { addDaysIso, lineAmount, moneyTotals, paymentTermsDays, round2 } from '../../lib/money'
 import { INVOICE_STATUS_LABELS } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select } from '../../components/ui'
-import PrintDocument, { printWithTitle } from '../../components/PrintDocument'
+import PrintDocument, { pdfFileName, printWithTitle } from '../../components/PrintDocument'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 import HistoryCard from '../../components/HistoryCard'
@@ -400,7 +400,15 @@ export default function InvoiceForm() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => printWithTitle(`Invoice ${invoiceNumber ?? ''}`)}
+            onClick={() =>
+              printWithTitle(
+                pdfFileName(
+                  `Invoice ${invoiceNumber ?? ''}`,
+                  accounts.find((a) => a.id === (form.end_client_id || form.client_id))?.name,
+                  form.po_number && `PO ${form.po_number}`,
+                ),
+              )
+            }
             className="shrink-0"
           >
             Print / Export PDF

@@ -42,6 +42,16 @@ export default function PrintDocument({ footer, children }: { footer?: ReactNode
 }
 
 /** Sets the page title while printing so "Save as PDF" suggests a sensible file name. */
+// "Quote T11453 - ARM France SAS - Trondheim extension": joins the parts with
+// " - ", skips blanks, and drops characters Windows won't allow in a file name.
+export function pdfFileName(...parts: (string | null | undefined)[]): string {
+  return parts
+    .map((p) => (p ?? '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter((p) => p && p !== '—')
+    .join(' - ')
+    .slice(0, 150)
+}
+
 export function printWithTitle(title: string) {
   const previous = document.title
   document.title = title
