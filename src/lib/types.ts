@@ -2,6 +2,8 @@
 // If you prefer, generate these instead with the Supabase CLI:
 //   npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts
 
+import type { Qualification } from './intake'
+
 export type UserRole = 'staff' | 'field_engineer'
 
 export interface Profile {
@@ -309,6 +311,8 @@ export interface Opportunity {
   source: OpportunitySource | null
   stage: OpportunityStage
   is_active: boolean
+  qualification: Qualification | null // 0054, from Opportunities → Intake
+  qualification_updated_at: string | null
   created_at: string
   updated_at: string
 }

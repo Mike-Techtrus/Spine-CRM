@@ -14,6 +14,7 @@ import AccountQuickAdd from '../../components/AccountQuickAdd'
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 import HistoryCard from '../../components/HistoryCard'
+import QualificationCard from '../../components/QualificationCard'
 
 const QUOTE_STATUS_BADGE_MAP: Record<string, string> = {
   draft: 'draft',
@@ -335,6 +336,7 @@ export default function OpportunityForm() {
           )}
         </Card>
       )}
+      {isEditing && id && <QualificationCard opportunityId={id} />}
       <HistoryCard table="opportunities" recordId={id} />
     </div>
   )

@@ -11,7 +11,8 @@ export function OpportunitiesGuide() {
       <SalesFlow current="Opportunity" />
       <GuideSteps>
         <GuideStep n={1} title="Start with an opportunity">
-          Press <strong>New opportunity</strong> for every piece of work a customer asks about. Pick the client (the
+          Emails about new work can go through the <strong>Intake</strong> tab first. Otherwise, press{' '}
+          <strong>New opportunity</strong> for every piece of work a customer asks about. Pick the client (the
           company we invoice, e.g. CDW) and, if there is one, the end client (who the work is actually for).
         </GuideStep>
         <GuideStep n={2} title="Add a quote">
@@ -29,6 +30,38 @@ export function OpportunitiesGuide() {
           Use the search box, the column filters and <strong>Columns</strong> to choose what the list shows;{' '}
           <strong>Export to Excel</strong> at the bottom downloads exactly what you can see.
         </li>
+      </GuideTips>
+    </HowToGuide>
+  )
+}
+
+export function IntakeGuide() {
+  return (
+    <HowToGuide id="intake" title="How intake works">
+      <GuideSteps>
+        <GuideStep n={1} title="An email comes in">
+          Press <strong>Add email</strong> and paste it in (or, once the mailbox is connected, new emails arrive here by
+          themselves). The AI reads it: is it new work or about an opportunity we already have, what kind of job it is, and
+          what we know so far.
+        </GuideStep>
+        <GuideStep n={2} title="Check what it found">
+          The match to an existing opportunity uses the CDW OPP number first, then the email thread, then end client and
+          project. The qualification sheet shows each thing we need to know before quoting, what the email says, and the
+          words it came from. Anything missing is listed with why it matters for the price.
+        </GuideStep>
+        <GuideStep n={3} title="Create, link or dismiss">
+          <strong>Create opportunity</strong> (the fields are filled in for you to check) or{' '}
+          <strong>Link and update its sheet</strong> for a reply on a job we already have. The opportunity keeps a running
+          qualification sheet that each linked email adds to. <strong>Dismiss</strong> anything that isn&apos;t
+          opportunity-related.
+        </GuideStep>
+        <GuideStep n={4} title="Ask for what's missing">
+          <strong>Copy</strong> the draft reply into Outlook, edit it and send it yourself — Spine never sends emails.
+        </GuideStep>
+      </GuideSteps>
+      <GuideTips>
+        <li>The AI only suggests. Nothing changes in Spine until you press a button, and you can edit everything afterwards.</li>
+        <li>Wrong choice? Open it under <strong>Done</strong> and press <strong>Back to review</strong>.</li>
       </GuideTips>
     </HowToGuide>
   )

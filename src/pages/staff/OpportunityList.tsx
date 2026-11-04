@@ -16,6 +16,7 @@ import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
 import { OpportunitiesGuide } from '../../components/guides'
+import OpportunityTabs from './OpportunityTabs'
 
 const STAGE_OPTIONS = CURRENT_OPPORTUNITY_STAGES.map((s) => ({ value: OPPORTUNITY_STAGE_LABELS[s], label: OPPORTUNITY_STAGE_LABELS[s] }))
 const SOURCE_OPTIONS = Object.entries(OPPORTUNITY_SOURCE_LABELS).map(([, label]) => ({ value: label, label }))
@@ -98,6 +99,7 @@ export default function OpportunityList() {
 
   return (
     <div>
+      <OpportunityTabs />
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-text">Opportunities</h1>
         <Link to="/staff/opportunities/new">

@@ -13,6 +13,7 @@ import Dashboard from './pages/staff/Dashboard'
 import Accounts from './pages/staff/Accounts'
 import OpportunityList from './pages/staff/OpportunityList'
 import OpportunityForm from './pages/staff/OpportunityForm'
+import IntakePage from './pages/staff/IntakePage'
 import QuoteList from './pages/staff/QuoteList'
 import QuoteForm from './pages/staff/QuoteForm'
 import SalesOrderList from './pages/staff/SalesOrderList'
@@ -143,6 +144,7 @@ const router = createBrowserRouter(
         {/* Staff: sales pipeline */}
 
         <Route path="/staff/opportunities" element={<Staff area="opportunities"><OpportunityList /></Staff>} />
+        <Route path="/staff/opportunities/intake" element={<Staff area="opportunities"><IntakePage /></Staff>} />
         <Route path="/staff/opportunities/new" element={<Staff area="opportunities"><OpportunityForm /></Staff>} />
         <Route path="/staff/opportunities/:id" element={<Staff area="opportunities"><OpportunityForm /></Staff>} />
 
