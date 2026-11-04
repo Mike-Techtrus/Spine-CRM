@@ -30,6 +30,7 @@ Spine CRM is a custom-built internal CRM for Techtrus (Mike's employer), replaci
   - **Details:** Client / End client / Customer Opp # on the left; Quote / Start / End date right-aligned.
   - **Formatting:** UK dates and £1,234.00 money.
   - **Quote lines:** new lines default to Vendor `TEC410`, and the Qty arrows step 0.5 on quote and invoice lines.
+  - **Hidden columns:** Vendor is no longer shown in the builder (still saved and printed). Description 2 is shown in the builder and on the print only when a line on that quote already has one (`showDescription2`).
   - **Line editor:** shows **Rate + Expenses = Price**. Only `unit_cost` (the Price) and `expenses_included` are saved; `rate` exists only in the editor and is worked out on load as unit_cost − expenses.
   - **PDF file names:** Print / Export PDF suggests a file name using `pdfFileName()` in `PrintDocument.tsx`, e.g. "Quote T… - end client - Customer Opp Name" or "Invoice INV… - end client - PO …". This only works with the browser's own Save as PDF, not Microsoft Print to PDF.
 

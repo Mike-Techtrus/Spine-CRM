@@ -423,6 +423,8 @@ export default function QuoteForm() {
   }
 
   const linesTotal = round2(lines.reduce((acc, l) => acc + lineTotal(l), 0))
+  // Description 2 is no longer used on new quotes; still shown where an older quote has it.
+  const showDescription2 = lines.some((l) => l.description_2.trim())
   const linesControlTotals = lines.length > 0
 
   return (
@@ -524,7 +526,7 @@ export default function QuoteForm() {
                   <th className="py-2 pr-2">Line type</th>
                   <th className="py-2 pr-2">Part code</th>
                   <th className="py-2 pr-2">Description</th>
-                  <th className="py-2 pr-2">Description 2</th>
+                  {showDescription2 && <th className="py-2 pr-2">Description 2</th>}
                   <th className="py-2 pr-2">Vendor</th>
                   <th className="py-2 pr-2 text-right">Qty</th>
                   <th className="py-2 pr-2 text-right">Unit cost (£)</th>
@@ -537,7 +539,7 @@ export default function QuoteForm() {
                     <td className="py-1.5 pr-2">{line.line_type}</td>
                     <td className="py-1.5 pr-2">{line.part_code}</td>
                     <td className="py-1.5 pr-2">{line.description}</td>
-                    <td className="py-1.5 pr-2">{line.description_2}</td>
+                    {showDescription2 && <td className="py-1.5 pr-2">{line.description_2}</td>}
                     <td className="py-1.5 pr-2">{line.vendor}</td>
                     <td className="py-1.5 pr-2 text-right">{line.qty}</td>
                     <td className="py-1.5 pr-2 text-right">{printMoney(line.unit_cost).slice(1)}</td>
@@ -667,14 +669,13 @@ export default function QuoteForm() {
               </p>
             ) : (
               <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full min-w-[1020px] text-sm">
+                <table className="w-full min-w-[860px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-sunken text-left text-xs font-mono-label text-text-dim">
                       <th className="px-2 py-2">Line type</th>
                       <th className="px-2 py-2">Part code</th>
                       <th className="px-2 py-2">Description</th>
-                      <th className="px-2 py-2">Description 2</th>
-                      <th className="px-2 py-2">Vendor</th>
+                      {showDescription2 && <th className="px-2 py-2">Description 2</th>}
                       <th className="px-2 py-2 text-right">Qty</th>
                       <th className="px-2 py-2 text-right" title="From the rate card, or typed in.">
                         Rate (£)
@@ -715,20 +716,15 @@ export default function QuoteForm() {
                             className="w-full min-w-[8rem] rounded border border-border bg-sunken px-2 py-1 text-sm text-text focus:border-accent focus:outline-none"
                           />
                         </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            value={line.description_2}
-                            onChange={(e) => updateLine(line.key, { description_2: e.target.value })}
-                            className="w-full min-w-[8rem] rounded border border-border bg-sunken px-2 py-1 text-sm text-text focus:border-accent focus:outline-none"
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            value={line.vendor}
-                            onChange={(e) => updateLine(line.key, { vendor: e.target.value })}
-                            className="w-full min-w-[6rem] rounded border border-border bg-sunken px-2 py-1 text-sm text-text focus:border-accent focus:outline-none"
-                          />
-                        </td>
+                        {showDescription2 && (
+                          <td className="px-2 py-1.5">
+                            <input
+                              value={line.description_2}
+                              onChange={(e) => updateLine(line.key, { description_2: e.target.value })}
+                              className="w-full min-w-[8rem] rounded border border-border bg-sunken px-2 py-1 text-sm text-text focus:border-accent focus:outline-none"
+                            />
+                          </td>
+                        )}
                         <td className="px-2 py-1.5">
                           <input
                             type="number"
@@ -789,7 +785,7 @@ export default function QuoteForm() {
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan={9} className="px-2 py-2 text-right text-xs font-mono-label text-text-dim">
+                      <td colSpan={showDescription2 ? 8 : 7} className="px-2 py-2 text-right text-xs font-mono-label text-text-dim">
                         Lines total
                       </td>
                       <td className="px-2 py-2 text-right text-sm font-semibold text-text">£{linesTotal.toFixed(2)}</td>
