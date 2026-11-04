@@ -666,7 +666,7 @@ export default function InvoiceForm() {
                           <Input
                             aria-label="Quantity"
                             type="number"
-                            step="0.01"
+                            step="0.5"
                             value={line.qty}
                             onChange={(e) =>
                               applyLines(lines.map((l) => (l.key === line.key ? { ...l, qty: e.target.value } : l)))

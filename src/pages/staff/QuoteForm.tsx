@@ -683,7 +683,7 @@ export default function QuoteForm() {
                         <td className="px-2 py-1.5">
                           <input
                             type="number"
-                            step="0.01"
+                            step="0.5"
                             value={line.qty}
                             onChange={(e) => updateLine(line.key, { qty: e.target.value })}
                             className="w-20 rounded border border-border bg-sunken px-2 py-1 text-right text-sm text-text focus:border-accent focus:outline-none"
