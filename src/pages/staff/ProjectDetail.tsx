@@ -19,6 +19,7 @@ import {
 import {
   DAY_TYPE_DAYS,
   PERSON_KINDS,
+  PROJECT_STATUS_BADGE,
   PROJECT_STATUS_LABELS,
   type FieldEngineer,
   type LineItem,
@@ -28,7 +29,7 @@ import {
   type ProjectStatus,
   type ProjectWithRelations,
 } from '../../lib/types'
-import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
+import { Button, Card, ErrorText, Input, Label, Select, StatusBadge, Textarea } from '../../components/ui'
 import HistoryCard from '../../components/HistoryCard'
 import {
   formatPercent,
@@ -247,6 +248,16 @@ export default function ProjectDetail() {
       </div>
 
       <ErrorText>{error}</ErrorText>
+
+      <StatusCard
+        project={project}
+        staff={staff}
+        usage={totals.usage}
+        uninvoicedDays={billing.uninvoiced.reduce((s, d) => s + d.days, 0)}
+        unusedDays={Math.max(totals.quoted - usedDays(totals.usage), 0)}
+        onChanged={() => refresh()}
+        onError={setError}
+      />
 
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <DetailsCard project={project} staff={staff} onSaved={() => refresh()} onError={setError} />
@@ -519,6 +530,172 @@ function Stat({ label, value, sub, warn }: { label: string; value: string; sub?:
   )
 }
 
+// ── Status: close as completed / cancel / reopen (0057) ─────────────────────
+
+function StatusCard({
+  project,
+  staff,
+  usage,
+  uninvoicedDays,
+  unusedDays,
+  onChanged,
+  onError,
+}: {
+  project: ProjectWithRelations
+  staff: Pick<Profile, 'id' | 'full_name'>[]
+  usage: Usage
+  uninvoicedDays: number
+  unusedDays: number
+  onChanged: () => void
+  onError: (m: string | null) => void
+}) {
+  const [action, setAction] = useState<'complete' | 'cancelled' | null>(null)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const timesheeted = usedDays(usage)
+  const canCancel = timesheeted === 0
+
+  async function change(status: ProjectStatus, closedReason: string | null, done: string) {
+    setBusy(true)
+    onError(null)
+    try {
+      await updateProject(project.id, { status, closed_reason: closedReason })
+      setAction(null)
+      setNote('')
+      onChanged()
+      showToast(done)
+    } catch (err) {
+      onError(errorMessage(err, 'Failed to change the project status.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (project.status !== 'active') {
+    const cancelled = project.status === 'cancelled'
+    const by = staff.find((p) => p.id === project.closed_by)?.full_name
+    return (
+      <Card className={`mb-6 ${cancelled ? 'border-border-strong' : 'border-accent/40'}`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <StatusBadge status={PROJECT_STATUS_BADGE[project.status]} label={PROJECT_STATUS_LABELS[project.status]} />
+              <span className="text-sm text-text-muted">
+                {project.closed_at ? new Date(project.closed_at).toLocaleDateString('en-GB') : ''}
+                {by ? ` by ${by}` : ''}
+              </span>
+            </div>
+            {project.closed_reason && <p className="text-sm text-text">{project.closed_reason}</p>}
+            <p className="mt-1 text-xs text-text-faint">
+              {cancelled
+                ? 'No time can be logged against a cancelled project. If the work isn\u2019t going ahead, close the sales order too.'
+                : 'Completed projects take no more timesheet submissions.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {cancelled && (
+              <Link to={`/staff/sales-orders/${project.sales_order.id}`}>
+                <Button type="button" variant="secondary">
+                  Open sales order
+                </Button>
+              </Link>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm(`Reopen ${project.reference}? It goes back to Active.`))
+                  change('active', null, `${project.reference} reopened`)
+              }}
+            >
+              Reopen project
+            </Button>
+          </div>
+        </div>
+      </Card>
+    )
+  }
+
+  const warnings = [
+    usage.submitted > 0 && `${days(usage.submitted)} day${usage.submitted === 1 ? '' : 's'} still waiting for approval.`,
+    usage.draft > 0 && `${days(usage.draft)} draft day${usage.draft === 1 ? '' : 's'} not submitted yet.`,
+    uninvoicedDays > 0 && `${days(uninvoicedDays)} approved day${uninvoicedDays === 1 ? '' : 's'} not invoiced yet.`,
+    unusedDays > 0 && `${days(unusedDays)} quoted day${unusedDays === 1 ? '' : 's'} not used.`,
+  ].filter(Boolean) as string[]
+
+  return (
+    <div className="mb-6">
+      {action === null ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={() => setAction('complete')}>
+            Close project (completed)
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!canCancel}
+            title={
+              canCancel
+                ? 'For a project that isn\u2019t going ahead.'
+                : `${days(timesheeted)} day${timesheeted === 1 ? ' is' : 's are'} timesheeted, so it can\u2019t be cancelled — close it as completed instead.`
+            }
+            onClick={() => setAction('cancelled')}
+          >
+            Cancel project
+          </Button>
+        </div>
+      ) : (
+        <Card className={action === 'cancelled' ? 'border-danger/50' : 'border-accent/50'}>
+          <h2 className="mb-2 text-sm font-semibold text-text">
+            {action === 'complete' ? `Close ${project.reference} as completed` : `Cancel ${project.reference}`}
+          </h2>
+          {action === 'complete' ? (
+            warnings.length > 0 ? (
+              <>
+                <p className="mb-1 text-sm text-text-muted">Worth checking first:</p>
+                <ul className="mb-3 list-disc space-y-0.5 pl-5 text-sm text-warning">
+                  {warnings.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mb-3 text-sm text-text-muted">Everything&apos;s approved and invoiced.</p>
+            )
+          ) : (
+            <p className="mb-3 text-sm text-text-muted">
+              Nothing has been timesheeted, so it can be cancelled. Allocated people will no longer see it on their
+              timesheets. You can reopen it later.
+            </p>
+          )}
+          <Label>{action === 'complete' ? 'Completion note (optional)' : 'Why is it being cancelled?'}</Label>
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={action === 'cancelled' ? 'danger' : 'primary'}
+              disabled={busy || (action === 'cancelled' && !note.trim())}
+              onClick={() =>
+                change(
+                  action,
+                  note.trim() || null,
+                  action === 'complete' ? `${project.reference} closed as completed` : `${project.reference} cancelled`,
+                )
+              }
+            >
+              {busy ? 'Saving…' : action === 'complete' ? 'Close project' : 'Cancel project'}
+            </Button>
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => setAction(null)}>
+              Back
+            </Button>
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 // ── Details ──────────────────────────────────────────────────────────────────
 
 function DetailsCard({
@@ -535,7 +712,6 @@ function DetailsCard({
   const initial = {
     name: project.name,
     owner_id: project.owner_id ?? '',
-    status: project.status,
     notes: project.notes ?? '',
   }
   const [form, setForm] = useState(initial)
@@ -550,7 +726,6 @@ function DetailsCard({
       await updateProject(project.id, {
         name: form.name.trim() || project.name,
         owner_id: form.owner_id || null,
-        status: form.status,
         notes: form.notes.trim() || null,
       })
       onSaved()
@@ -577,16 +752,6 @@ function DetailsCard({
             {staff.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.full_name || 'Unnamed'}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Label>Status</Label>
-          <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}>
-            {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
               </option>
             ))}
           </Select>

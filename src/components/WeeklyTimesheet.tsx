@@ -347,7 +347,7 @@ export default function WeeklyTimesheet({
                                   type="button"
                                   role="radio"
                                   aria-checked={on}
-                                  disabled={busy || p.status === 'complete'}
+                                  disabled={busy || p.status !== 'active'}
                                   onClick={() => {
                                     const next = new Map(cells)
                                     next.set(key(a.id, date), o.value)
@@ -410,7 +410,7 @@ export default function WeeklyTimesheet({
                         </p>
                         <p className="text-xs text-text-faint">
                           {p.name}
-                          {p.status === 'complete' && ' (complete)'}
+                          {p.status !== 'active' && ` (${p.status === 'cancelled' ? 'cancelled' : 'complete'})`}
                         </p>
                       </td>
                       {dates.map((d) => {
@@ -434,7 +434,7 @@ export default function WeeklyTimesheet({
                             <select
                               aria-label={`${p.reference} ${a.project_line.part_code ?? ''} ${date}`}
                               value={cells.get(key(a.id, date)) ?? ''}
-                              disabled={busy || p.status === 'complete'}
+                              disabled={busy || p.status !== 'active'}
                               title={rejected ? `Rejected: ${e?.rejection_notes ?? ''}` : undefined}
                               onChange={(ev) => {
                                 const next = new Map(cells)

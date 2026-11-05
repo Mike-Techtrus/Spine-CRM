@@ -407,11 +407,19 @@ export interface QuoteLine {
 
 // ── Projects (migration 0022) ─────────────────────────────────────────────────
 
-export type ProjectStatus = 'active' | 'complete'
+export type ProjectStatus = 'active' | 'complete' | 'cancelled'
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   active: 'Active',
-  complete: 'Complete',
+  complete: 'Completed',
+  cancelled: 'Cancelled',
+}
+
+// Badge colour per project status (StatusBadge styles).
+export const PROJECT_STATUS_BADGE: Record<ProjectStatus, string> = {
+  active: 'submitted',
+  complete: 'approved',
+  cancelled: 'expired',
 }
 
 export interface Project {
@@ -422,6 +430,9 @@ export interface Project {
   owner_id: string | null // staff profile
   status: ProjectStatus
   notes: string | null
+  closed_at?: string | null // 0057: when it was completed or cancelled
+  closed_by?: string | null // profile id (no FK — see 0057)
+  closed_reason?: string | null
   created_at: string
   updated_at: string
 }

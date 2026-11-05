@@ -230,6 +230,11 @@ export function ProjectsGuide() {
           In the <em>Invoicing</em> panel, choose the period and press <strong>Create draft invoice</strong>. It bills
           approved days at the quoted day rate; those days are then locked.
         </GuideStep>
+        <GuideStep n={5} title="Close it">
+          When the work&apos;s done, press <strong>Close project (completed)</strong> — it lists anything still waiting
+          (approvals, drafts, days not invoiced) first. A project that isn&apos;t going ahead can be{' '}
+          <strong>cancelled</strong> instead, but only while nothing has been timesheeted. Either can be reopened.
+        </GuideStep>
       </GuideSteps>
       <GuideTips>
         <li>

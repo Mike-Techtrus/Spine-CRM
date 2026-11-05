@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import type { PersonKind, PersonLogin, DayType, FieldEngineer, TimesheetEntry, TimesheetEntryWithRelations, TimesheetStatus } from '../types'
+import type { PersonKind, PersonLogin, DayType, FieldEngineer, ProjectStatus, TimesheetEntry, TimesheetEntryWithRelations, TimesheetStatus } from '../types'
 import { unwrap } from './_shared'
 
 const TIMESHEET_WITH_RELATIONS_SELECT = `
@@ -196,7 +196,7 @@ export interface MyAssignment {
     part_code: string | null
     line_type: string
     description: string | null
-    project: { id: string; reference: string; name: string; status: 'active' | 'complete' }
+    project: { id: string; reference: string; name: string; status: ProjectStatus }
     sales_order: { reference: string } | null
   }
 }

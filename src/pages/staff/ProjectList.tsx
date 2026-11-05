@@ -7,7 +7,7 @@ import {
   listProjectAssignments,
   listProjects,
 } from '../../lib/api'
-import { DAY_TYPE_DAYS, PROJECT_STATUS_LABELS, type ProjectWithRelations } from '../../lib/types'
+import { DAY_TYPE_DAYS, PROJECT_STATUS_BADGE, PROJECT_STATUS_LABELS, type ProjectWithRelations } from '../../lib/types'
 import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
 import ColumnPicker from '../../components/ColumnPicker'
@@ -72,7 +72,7 @@ const COLUMNS: TableColumn<ProjectRow>[] = [
     label: 'Status',
     value: (p) => PROJECT_STATUS_LABELS[p.status],
     render: (p) => (
-      <StatusBadge status={p.status === 'active' ? 'submitted' : 'approved'} label={PROJECT_STATUS_LABELS[p.status]} />
+      <StatusBadge status={PROJECT_STATUS_BADGE[p.status]} label={PROJECT_STATUS_LABELS[p.status]} />
     ),
     filterOptions: STATUS_OPTIONS,
   },

@@ -72,7 +72,7 @@ export async function createProjectFromSalesOrder(salesOrderId: string): Promise
 
 export async function updateProject(
   id: string,
-  input: Partial<Pick<Project, 'name' | 'owner_id' | 'status' | 'notes'>>,
+  input: Partial<Pick<Project, 'name' | 'owner_id' | 'status' | 'notes' | 'closed_reason'>>,
 ): Promise<Project> {
   return unwrap(await supabase.from('projects').update(input).eq('id', id).select().single())
 }
@@ -136,7 +136,7 @@ export async function listStaffProfiles(): Promise<Pick<Profile, 'id' | 'full_na
   return unwrap(await supabase.from('profiles').select('id, full_name').eq('role', 'staff').order('full_name'))
 }
 
-export const PROJECT_STATUSES: ProjectStatus[] = ['active', 'complete']
+export const PROJECT_STATUSES: ProjectStatus[] = ['active', 'complete', 'cancelled']
 
 // All project lines, for totals on the Projects list.
 export async function listAllProjectLines(): Promise<ProjectLine[]> {
