@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listAllProjectLines, listAssignmentTimesheets, listProjectAssignments, listProjects } from '../../../lib/api'
+import {
+  listAllProjectLines,
+  listAssignmentTimesheets,
+  listLineItems,
+  listProjectAssignments,
+  listProjects,
+} from '../../../lib/api'
 import type {
   InvoiceWithRelations,
   OpportunityWithRelations,
@@ -24,7 +30,15 @@ import {
   type InvoicingStatus,
 } from '../../../lib/types'
 import { StatusBadge } from '../../../components/ui'
-import { formatPercent, labourDayRate, summariseMargin, type MarginItem, type MarginSummary } from '../../../lib/margin'
+import {
+  formatPercent,
+  labourDayRate,
+  plannedMarginItems,
+  standardCostFor,
+  summariseMargin,
+  type MarginItem,
+  type MarginSummary,
+} from '../../../lib/margin'
 import { BarList, ColumnChart, Meter, Panel, Tile, gbp, gbpCompact, pct } from './charts'
 import {
   AGE_BUCKETS,
@@ -509,10 +523,11 @@ export function ProjectsSection() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [projects, lines, assignments] = await Promise.all([
+        const [projects, lines, assignments, lineItems] = await Promise.all([
           listProjects(),
           listAllProjectLines(),
           listProjectAssignments(),
+          listLineItems().catch(() => []),
         ])
         const entries = await listAssignmentTimesheets(assignments.map((a) => a.id))
         const lineById = new Map(lines.map((l) => [l.id, l]))
@@ -526,14 +541,21 @@ export function ProjectsSection() {
         )
         for (const l of lines) {
           const s = summaries.get(l.project_id)
-          if (s) s.quoted += Number(l.quoted_days)
+          if (!s) continue
+          s.quoted += Number(l.quoted_days)
+          // Named people at their cost rate, the rest at the role's standard cost (0056).
+          s.planned.push(
+            ...plannedMarginItems(
+              l,
+              assignments.filter((a) => a.project_line_id === l.id),
+              standardCostFor(l, lineItems),
+            ),
+          )
         }
         for (const a of assignments) {
           const line = lineById.get(a.project_line_id)
           const s = line && summaries.get(line.project_id)
-          if (!s || !line) continue
-          s.allocated += Number(a.allocated_days)
-          s.planned.push({ days: Number(a.allocated_days), sellRate: labourDayRate(line), costRate: costOf(a) })
+          if (s) s.allocated += Number(a.allocated_days)
         }
         const now = new Date()
         const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`

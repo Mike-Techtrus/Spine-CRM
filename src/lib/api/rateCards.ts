@@ -32,7 +32,10 @@ export async function createLineItem(input: LineItemInput): Promise<LineItem> {
   return unwrap(await supabase.from('line_items').insert(input).select().single())
 }
 
-export async function updateLineItem(id: string, input: Partial<LineItemInput & { is_active: boolean }>) {
+export async function updateLineItem(
+  id: string,
+  input: Partial<LineItemInput & { is_active: boolean; standard_cost: number | null }>,
+) {
   return unwrap(await supabase.from('line_items').update(input).eq('id', id).select().single())
 }
 

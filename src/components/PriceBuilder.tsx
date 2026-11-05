@@ -96,6 +96,7 @@ export default function PriceBuilder({
           line_type: item.line_type,
           description: item.description ?? '',
           sell_rate: item.unit_cost?.toString() ?? '',
+          cost_rate: item.standard_cost?.toString() ?? '',
         },
       ],
     })
@@ -111,6 +112,7 @@ export default function PriceBuilder({
         line_type: item.line_type,
         description: r.description || (item.description ?? ''),
         sell_rate: item.unit_cost?.toString() ?? r.sell_rate,
+        cost_rate: r.cost_rate || (item.standard_cost?.toString() ?? ''),
       })
     } else {
       setResource(r.key, { part_code: partCode, ...(item ? {} : { line_item_id: '' }) })
@@ -194,7 +196,10 @@ export default function PriceBuilder({
                     <th className="px-2 py-2 text-right" title="Day rate we charge, before expenses (rate card or typed).">
                       Sell / day
                     </th>
-                    <th className="px-2 py-2 text-right" title="What the person costs us per day.">
+                    <th
+                      className="px-2 py-2 text-right"
+                      title="What the person costs us per day. Starts at the role's standard contractor cost (Admin → Rate cards)."
+                    >
                       Cost / day
                     </th>
                     <th className="px-2 py-2 text-right" title="Sell − rebate − cost, per day, labour only.">

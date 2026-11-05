@@ -28,6 +28,7 @@ import PrintDocument, { pdfFileName, printWithTitle } from '../../components/Pri
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 import HistoryCard from '../../components/HistoryCard'
+import { standardCostFor } from '../../lib/margin'
 import PriceBuilder from '../../components/PriceBuilder'
 import {
   EXPENSES_LINE_TYPE,
@@ -378,7 +379,7 @@ export default function QuoteForm() {
         people: '1',
         days: l.qty,
         sell_rate: l.rate,
-        cost_rate: '',
+        cost_rate: standardCostFor(l, pricedItems)?.toString() ?? '',
       }))
       start.expenses = [
         ...resourceLines

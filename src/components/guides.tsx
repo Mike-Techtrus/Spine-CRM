@@ -232,7 +232,10 @@ export function ProjectsGuide() {
         </GuideStep>
       </GuideSteps>
       <GuideTips>
-        <li>The Margin card compares sell rate with cost rate — planned (allocated days) and delivered (approved days).</li>
+        <li>
+          The Margin card compares sell rate with cost rate — planned (all quoted days: named people at their own cost
+          rate, the rest at the role&apos;s standard contractor cost) and delivered (approved days).
+        </li>
         <li>
           Days running out? Raise a new quote on the same opportunity. When the PO comes in, on its sales order press{' '}
           <strong>Add to existing project</strong> — the extra days join this project as new lines, invoiced against the new
@@ -338,6 +341,10 @@ export function RateCardsGuide() {
       <GuideTips>
         <li>Price changes only affect new quote lines; saved quotes keep their prices.</li>
         <li>Changing &quot;Earns rebate&quot; doesn&apos;t recalculate past records.</li>
+        <li>
+          <strong>Std contractor cost / day</strong> is what we usually pay a contractor for that role (same on every card).
+          It fills the Price builder&apos;s cost per day and costs project days nobody&apos;s been named for yet.
+        </li>
       </GuideTips>
     </HowToGuide>
   )

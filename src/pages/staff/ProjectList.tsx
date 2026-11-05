@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listAllProjectLines, listAssignmentTimesheets, listProjectAssignments, listProjects } from '../../lib/api'
+import {
+  listAllProjectLines,
+  listAssignmentTimesheets,
+  listLineItems,
+  listProjectAssignments,
+  listProjects,
+} from '../../lib/api'
 import { DAY_TYPE_DAYS, PROJECT_STATUS_LABELS, type ProjectWithRelations } from '../../lib/types'
 import { Card, FilterSummary, SearchInput, StatusBadge } from '../../components/ui'
 import DataTable from '../../components/DataTable'
@@ -9,7 +15,14 @@ import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { useColumnFilters } from '../../lib/useColumnFilters'
 import { columnValueGetter, formatMoney, useColumnPrefs, type TableColumn } from '../../lib/useColumnPrefs'
-import { formatPercent, labourDayRate, summariseMargin, type MarginItem, type MarginSummary } from '../../lib/margin'
+import {
+  formatPercent,
+  plannedMarginItems,
+  standardCostFor,
+  summariseMargin,
+  type MarginItem,
+  type MarginSummary,
+} from '../../lib/margin'
 import { ProjectsGuide } from '../../components/guides'
 
 // A project with its day totals worked out from lines, assignments and timesheets.
@@ -91,27 +104,33 @@ export default function ProjectList() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [projects, lines, assignments] = await Promise.all([
+        const [projects, lines, assignments, lineItems] = await Promise.all([
           listProjects(),
           listAllProjectLines(),
           listProjectAssignments(),
+          listLineItems().catch(() => []),
         ])
         const entries = await listAssignmentTimesheets(assignments.map((a) => a.id))
         const lineProject = new Map(lines.map((l) => [l.id, l.project_id]))
         const assignmentProject = new Map(assignments.map((a) => [a.id, lineProject.get(a.project_line_id)]))
         const totals = new Map<string, { quoted: number; allocated: number; used: number; margin: MarginItem[] }>()
         const get = (id: string) => totals.get(id) ?? totals.set(id, { quoted: 0, allocated: 0, used: 0, margin: [] }).get(id)!
-        const sellOf = new Map(lines.map((l) => [l.id, labourDayRate(l)]))
-        for (const l of lines) get(l.project_id).quoted += Number(l.quoted_days)
         for (const a of assignments) {
           const pid = lineProject.get(a.project_line_id)
-          if (!pid) continue
-          get(pid).allocated += Number(a.allocated_days)
-          get(pid).margin.push({
-            days: Number(a.allocated_days),
-            sellRate: sellOf.get(a.project_line_id) ?? 0,
-            costRate: a.cost_rate === null ? null : Number(a.cost_rate),
-          })
+          if (pid) get(pid).allocated += Number(a.allocated_days)
+        }
+        // Planned margin: named people at their cost rate, the rest of the
+        // quoted days at the role's standard contractor cost (0056).
+        for (const l of lines) {
+          const t = get(l.project_id)
+          t.quoted += Number(l.quoted_days)
+          t.margin.push(
+            ...plannedMarginItems(
+              l,
+              assignments.filter((a) => a.project_line_id === l.id),
+              standardCostFor(l, lineItems),
+            ),
+          )
         }
         for (const e of entries) {
           const pid = assignmentProject.get(e.project_assignment_id)

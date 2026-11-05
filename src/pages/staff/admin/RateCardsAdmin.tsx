@@ -258,6 +258,12 @@ export default function RateCardsAdmin() {
                       <th className="px-3 py-2">Line type</th>
                       {!selected.is_default && <th className="px-3 py-2 text-right">Default</th>}
                       <th className="w-40 px-3 py-2 text-right">{selected.is_default ? 'Unit cost (£)' : `${selected.name} (£)`}</th>
+                      <th
+                        className="w-36 px-3 py-2 text-right"
+                        title="What we usually pay a contractor per day for this role. Same on every rate card. Used for margin until a person is named on a project. Never shown to customers."
+                      >
+                        Std contractor cost / day (£)
+                      </th>
                       <th className="px-3 py-2"></th>
                     </tr>
                   </thead>
@@ -301,6 +307,17 @@ export default function RateCardsAdmin() {
                           />
                         </td>
                         <td className="px-3 py-2 text-right">
+                          <PriceInput
+                            key={`std:${item.id}:${item.standard_cost ?? ''}`}
+                            value={item.standard_cost ?? undefined}
+                            placeholder="—"
+                            label={`Standard contractor cost for ${item.part_code}`}
+                            onSave={(v) =>
+                              run(() => updateLineItem(item.id, { standard_cost: v }), 'Failed to save standard cost.')
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right">
                           <span className="flex justify-end gap-3 text-xs">
                             <button onClick={() => editItem(item)} className="text-accent hover:underline">
                               Edit
@@ -317,7 +334,7 @@ export default function RateCardsAdmin() {
                     ))}
                     {visibleItems.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-3 py-6 text-center text-sm text-text-muted">
+                        <td colSpan={6} className="px-3 py-6 text-center text-sm text-text-muted">
                           No line items match.
                         </td>
                       </tr>
@@ -328,7 +345,8 @@ export default function RateCardsAdmin() {
               <p className="mt-2 text-xs text-text-faint">
                 Prices save when you leave the box. Clear a box to remove that price
                 {selected.is_default ? '' : ' (the Default price is then used)'}. Deactivated items stay on existing
-                quotes but can't be added to new ones.
+                quotes but can't be added to new ones. The standard contractor cost is the same on every card — it
+                fills the Price builder's cost per day and costs project days nobody's been named for yet.
               </p>
             </>
           )}
@@ -470,10 +488,12 @@ const BILLING_OPTIONS = Object.entries(LINE_TYPE_BILLING_LABELS) as [LineTypeBil
 function PriceInput({
   value,
   placeholder,
+  label = 'Unit cost',
   onSave,
 }: {
   value: number | undefined
   placeholder: string
+  label?: string
   onSave: (v: number | null) => Promise<unknown>
 }) {
   const initial = value === undefined ? '' : String(value)
@@ -498,7 +518,7 @@ function PriceInput({
       type="number"
       step="0.01"
       min="0"
-      aria-label="Unit cost"
+      aria-label={label}
       placeholder={placeholder}
       value={text}
       disabled={saving}

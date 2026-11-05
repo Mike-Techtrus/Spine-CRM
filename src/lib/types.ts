@@ -497,6 +497,7 @@ export interface LineItem {
   line_type: string
   part_code: string
   description: string | null // optional default description for new quote lines
+  standard_cost?: number | null // 0056: what we usually pay a contractor per day for this role
   is_active: boolean
   created_at: string
 }

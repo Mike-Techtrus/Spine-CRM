@@ -8,6 +8,7 @@ import {
   listAssignmentTimesheets,
   listFieldEngineers,
   listInvoicesByIds,
+  listLineItems,
   listProjectAssignments,
   listProjectLines,
   listStaffProfiles,
@@ -20,6 +21,7 @@ import {
   PERSON_KINDS,
   PROJECT_STATUS_LABELS,
   type FieldEngineer,
+  type LineItem,
   type Profile,
   type ProjectAssignment,
   type ProjectLine,
@@ -28,7 +30,14 @@ import {
 } from '../../lib/types'
 import { Button, Card, ErrorText, Input, Label, Select, Textarea } from '../../components/ui'
 import HistoryCard from '../../components/HistoryCard'
-import { formatPercent, labourDayRate, summariseMargin, type MarginSummary } from '../../lib/margin'
+import {
+  formatPercent,
+  labourDayRate,
+  plannedMarginItems,
+  standardCostFor,
+  summariseMargin,
+  type MarginSummary,
+} from '../../lib/margin'
 
 // Timesheeted days per allocation, split by timesheet status. Rejected days
 // don't count.
@@ -83,6 +92,7 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const [project, setProject] = useState<ProjectWithRelations | null>(null)
   const [lines, setLines] = useState<ProjectLine[]>([])
+  const [lineItems, setLineItems] = useState<LineItem[]>([]) // for standard contractor costs (0056)
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([])
   const [usage, setUsage] = useState<Map<string, Usage>>(new Map())
   const [billing, setBilling] = useState<Billing>({ uninvoiced: [], invoicedDays: 0, invoices: [] })
@@ -92,12 +102,14 @@ export default function ProjectDetail() {
 
   async function refresh() {
     if (!id) return
-    const [p, l, everyone, owners] = await Promise.all([
+    const [p, l, everyone, owners, items] = await Promise.all([
       getProject(id),
       listProjectLines(id),
       listFieldEngineers(),
       listStaffProfiles(),
+      listLineItems().catch(() => [] as LineItem[]),
     ])
+    setLineItems(items)
     const a = await listProjectAssignments(l.map((line) => line.id))
     const entries = await listAssignmentTimesheets(a.map((x) => x.id))
     const u = new Map<string, Usage>()
@@ -165,7 +177,9 @@ export default function ProjectDetail() {
     return { quoted, value, allocated, usage: u }
   }, [lines, assignments, usage])
 
-  // Margin (0041): planned = allocated days, delivered = approved timesheet days.
+  // Margin (0041): planned = quoted days — named people at their own cost rate,
+  // the rest at the role's standard contractor cost (0056); delivered =
+  // approved timesheet days.
   const margin = useMemo(() => {
     const sellOf = new Map(lines.map((l) => [l.id, labourDayRate(l)]))
     const item = (a: ProjectAssignment, d: number) => ({
@@ -174,10 +188,18 @@ export default function ProjectDetail() {
       costRate: a.cost_rate === null ? null : Number(a.cost_rate),
     })
     return {
-      planned: summariseMargin(assignments.map((a) => item(a, Number(a.allocated_days)))),
+      planned: summariseMargin(
+        lines.flatMap((l) =>
+          plannedMarginItems(
+            l,
+            assignments.filter((a) => a.project_line_id === l.id),
+            standardCostFor(l, lineItems),
+          ),
+        ),
+      ),
       delivered: summariseMargin(assignments.map((a) => item(a, usageOf(a.id).approved))),
     }
-  }, [lines, assignments, usage])
+  }, [lines, assignments, usage, lineItems])
 
   if (!project) {
     return (
@@ -310,22 +332,25 @@ function MarginCard({
       <h2 className="mb-1 text-sm font-semibold text-text">Margin</h2>
       <p className="mb-4 text-xs text-text-muted">
         Quoted day rate (less any expenses bundled into it) minus each person&apos;s cost rate (set per person below; it starts as their Day / Cost rate from
-        User Accounts). Ex VAT.
+        User Accounts). Days nobody&apos;s named for yet use the role&apos;s standard contractor cost (Admin → Rate cards). Ex VAT.
       </p>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <MarginBlock title="Planned · allocated days" figures={planned} />
+        <MarginBlock title="Planned · quoted days" figures={planned} />
         <MarginBlock title="Delivered · approved days" figures={delivered} />
       </div>
       {(uncosted > 0 || unallocated > 0) && (
         <ul className="mt-4 space-y-1 text-xs text-text-faint">
           {uncosted > 0 && (
             <li className="text-warning">
-              {days(uncosted)} allocated day{uncosted === 1 ? '' : 's'} have no cost rate, so they&apos;re left out — add
-              the rate below.
+              {days(uncosted)} day{uncosted === 1 ? '' : 's'} have no cost rate, so they&apos;re left out — add the
+              person&apos;s rate below, or a standard contractor cost for the role in Admin → Rate cards.
             </li>
           )}
           {unallocated > 0 && (
-            <li>{days(unallocated)} quoted day{unallocated === 1 ? '' : 's'} not allocated to anyone yet, so not costed.</li>
+            <li>
+              {days(unallocated)} quoted day{unallocated === 1 ? '' : 's'} not allocated to anyone yet — costed at the
+              role&apos;s standard contractor cost where it has one.
+            </li>
           )}
         </ul>
       )}
