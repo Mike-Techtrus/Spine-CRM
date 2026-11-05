@@ -28,6 +28,15 @@ import PrintDocument, { pdfFileName, printWithTitle } from '../../components/Pri
 import { preventEnterSubmit } from '../../lib/preventEnterSubmit'
 import { useUnsavedChangesGuard } from '../../lib/useUnsavedChangesGuard'
 import HistoryCard from '../../components/HistoryCard'
+import PriceBuilder from '../../components/PriceBuilder'
+import {
+  EXPENSES_LINE_TYPE,
+  buildQuoteLines,
+  calculatePriceBuilder,
+  emptyPriceBuilder,
+  type PriceBuilderResult,
+  type PriceBuilderState,
+} from '../../lib/priceBuilder'
 
 // A quote line item while it's being edited in this form — numbers kept as
 // strings (same convention as `form` below) so inputs can hold intermediate
@@ -139,8 +148,14 @@ export default function QuoteForm() {
       .catch(() => setLineTypes([]))
   }, [])
 
-  const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify({ form: emptyForm, lines: [] }))
-  const isDirty = !loading && !blocked && JSON.stringify({ form, lines }) !== initialSnapshot
+  // Price builder workings (saved on quotes.price_builder; null = not used).
+  const [priceBuilder, setPriceBuilder] = useState<PriceBuilderState | null>(null)
+  const [builderOpen, setBuilderOpen] = useState(false)
+
+  const [initialSnapshot, setInitialSnapshot] = useState(() =>
+    JSON.stringify({ form: emptyForm, lines: [], priceBuilder: null }),
+  )
+  const isDirty = !loading && !blocked && JSON.stringify({ form, lines, priceBuilder }) !== initialSnapshot
   const { allowNextNavigation } = useUnsavedChangesGuard(isDirty)
 
   useEffect(() => {
@@ -188,7 +203,8 @@ export default function QuoteForm() {
           }))
           setForm(loaded)
           setLines(linesForForm)
-          setInitialSnapshot(JSON.stringify({ form: loaded, lines: linesForForm }))
+          setPriceBuilder(q.price_builder ?? null)
+          setInitialSnapshot(JSON.stringify({ form: loaded, lines: linesForForm, priceBuilder: q.price_builder ?? null }))
         } else if (opportunityIdFromQuery) {
           const opp = await getOpportunity(opportunityIdFromQuery)
           setSourceOpportunity({
@@ -204,7 +220,7 @@ export default function QuoteForm() {
           }
           setForm(loaded)
           setLines([])
-          setInitialSnapshot(JSON.stringify({ form: loaded, lines: [] }))
+          setInitialSnapshot(JSON.stringify({ form: loaded, lines: [], priceBuilder: null }))
         } else {
           setBlocked('Quotes can only be created from an opportunity — open the opportunity and use "New quote".')
         }
@@ -340,6 +356,64 @@ export default function QuoteForm() {
     applyLines(lines.filter((l) => l.key !== key))
   }
 
+  // ── Price builder ──
+  const builderRebateRate = clientRebateRate(form.client_id)
+  const builderEligible = (lineType: string) => isRebateEligible(lineType, lineTypes)
+  const builderResult = priceBuilder ? calculatePriceBuilder(priceBuilder, builderRebateRate, builderEligible) : null
+
+  // First time on a quote that already has lines: start from those lines, so
+  // only cost rates need adding. Bundled expenses come back as one expense
+  // per role; Expenses lines as expenses charged on a separate line.
+  function openPriceBuilder() {
+    if (!priceBuilder) {
+      const start = emptyPriceBuilder()
+      const resourceLines = lines.filter((l) => l.line_type !== EXPENSES_LINE_TYPE)
+      const expenseLines = lines.filter((l) => l.line_type === EXPENSES_LINE_TYPE)
+      start.resources = resourceLines.map((l) => ({
+        key: l.key,
+        part_code: l.part_code,
+        line_item_id: l.line_item_id,
+        line_type: l.line_type,
+        description: l.description,
+        people: '1',
+        days: l.qty,
+        sell_rate: l.rate,
+        cost_rate: '',
+      }))
+      start.expenses = [
+        ...resourceLines
+          .filter((l) => Number(l.expenses_included) > 0)
+          .map((l) => ({
+            key: `exp-${l.key}`,
+            item: `Expenses (${l.part_code || 'role'})`,
+            qty: '1',
+            times: l.qty,
+            unit_cost: l.expenses_included,
+            spread: l.key,
+          })),
+        ...expenseLines.map((l) => ({
+          key: `exp-${l.key}`,
+          item: l.description || l.part_code || 'Expenses',
+          qty: l.qty,
+          times: '1',
+          unit_cost: l.unit_cost,
+          spread: 'all',
+        })),
+      ]
+      if (expenseLines.length > 0 && !resourceLines.some((l) => Number(l.expenses_included) > 0)) start.mode = 'separate'
+      setPriceBuilder(start)
+    }
+    setBuilderOpen(true)
+  }
+
+  function fillFromPriceBuilder(result: PriceBuilderResult, replace: boolean) {
+    if (!priceBuilder) return
+    const built = buildQuoteLines(priceBuilder, result).map((b) => ({ ...emptyLine(), ...b }))
+    applyLines(replace ? built : [...lines, ...built])
+    setBuilderOpen(false)
+    showToast(`${built.length} quote line${built.length === 1 ? '' : 's'} filled from the price builder — save to keep`)
+  }
+
   function toLineInput(line: LocalLine): QuoteLineInput {
     return {
       line_type: line.line_type || 'Outsource Resource',
@@ -374,6 +448,7 @@ export default function QuoteForm() {
         net_value: toNumberOrNull(form.net_value),
         status: form.status,
         comments: form.comments || null,
+        price_builder: priceBuilder,
       }
 
       let savedId = id
@@ -642,7 +717,20 @@ export default function QuoteForm() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {builderResult && (
+                  <span
+                    className={`text-xs ${builderResult.profit < 0 ? 'text-danger' : 'text-text-muted'}`}
+                    title="From the price builder's workings (internal)."
+                  >
+                    Profit {builderResult.profit < 0 ? '−' : ''}£
+                    {Math.abs(builderResult.profit).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {builderResult.marginPercent !== null && ` (${builderResult.marginPercent}%)`}
+                  </span>
+                )}
+                <Button type="button" variant="secondary" onClick={openPriceBuilder}>
+                  Price builder
+                </Button>
                 <Select
                   aria-label="Add from rate card"
                   value=""
@@ -873,6 +961,19 @@ export default function QuoteForm() {
         </form>
       </Card>
       <HistoryCard table="quotes" recordId={id} />
+
+      {builderOpen && priceBuilder && (
+        <PriceBuilder
+          value={priceBuilder}
+          onChange={setPriceBuilder}
+          pricedItems={pricedItems}
+          rebateRate={builderRebateRate}
+          rebateEligible={builderEligible}
+          existingLineCount={lines.length}
+          onFill={fillFromPriceBuilder}
+          onClose={() => setBuilderOpen(false)}
+        />
+      )}
     </div>
   )
 }

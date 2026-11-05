@@ -96,6 +96,12 @@ export function QuotesGuide() {
       <GuideTips>
         <li>Value, VAT and Total are worked out from the lines (VAT at 20%).</li>
         <li>Changing a rate card later never changes a saved quote.</li>
+        <li>
+          <strong>Price builder</strong> works out the profit first: roles × days at sell and cost rates, plus expenses
+          (hotels, mileage, parking…) with an optional markup. Choose to bundle the expenses into the day rates (over all
+          roles or one role) or charge them on a separate Expenses line, then press <strong>Fill quote lines</strong>. The
+          workings are saved with the quote, for us only — never printed.
+        </li>
       </GuideTips>
     </HowToGuide>
   )

@@ -379,6 +379,7 @@ export interface Quote {
   net_value: number | null
   status: QuoteStatus
   comments: string | null
+  price_builder?: import('./priceBuilder').PriceBuilderState | null // 0055: Price builder workings, internal
   created_at: string
   updated_at: string
 }
