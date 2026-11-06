@@ -110,7 +110,7 @@ const C = {
 const FONT = "font-family:'Segoe UI',Helvetica,Arial,sans-serif"
 
 function th(label: string, align: 'left' | 'right' = 'left') {
-  return `<th align="${align}" style="${FONT};font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${C.muted};padding:8px 10px;border-bottom:2px solid ${C.line};text-align:${align}">${label}</th>`
+  return `<th align="${align}" style="${FONT};font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${C.muted};padding:8px 10px;border-bottom:2px solid ${C.line};text-align:${align};white-space:nowrap">${label}</th>`
 }
 
 function td(html: string, align: 'left' | 'right' = 'left', extra = '') {
@@ -128,19 +128,21 @@ function table(head: string, rows: string[], foot = '') {
 
 function section(title: string, intro: string, body: string) {
   return `<tr><td style="padding:26px 32px 0">
-<h2 style="${FONT};margin:0 0 4px;font-size:16px;font-weight:600;color:${C.ink}">${title}</h2>
+<p style="${FONT};margin:0 0 4px;font-size:16px;line-height:22px;font-weight:600;color:${C.ink}">${title}</p>
 <p style="${FONT};margin:0 0 12px;font-size:13px;color:${C.muted}">${intro}</p>
 ${body}
 </td></tr>`
 }
 
+// The four boxes are cells in ONE table row, so every mail program (Outlook
+// draws with Word) makes them the same height; cellspacing gives the gaps.
 function tile(label: string, value: string, note: string, tone?: 'red') {
-  return `<td width="25%" valign="top" style="padding:0 4px">
-<div style="border:1px solid ${tone === 'red' ? '#efc4c5' : C.line};border-radius:8px;padding:12px 12px 10px;background:#ffffff">
-<div style="${FONT};font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:${C.muted}">${label}</div>
-<div style="${FONT};font-size:20px;font-weight:600;color:${tone === 'red' ? C.red : C.ink};margin-top:4px">${value}</div>
-<div style="${FONT};font-size:12px;color:${C.faint};margin-top:2px">${note}</div>
-</div></td>`
+  const border = tone === 'red' ? '#efc4c5' : C.line
+  return `<td width="25%" valign="top" bgcolor="#ffffff" style="border:1px solid ${border};border-radius:8px;padding:12px 12px 10px">
+<p style="${FONT};margin:0;font-size:11px;line-height:14px;letter-spacing:.04em;text-transform:uppercase;color:${C.muted};white-space:nowrap">${label}</p>
+<p style="${FONT};margin:6px 0 0;font-size:20px;line-height:24px;font-weight:600;color:${tone === 'red' ? C.red : C.ink};white-space:nowrap">${value}</p>
+<p style="${FONT};margin:3px 0 0;font-size:12px;line-height:16px;color:${C.faint}">${note}</p>
+</td>`
 }
 
 const STAGE: Record<string, string> = { qualifying: 'Gathering requirements', quoting: 'Preparing quote' }
@@ -153,8 +155,8 @@ function render(d: Data, s: Pick<Settings, 'note'>, today: string) {
 
   const subject = `Techtrus weekly update for ${d.account} — ${ukDate(today)}`
 
-  const tiles = `<tr><td style="padding:22px 28px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-${tile('Invoices outstanding', money(owed), `${d.invoices.length} invoice${d.invoices.length === 1 ? '' : 's'}${overdue.length ? ` · ${money(overdueTotal)} overdue` : ''}`, overdue.length ? 'red' : undefined)}
+  const tiles = `<tr><td style="padding:18px 24px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="8" style="border-collapse:separate;table-layout:fixed"><tr>
+${tile('Unpaid invoices', money(owed), `${d.invoices.length} invoice${d.invoices.length === 1 ? '' : 's'}${overdue.length ? ` · ${overdue.length} overdue (${money(overdueTotal)})` : ''}`, overdue.length ? 'red' : undefined)}
 ${tile('Quotes with you', String(d.quotes.length), d.quotes.length ? `${money(quotedTotal)} ex VAT` : 'none waiting')}
 ${tile('Opportunities', String(d.opportunities.length), 'in progress')}
 ${tile('Awaiting PO', String(d.awaiting_po.length), d.awaiting_po.length ? 'work under way' : 'none')}
@@ -174,7 +176,7 @@ ${tile('Awaiting PO', String(d.awaiting_po.length), d.awaiting_po.length ? 'work
               ? `<span style="color:${C.amber};font-weight:600">Due today</span>`
               : `<span style="color:${C.muted}">Due in ${-late} day${late === -1 ? '' : 's'}</span>`
       const part = Number(i.outstanding) < Number(i.total) - 0.005 ? sub(`of ${money(i.total)}`) : ''
-      return `<tr>${td(`<b>${esc(i.invoice_number)}</b>${sub(i.end_client)}`)}${td(esc(i.po_number ?? 'PO to follow'))}${td(ukDate(i.invoice_date))}${td(`${ukDate(i.due_date)}<br><span style="font-size:12px">${status}</span>`)}${td(`${money(i.outstanding)}${part}`, 'right', 'white-space:nowrap')}</tr>`
+      return `<tr>${td(`<b>${esc(i.invoice_number)}</b>${sub(i.end_client)}`, 'left', 'white-space:nowrap')}${td(esc(i.po_number ?? 'PO to follow'))}${td(ukDate(i.invoice_date), 'left', 'white-space:nowrap')}${td(`${ukDate(i.due_date)}<br><span style="font-size:12px">${status}</span>`, 'left', 'white-space:nowrap')}${td(`${money(i.outstanding)}${part}`, 'right', 'white-space:nowrap')}</tr>`
     })
     const foot = `<tr><td colspan="4" style="${FONT};font-size:13px;font-weight:600;color:${C.ink};padding:10px;text-align:right">Total outstanding (inc VAT)</td><td align="right" style="${FONT};font-size:14px;font-weight:700;color:${C.ink};padding:10px;white-space:nowrap">${money(owed)}</td></tr>`
     parts.push(
@@ -193,7 +195,7 @@ ${tile('Awaiting PO', String(d.awaiting_po.length), d.awaiting_po.length ? 'work
         ? `${ukDate(q.valid_until)}${left !== null && left <= 7 && left >= 0 ? `<br><span style="font-size:12px;color:${C.amber};font-weight:600">${left === 0 ? 'Expires today' : `${left} day${left === 1 ? '' : 's'} left`}</span>` : ''}`
         : '—'
       const ref = [q.customer_opportunity_number, q.end_client].filter(Boolean).join(' · ')
-      return `<tr>${td(`<b>${esc(q.quote_number)}</b>`)}${td(`${esc(q.opportunity_name ?? '—')}${sub(ref)}`)}${td(ukDate(q.quote_date))}${td(valid)}${td(money(q.value), 'right', 'white-space:nowrap')}</tr>`
+      return `<tr>${td(`<b>${esc(q.quote_number)}</b>`, 'left', 'white-space:nowrap')}${td(`${esc(q.opportunity_name ?? '—')}${sub(ref)}`)}${td(ukDate(q.quote_date), 'left', 'white-space:nowrap')}${td(valid, 'left', 'white-space:nowrap')}${td(money(q.value), 'right', 'white-space:nowrap')}</tr>`
     })
     parts.push(
       section(
@@ -207,7 +209,7 @@ ${tile('Awaiting PO', String(d.awaiting_po.length), d.awaiting_po.length ? 'work
   if (d.opportunities.length) {
     const rows = d.opportunities.map(
       (o) =>
-        `<tr>${td(`<b>${esc(o.customer_opportunity_number ?? o.opportunity_number)}</b>${o.customer_opportunity_number ? sub(`Our ref ${o.opportunity_number}`) : ''}`)}${td(`${esc(o.name)}${sub(o.end_client)}`)}${td(esc(STAGE[o.stage] ?? o.stage))}${td(ukDate(o.created))}</tr>`,
+        `<tr>${td(`<b>${esc(o.customer_opportunity_number ?? o.opportunity_number)}</b>${o.customer_opportunity_number ? sub(`Our ref ${o.opportunity_number}`) : ''}`)}${td(`${esc(o.name)}${sub(o.end_client)}`)}${td(esc(STAGE[o.stage] ?? o.stage), 'left', 'white-space:nowrap')}${td(ukDate(o.created), 'left', 'white-space:nowrap')}</tr>`,
     )
     parts.push(
       section(
@@ -221,7 +223,7 @@ ${tile('Awaiting PO', String(d.awaiting_po.length), d.awaiting_po.length ? 'work
   if (d.awaiting_po.length) {
     const rows = d.awaiting_po.map(
       (s) =>
-        `<tr>${td(`<b>${esc(s.quote_number ?? s.reference)}</b>${s.quote_number ? sub(`Order ${s.reference}`) : ''}`)}${td(`${esc(s.opportunity_name ?? '—')}${sub(s.end_client)}`)}${td(ukDate(s.start_date))}${td(money(s.value), 'right', 'white-space:nowrap')}</tr>`,
+        `<tr>${td(`<b>${esc(s.quote_number ?? s.reference)}</b>${s.quote_number ? sub(`Order ${s.reference}`) : ''}`, 'left', 'white-space:nowrap')}${td(`${esc(s.opportunity_name ?? '—')}${sub(s.end_client)}`)}${td(ukDate(s.start_date), 'left', 'white-space:nowrap')}${td(money(s.value), 'right', 'white-space:nowrap')}</tr>`,
     )
     parts.push(
       section(
@@ -237,8 +239,9 @@ ${tile('Awaiting PO', String(d.awaiting_po.length), d.awaiting_po.length ? 'work
       const ordered = Number(p.days_ordered)
       const used = Number(p.days_used)
       const pct = ordered > 0 ? Math.min(100, Math.round((used / ordered) * 100)) : 0
-      const bar = `<table role="presentation" width="140" cellpadding="0" cellspacing="0" style="margin-top:5px"><tr><td style="background:${C.line};height:6px;border-radius:3px;font-size:0;line-height:0"><div style="width:${pct}%;height:6px;background:${used > ordered ? C.red : C.green};border-radius:3px"></div></td></tr></table>`
-      return `<tr>${td(`<b>${esc(p.reference)}</b>${sub(p.po_number ? `PO ${p.po_number}` : null)}`)}${td(`${esc(p.name)}${sub(p.end_client)}`)}${td(`${days(used)} of ${days(ordered)} days${bar}`)}${td(ukDate(p.end_date))}</tr>`
+      const filled = Math.round((140 * pct) / 100)
+      const bar = `<table role="presentation" width="140" cellpadding="0" cellspacing="0" style="margin-top:5px;width:140px"><tr>${filled > 0 ? `<td width="${filled}" height="6" bgcolor="${used > ordered ? C.red : C.green}" style="font-size:0;line-height:0;height:6px">&nbsp;</td>` : ''}${filled < 140 ? `<td width="${140 - filled}" height="6" bgcolor="${C.line}" style="font-size:0;line-height:0;height:6px">&nbsp;</td>` : ''}</tr></table>`
+      return `<tr>${td(`<b>${esc(p.reference)}</b>${sub(p.po_number ? `PO ${p.po_number}` : null)}`, 'left', 'white-space:nowrap')}${td(`${esc(p.name)}${sub(p.end_client)}`)}${td(`${days(used)} of ${days(ordered)} days${bar}`)}${td(ukDate(p.end_date), 'left', 'white-space:nowrap')}</tr>`
     })
     parts.push(
       section(
@@ -263,14 +266,15 @@ ${tile('Awaiting PO', String(d.awaiting_po.length), d.awaiting_po.length ? 'work
 
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
 <body style="margin:0;padding:0;background:${C.soft}">
-<div style="display:none;max-height:0;overflow:hidden">${esc(`${money(owed)} outstanding · ${d.quotes.length} quote${d.quotes.length === 1 ? '' : 's'} awaiting your decision · ${d.opportunities.length} in progress`)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.soft};padding:28px 12px"><tr><td align="center">
-<table role="presentation" width="680" cellpadding="0" cellspacing="0" style="width:100%;max-width:680px;background:#ffffff;border:1px solid ${C.line};border-radius:10px;overflow:hidden">
-<tr><td style="height:4px;background:${C.green};font-size:0;line-height:0">&nbsp;</td></tr>
+<div style="display:none;mso-hide:all;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#ffffff">${esc(`${money(owed)} outstanding · ${d.quotes.length} quote${d.quotes.length === 1 ? '' : 's'} awaiting your decision · ${d.opportunities.length} in progress`)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${C.soft}" style="background:${C.soft}"><tr><td align="center" style="padding:28px 12px">
+<!--[if mso]><table role="presentation" width="680" cellpadding="0" cellspacing="0" align="center"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;max-width:680px;background:#ffffff;border:1px solid ${C.line};border-radius:10px;overflow:hidden">
+<tr><td height="4" bgcolor="${C.green}" style="height:4px;background:${C.green};font-size:0;line-height:0">&nbsp;</td></tr>
 <tr><td style="padding:24px 32px 0">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td valign="middle"><img src="${LOGO}" alt="Techtrus" height="48" style="display:block;height:48px;width:auto;border:0"></td>
-<td valign="middle" align="right" style="${FONT};text-align:right"><div style="font-size:18px;font-weight:600;color:${C.ink}">Weekly account update</div><div style="font-size:13px;color:${C.muted};margin-top:2px">${esc(ukDate(today, true))}</div></td>
+<td valign="middle"><img src="${LOGO}" alt="Techtrus" width="132" height="48" style="display:block;width:132px;height:48px;border:0"></td>
+<td valign="middle" align="right" style="text-align:right"><p style="${FONT};margin:0;font-size:18px;font-weight:600;color:${C.ink}">Weekly account update</p><p style="${FONT};margin:2px 0 0;font-size:13px;color:${C.muted}">${esc(ukDate(today, true))}</p></td>
 </tr></table></td></tr>
 <tr><td style="padding:22px 32px 0">
 <p style="${FONT};margin:0 0 10px;font-size:15px;color:${C.ink}">Hello ${esc(d.account)} team,</p>
@@ -283,18 +287,20 @@ ${parts.join('\n')}
 <p style="${FONT};margin:0;font-size:14px;line-height:1.55;color:${C.ink}">If anything here doesn&rsquo;t look right, or you&rsquo;d like an update on a particular job, just reply to this email.</p>
 <p style="${FONT};margin:14px 0 0;font-size:14px;color:${C.ink}">Kind regards,<br><b>The Techtrus team</b></p>
 </td></tr>
-<tr><td style="padding:16px 32px;background:${C.soft};border-top:1px solid ${C.line}">
+<tr><td bgcolor="${C.soft}" style="padding:16px 32px;background:${C.soft};border-top:1px solid ${C.line}">
 <p style="${FONT};margin:0;font-size:11px;line-height:1.5;color:${C.faint}">${companyLine}</p>
 <p style="${FONT};margin:4px 0 0;font-size:11px;line-height:1.5;color:${C.faint}">You&rsquo;re receiving this weekly update as a Techtrus customer. To change who receives it, reply to this email.</p>
 </td></tr>
-</table></td></tr></table></body></html>`
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table></body></html>`
 
   const text = [
     `Weekly account update — ${ukDate(today, true)}`,
     '',
     `Hello ${d.account} team,`,
     s.note ?? '',
-    `Invoices outstanding: ${money(owed)} (${d.invoices.length})${overdue.length ? `, ${money(overdueTotal)} overdue` : ''}`,
+    `Invoices outstanding: ${money(owed)} (${d.invoices.length} invoices${overdue.length ? `, ${overdue.length} overdue: ${money(overdueTotal)}` : ''})`,
     ...d.invoices.map((i) => `  ${i.invoice_number}  PO ${i.po_number ?? 'to follow'}  due ${ukDate(i.due_date)}  ${money(i.outstanding)}`),
     `Quotes awaiting your decision: ${d.quotes.length}`,
     ...d.quotes.map((q) => `  ${q.quote_number}  ${q.opportunity_name ?? ''}  valid until ${ukDate(q.valid_until)}  ${money(q.value)} ex VAT`),
