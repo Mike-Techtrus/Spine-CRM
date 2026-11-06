@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { showToast } from '../../components/Toast'
+import { ProjectExpensesCard } from '../../components/ProjectExpenses'
 import {
   addProjectAssignment,
   createInvoiceFromTimesheets,
@@ -162,6 +163,13 @@ export default function ProjectDetail() {
   }
 
   const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people])
+  // Approved timesheet days per project line, for the expenses comparison (0060).
+  const approvedDaysByLine = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const a of assignments) m.set(a.project_line_id, (m.get(a.project_line_id) ?? 0) + (usage.get(a.id)?.approved ?? 0))
+    return m
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignments, usage])
   const usageOf = (assignmentId: string) => usage.get(assignmentId) ?? NO_USAGE
 
   const totals = useMemo(() => {
@@ -295,6 +303,18 @@ export default function ProjectDetail() {
       </div>
 
       {lines.length > 0 && <MarginCard planned={margin.planned} delivered={margin.delivered} unallocated={totals.quoted - totals.allocated} />}
+
+      <ProjectExpensesCard
+        projectId={project.id}
+        projectStatus={project.status}
+        salesOrderIds={orders.map((o) => o.id)}
+        lines={lines}
+        approvedDaysByLine={approvedDaysByLine}
+        people={[...new Set(assignments.map((a) => a.field_engineer_id))].map((id) => ({
+          id,
+          name: personById.get(id)?.name ?? 'Unknown',
+        }))}
+      />
 
       {lines.length > 0 && <InvoicingCard projectId={project.id} orders={orders} billing={billing} onError={setError} />}
 

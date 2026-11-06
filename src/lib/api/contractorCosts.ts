@@ -13,7 +13,8 @@ export interface ContractorStatement {
   field_engineer_id: string
   period_month: string // first of the month
   days: number
-  amount: number
+  amount: number // days + expenses
+  expenses?: number // approved expenses they paid, included in amount (0060)
   status: StatementStatus
   paid_on: string | null
   payment_reference: string | null

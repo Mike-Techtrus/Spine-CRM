@@ -202,6 +202,10 @@ export function ContractorCostsGuide() {
         <li>An unpaid statement can be deleted — its days go back to &quot;not yet recorded&quot;.</li>
         <li>A day with no cost rate stops the statement; set the cost rate on the project&apos;s assignment first.</li>
         <li>Staff time isn&apos;t shown — it&apos;s paid through payroll.</li>
+        <li>
+          Approved project expenses a contractor paid themselves are added to the statement for the month of the expense
+          and paid back at the receipt amount.
+        </li>
       </GuideTips>
     </HowToGuide>
   )
@@ -237,6 +241,12 @@ export function ProjectsGuide() {
         </GuideStep>
       </GuideSteps>
       <GuideTips>
+        <li>
+          The <em>Expenses</em> panel compares what was quoted for expenses (the price builder&apos;s cost, and what was
+          charged in the day rates or on Expenses lines) with what&apos;s been spent, and what you&apos;d expect by now from
+          the days approved. Contractors log their own from My timesheets; the owner approves them here or on Team
+          timesheets. Use <strong>Add expense</strong> for things Techtrus paid directly.
+        </li>
         <li>
           The Margin card compares sell rate with cost rate — planned (all quoted days: named people at their own cost
           rate, the rest at the role&apos;s standard contractor cost) and delivered (approved days).

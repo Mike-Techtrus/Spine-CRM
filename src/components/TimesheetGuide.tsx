@@ -117,6 +117,26 @@ export default function TimesheetGuide({ isStaff }: { isStaff: boolean }) {
             </ul>
           </div>
 
+          <div>
+            <p className="mb-1 font-medium text-text">Expenses</p>
+            <ul className="list-disc space-y-1 pl-5 text-text-muted">
+              <li>
+                Under <strong>My expenses</strong>, press <strong>Add expense</strong> for hotels, mileage, parking and so on —
+                choose the project, enter the amount you paid (and the VAT part if the receipt shows it) and add a photo of
+                the receipt.
+              </li>
+              {isStaff ? (
+                <li>Your own expenses are approved straight away.</li>
+              ) : (
+                <li>
+                  The project owner approves them. Approved expenses are paid back on your monthly contractor statement.
+                  You can change or delete one until it&apos;s approved; a rejected one shows why — fix it and it goes back
+                  for approval.
+                </li>
+              )}
+            </ul>
+          </div>
+
           <p className="text-xs text-text-faint">
             Can&apos;t see a project you&apos;re working on? Ask the project owner to assign you to it — it&apos;ll then
             appear as a row on the grid.

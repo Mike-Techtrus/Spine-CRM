@@ -7,6 +7,7 @@ import { Button, Card, StatusBadge } from '../../components/ui'
 import WeeklyTimesheet from '../../components/WeeklyTimesheet'
 import TimesheetTabs, { type LayoutContext } from '../../components/TimesheetTabs'
 import TimesheetGuide from '../../components/TimesheetGuide'
+import { MyExpensesCard } from '../../components/ProjectExpenses'
 import { addDays, mondayOf } from '../../lib/availability'
 
 function todayIso() {
@@ -154,6 +155,8 @@ export default function MyTimesheets() {
             loadList(engineerId)
             refreshActionCounts() // a resubmitted rejected day clears the badge
           }} />}
+
+      {engineerId && <MyExpensesCard fieldEngineerId={engineerId} onChanged={refreshActionCounts} />}
 
       <h2 className="mb-3 text-sm font-semibold text-text">All my entries</h2>
 

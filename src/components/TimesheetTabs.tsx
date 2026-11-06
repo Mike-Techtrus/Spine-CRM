@@ -19,15 +19,15 @@ export function timesheetSections(profile: Profile | null, hasOwnProfile: boolea
     sections.push({
       label: 'My timesheets',
       path: MY_TIMESHEETS_PATH,
-      badge: (counts.my_rejected_timesheets ?? 0) + (counts.my_unsubmitted ?? 0),
-      badgeTitle: 'Rejected, or from past weeks and not submitted yet',
+      badge: (counts.my_rejected_timesheets ?? 0) + (counts.my_unsubmitted ?? 0) + (counts.my_rejected_expenses ?? 0),
+      badgeTitle: 'Rejected timesheets or expenses, or days from past weeks not submitted yet',
     })
   if (canAccess(profile, 'timesheets'))
     sections.push({
       label: 'Team timesheets',
       path: TEAM_TIMESHEETS_PATH,
-      badge: counts.timesheets_to_approve,
-      badgeTitle: 'Waiting for your approval',
+      badge: (counts.timesheets_to_approve ?? 0) + (counts.expenses_to_approve ?? 0),
+      badgeTitle: 'Timesheets and expenses waiting for your approval',
     })
   return sections
 }

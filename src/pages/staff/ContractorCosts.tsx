@@ -5,13 +5,16 @@ import {
   deleteContractorStatement,
   getCompanySettings,
   listApprovedDaysBetween,
+  listApprovedPersonExpensesBetween,
   listContractorStatements,
   listFieldEngineers,
   listStatementDays,
+  listStatementExpenses,
   markStatementPaid,
   markStatementUnpaid,
   type ContractorStatement,
   type CostDay,
+  type ProjectExpense,
 } from '../../lib/api'
 import { DAY_TYPE_DAYS, DAY_TYPE_LABELS, PERSON_KINDS, type CompanySettings, type FieldEngineer } from '../../lib/types'
 import { round2 } from '../../lib/money'
@@ -76,7 +79,9 @@ interface PersonRow {
   person: FieldEngineer
   open: CostDay[] // approved, not on a statement yet
   openDays: number
-  openAmount: number
+  openAmount: number // days + expenses
+  openExpenses: ProjectExpense[] // approved expenses they paid, not on a statement yet (0060)
+  openExpensesAmount: number
   uncostedDays: number
   statements: ContractorStatement[]
 }
@@ -85,19 +90,27 @@ export default function ContractorCosts() {
   const [month, setMonth] = useState(lastMonth())
   const [people, setPeople] = useState<FieldEngineer[]>([])
   const [dayList, setDayList] = useState<CostDay[] | null>(null)
+  const [expenseList, setExpenseList] = useState<ProjectExpense[]>([])
   const [statements, setStatements] = useState<ContractorStatement[]>([])
   const [company, setCompany] = useState<CompanySettings | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [printing, setPrinting] = useState<{ statement: ContractorStatement; person: FieldEngineer; days: CostDay[] } | null>(null)
+  const [printing, setPrinting] = useState<{
+    statement: ContractorStatement
+    person: FieldEngineer
+    days: CostDay[]
+    expenses: ProjectExpense[]
+  } | null>(null)
 
   async function refresh() {
-    const [everyone, list, st] = await Promise.all([
+    const [everyone, list, st, exp] = await Promise.all([
       listFieldEngineers('contractor'),
       listApprovedDaysBetween(monthStart(month), monthEnd(month)),
       listContractorStatements(monthStart(month)),
+      listApprovedPersonExpensesBetween(monthStart(month), monthEnd(month)).catch(() => [] as ProjectExpense[]),
     ])
     setPeople(everyone)
+    setExpenseList(exp)
     setDayList(list)
     setStatements(st)
   }
@@ -132,7 +145,16 @@ export default function ContractorCosts() {
     const row = (person: FieldEngineer) =>
       map.get(person.id) ??
       map
-        .set(person.id, { person, open: [], openDays: 0, openAmount: 0, uncostedDays: 0, statements: [] })
+        .set(person.id, {
+          person,
+          open: [],
+          openDays: 0,
+          openAmount: 0,
+          openExpenses: [],
+          openExpensesAmount: 0,
+          uncostedDays: 0,
+          statements: [],
+        })
         .get(person.id)!
     for (const d of dayList) {
       const person = personById.get(d.field_engineer_id)
@@ -146,12 +168,20 @@ export default function ContractorCosts() {
       if (rate === null) r.uncostedDays += n
       else r.openAmount = round2(r.openAmount + n * rate)
     }
+    for (const e of expenseList) {
+      const person = e.field_engineer_id ? personById.get(e.field_engineer_id) : undefined
+      if (!person || e.contractor_statement_id) continue
+      const r = row(person)
+      r.openExpenses.push(e)
+      r.openExpensesAmount = round2(r.openExpensesAmount + Number(e.amount))
+      r.openAmount = round2(r.openAmount + Number(e.amount))
+    }
     for (const s of statements) {
       const person = personById.get(s.field_engineer_id)
       if (person) row(person).statements.push(s)
     }
     return [...map.values()].sort((a, b) => a.person.name.localeCompare(b.person.name))
-  }, [dayList, statements, personById])
+  }, [dayList, expenseList, statements, personById])
 
   const totals = useMemo(() => {
     const open = rows.reduce((s, r) => s + r.openAmount, 0)
@@ -175,8 +205,13 @@ export default function ContractorCosts() {
   }
 
   function record(r: PersonRow) {
-    if (!window.confirm(`Record ${days(r.openDays)} day(s) for ${r.person.name} in ${monthLabel(month)} — ${money(r.openAmount)}? Those days will be locked.`))
-      return
+    const what = [
+      r.openDays > 0 ? `${days(r.openDays)} day(s)` : '',
+      r.openExpenses.length > 0 ? `${r.openExpenses.length} expense(s)` : '',
+    ]
+      .filter(Boolean)
+      .join(' and ')
+    if (!window.confirm(`Record ${what} for ${r.person.name} in ${monthLabel(month)} — ${money(r.openAmount)}? They will be locked.`)) return
     run(r.person.id, () => createContractorStatement(r.person.id, monthStart(month)), 'Failed to record the statement.')
   }
 
@@ -201,7 +236,8 @@ export default function ContractorCosts() {
     if (!person) return
     setError(null)
     try {
-      setPrinting({ statement: s, person, days: await listStatementDays(s.id) })
+      const [statementDays, statementExpenses] = await Promise.all([listStatementDays(s.id), listStatementExpenses(s.id)])
+      setPrinting({ statement: s, person, days: statementDays, expenses: statementExpenses })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load the statement.')
     }
@@ -223,8 +259,8 @@ export default function ContractorCosts() {
           </div>
           <p className="max-w-xl text-xs text-text-faint">
             Approved contractor days, each at its cost rate (the project allocation&apos;s rate, or the person&apos;s Day
-            rate for non-project time). <strong>Record statement</strong> fixes the amount and locks those days; days
-            approved later can go on another statement. Staff time isn&apos;t shown — it&apos;s paid through payroll.
+            rate for non-project time), plus approved project expenses they paid themselves. <strong>Record statement</strong>{' '}
+            fixes the amount and locks them; anything approved later can go on another statement. Staff time isn&apos;t shown — it&apos;s paid through payroll.
           </p>
         </div>
 
@@ -241,7 +277,7 @@ export default function ContractorCosts() {
 
         {dayList && rows.length === 0 && (
           <Card>
-            <p className="text-sm text-text-muted">No approved contractor days in {monthLabel(month)}.</p>
+            <p className="text-sm text-text-muted">No approved contractor days or expenses in {monthLabel(month)}.</p>
           </Card>
         )}
 
@@ -260,10 +296,13 @@ export default function ContractorCosts() {
                     Day rate {r.person.day_rate != null ? money(Number(r.person.day_rate)) : 'not set'}
                   </p>
                 </div>
-                {r.openDays > 0 && (
+                {(r.openDays > 0 || r.openExpenses.length > 0) && (
                   <div className="text-right">
                     <p className="text-sm text-text">
-                      {days(r.openDays)} day{r.openDays === 1 ? '' : 's'} not yet recorded · {money(r.openAmount)}
+                      {r.openDays > 0 && `${days(r.openDays)} day${r.openDays === 1 ? '' : 's'}`}
+                      {r.openDays > 0 && r.openExpenses.length > 0 && ' + '}
+                      {r.openExpenses.length > 0 && `${money(r.openExpensesAmount)} expenses`} not yet recorded ·{' '}
+                      {money(r.openAmount)}
                     </p>
                     {r.uncostedDays > 0 ? (
                       <p className="text-xs text-warning">
@@ -277,6 +316,20 @@ export default function ContractorCosts() {
                   </div>
                 )}
               </div>
+
+              {r.openExpenses.length > 0 && (
+                <details className="mt-3 text-sm">
+                  <summary className="cursor-pointer text-xs text-text-muted">Show the expenses not yet recorded</summary>
+                  <ul className="mt-2 space-y-0.5 text-xs text-text-muted">
+                    {r.openExpenses.map((e) => (
+                      <li key={e.id}>
+                        {e.expense_date} · {e.reference} · {e.project?.reference} · {e.category}
+                        {e.description ? ` (${e.description})` : ''} · {money(Number(e.amount))}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
 
               {r.open.length > 0 && (
                 <details className="mt-3 text-sm">
@@ -312,7 +365,12 @@ export default function ContractorCosts() {
                         <tr key={s.id} className="border-t border-border">
                           <td className="px-3 py-2 font-mono-label text-text">{s.reference}</td>
                           <td className="px-3 py-2 text-right text-text-muted">{days(Number(s.days))}</td>
-                          <td className="px-3 py-2 text-right text-text">{money(Number(s.amount))}</td>
+                          <td className="px-3 py-2 text-right text-text">
+                            {money(Number(s.amount))}
+                            {Number(s.expenses ?? 0) > 0 && (
+                              <span className="block text-[11px] text-text-faint">incl. {money(Number(s.expenses))} expenses</span>
+                            )}
+                          </td>
                           <td className="px-3 py-2">
                             <StatusBadge status={s.status === 'paid' ? 'approved' : 'submitted'} label={s.status === 'paid' ? 'Paid' : 'To pay'} />
                             {s.paid_on && (
@@ -367,13 +425,16 @@ function StatementPrint({
   statement,
   person,
   days: list,
+  expenses,
   company,
 }: {
   statement: ContractorStatement
   person: FieldEngineer
   days: CostDay[]
+  expenses: ProjectExpense[]
   company: CompanySettings | null
 }) {
+  const expensesTotal = Number(statement.expenses ?? 0)
   const ym = statement.period_month.slice(0, 7)
   const address = [person.address_line_1, person.address_line_2, person.city, person.postcode].filter(Boolean)
   return (
@@ -429,11 +490,52 @@ function StatementPrint({
         </tbody>
       </table>
 
+      {expenses.length > 0 && (
+        <>
+          <p className="mb-1 font-semibold">Expenses</p>
+          <table className="mb-6 w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-black">
+                <th className="py-1.5 pr-2">Date</th>
+                <th className="py-1.5 pr-2">Project</th>
+                <th className="py-1.5 pr-2">Expense</th>
+                <th className="py-1.5 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.map((e) => (
+                <tr key={e.id} className="border-b border-black/20">
+                  <td className="py-1.5 pr-2">{new Date(`${e.expense_date}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC' })}</td>
+                  <td className="py-1.5 pr-2">{e.project?.reference ?? ''}</td>
+                  <td className="py-1.5 pr-2">
+                    {e.reference} · {e.category}
+                    {e.description ? ` — ${e.description}` : ''}
+                  </td>
+                  <td className="py-1.5 text-right">{money(Number(e.amount))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
       <div className="ml-auto w-64">
         <div className="flex justify-between py-1">
           <span>Days</span>
           <span>{days(Number(statement.days))}</span>
         </div>
+        {expensesTotal > 0 && (
+          <>
+            <div className="flex justify-between py-1">
+              <span>Days amount</span>
+              <span>{money(round2(Number(statement.amount) - expensesTotal))}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span>Expenses</span>
+              <span>{money(expensesTotal)}</span>
+            </div>
+          </>
+        )}
         <div className="flex justify-between border-t border-black py-1 font-semibold">
           <span>Total</span>
           <span>{money(Number(statement.amount))}</span>
@@ -446,8 +548,8 @@ function StatementPrint({
         )}
       </div>
       <p className="mt-6 text-xs">
-        Amounts are as agreed per day, excluding VAT. If you are VAT registered, please invoice us for this amount plus VAT,
-        quoting {statement.reference}.
+        Day amounts are as agreed per day, excluding VAT. If you are VAT registered, please invoice us for the days plus VAT,
+        quoting {statement.reference}.{expensesTotal > 0 && ' Expenses are paid back at the amount on your receipts.'}
       </p>
     </PrintDocument>
   )

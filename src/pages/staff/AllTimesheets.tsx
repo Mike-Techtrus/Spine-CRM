@@ -8,6 +8,7 @@ import TimesheetTabs from '../../components/TimesheetTabs'
 import { useSort } from '../../lib/useSort'
 import { useSearch } from '../../lib/useSearch'
 import { TeamTimesheetsGuide } from '../../components/guides'
+import { ExpensesToApproveCard } from '../../components/ProjectExpenses'
 
 function getSearchText(ts: TimesheetEntryWithRelations) {
   return [
@@ -84,6 +85,7 @@ export default function AllTimesheets() {
       <h1 className="mb-4 text-xl font-semibold text-text">Timesheets</h1>
       <TimesheetTabs />
       <TeamTimesheetsGuide />
+      <ExpensesToApproveCard />
 
       <SearchInput value={query} onChange={setQuery} placeholder="Search timesheets…" className="mb-4 max-w-sm" />
 
