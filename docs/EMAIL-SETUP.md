@@ -44,7 +44,7 @@ Not needed for Spine, but worth fixing. All of it is Cloudflare DNS except step 
 
 - [x] **1. Fix SPF** — the current record `v=spf1 include:spf.protection.outlook.com include:techtrus.co.uk -all` points at techtrus.co.uk, which has **no SPF record**, so SPF checks error and outgoing mail is more likely to land in spam.
       Change it to `v=spf1 include:spf.protection.outlook.com -all` — first check nothing else sends *as @techtrus.com* (website forms, accounts software, scanners…); if something does, add its `include:` too.
-- [ ] **2. Turn on DKIM** — CNAMEs being added by the IT provider (6 Nov 2026); then switch signing On in Microsoft 365 (Exchange admin): security.microsoft.com → Email & collaboration → Policies & rules → Threat policies → Email authentication settings → DKIM → techtrus.com. Add the two CNAMEs it shows (`selector1._domainkey`, `selector2._domainkey`) in Cloudflare as **DNS only**, wait ~15 min, then switch signing **On**.
+- [x] **2. Turn on DKIM** — CNAMEs added by the IT provider and signing switched on in Microsoft 365 (6 Nov 2026; it had last been checked in 2016) (Exchange admin): security.microsoft.com → Email & collaboration → Policies & rules → Threat policies → Email authentication settings → DKIM → techtrus.com. Add the two CNAMEs it shows (`selector1._domainkey`, `selector2._domainkey`) in Cloudflare as **DNS only**, wait ~15 min, then switch signing **On**.
 - [x] **3. Add DMARC** (monitor mode first): TXT `_dmarc` = `v=DMARC1; p=none; rua=mailto:dmarc@techtrus.com`. Create a `dmarc@techtrus.com` mailbox or shared mailbox for the reports. After 2–4 weeks of clean reports, change `p=none` → `p=quarantine`.
 - [x] **4. Tidy up**: delete the leftover MX record `ms34331684.msv1.invalid` (priority 0).
 
