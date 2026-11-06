@@ -380,6 +380,13 @@ export function CustomerAccountsGuide() {
           <strong>Payment terms</strong> set each invoice&apos;s due date. <strong>Rebate %</strong> is for customers with
           an agreed rebate (CDW 7.5%; everyone else 0). <strong>Rate card</strong> picks a custom price list for quotes.
         </GuideStep>
+        <GuideStep n={4} title="Weekly update email">
+          Under <strong>Edit</strong>, the <em>Weekly account update email</em> panel sends the customer a summary every
+          Monday at 8am: outstanding invoices, quotes awaiting their decision, opportunities in progress, work waiting
+          for a PO and project progress. Add who it goes to and where replies go, use <strong>Preview</strong> and{' '}
+          <strong>Send me a test</strong> to check it, then tick it on and save. It never includes rebate, margins, costs
+          or internal notes.
+        </GuideStep>
       </GuideSteps>
     </HowToGuide>
   )

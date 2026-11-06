@@ -1,3 +1,4 @@
+import AccountUpdateEmailCard from '../../components/AccountUpdateEmailCard'
 import { useEffect, useState, type FormEvent } from 'react'
 import { showToast } from '../../components/Toast'
 import { createAccount, listAccounts, listRateCards, updateAccount } from '../../lib/api'
@@ -268,6 +269,8 @@ export default function Accounts() {
           <ErrorText>{error}</ErrorText>
         </Card>
       )}
+
+      {editing && <AccountUpdateEmailCard accountId={editing.id} accountName={editing.name} />}
 
       {showForm && (
         <Card className="mb-6">
