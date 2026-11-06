@@ -11,6 +11,7 @@ export interface Profile {
   full_name: string
   role: UserRole
   permissions: AppArea[] // staff only — which areas they can open
+  reminder_emails?: boolean // 0058: false = no reminder emails (My Profile)
   created_at: string
 }
 

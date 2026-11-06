@@ -9,6 +9,7 @@ import {
   listMySkillRequests,
   listSkillCategories,
   listSkills,
+  setMyReminderEmails,
   updateMyProfile,
   withdrawSkillRequest,
 } from '../../lib/api'
@@ -120,6 +121,7 @@ export default function MyProfile() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
           <MyDetailsCard engineer={engineer} onSaved={setEngineer} onError={setError} />
+          <ReminderEmailsCard onError={setError} />
           <PhotoCard engineer={engineer} self onChanged={setEngineer} onError={setError} />
           <CvCard engineer={engineer} self onChanged={setEngineer} onError={setError} />
           <IdentityDocumentsCard engineer={engineer} self onError={setError} />
@@ -144,6 +146,44 @@ export default function MyProfile() {
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Reminder emails on/off (0058) ────────────────────────────────────────────
+
+function ReminderEmailsCard({ onError }: { onError: (m: string | null) => void }) {
+  const { profile, refreshProfile } = useAuth()
+  const [busy, setBusy] = useState(false)
+  const on = profile?.reminder_emails !== false
+
+  async function toggle() {
+    setBusy(true)
+    onError(null)
+    try {
+      await setMyReminderEmails(!on)
+      await refreshProfile()
+      showToast(on ? 'Reminder emails turned off' : 'Reminder emails turned on')
+    } catch (err) {
+      onError(errorMessage(err, 'Failed to change reminder emails.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-2 text-sm font-semibold text-text">Reminder emails</h2>
+      <label className="flex items-start gap-3 text-sm text-text">
+        <input type="checkbox" className="mt-1" checked={on} disabled={busy || !profile} onChange={toggle} />
+        <span>
+          Email me reminders
+          <span className="block text-xs text-text-muted">
+            Fridays at 3pm if this week&apos;s timesheet isn&apos;t submitted, and Mondays at 9am if timesheets are
+            waiting for your approval. You&apos;ll always be emailed if a timesheet is rejected.
+          </span>
+        </span>
+      </label>
+    </Card>
   )
 }
 

@@ -180,3 +180,9 @@ export async function declineSkillRequest(requestId: string, response: string): 
 export async function listAllPersonDocuments(): Promise<PersonDocument[]> {
   return unwrap(await supabase.from('person_documents').select('*').not('expires_on', 'is', null))
 }
+
+// Reminder emails on/off for the signed-in person (migration 0058).
+export async function setMyReminderEmails(on: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_my_reminder_emails', { p_on: on })
+  if (error) throw new Error(error.message)
+}
